@@ -315,6 +315,35 @@ def test_visualization_address_missing_fires_per_entry(tmp_path):
     assert all("workspace.yaml.visualizations" in f.message for f in missing)
 
 
+def test_visualization_path_without_address_nudges_to_canonical(tmp_path):
+    """A figure declared via the bare `path:` field (no `address:`) works in the
+    workbench (tolerant discovery) but isn't canonical. The linter nudges toward
+    `address: <scheme>:<file>` as a WARNING — not the hard address-missing error —
+    and suggests the right scheme per file type. A real `local:` renderer entry
+    must NOT be nudged, and the file-pointer entries must NOT fire the error."""
+    ws = _copy_fixture("viz-path-not-canonical", tmp_path / "ws")
+    findings = lint_workspace_report(ws)
+    by_check = _findings_by_check(findings)
+
+    nudges = by_check.get("visualization_path_not_canonical", [])
+    assert len(nudges) == 2, [f.message for f in nudges]
+    assert all(f.level == "warning" for f in nudges)
+    names = {f.message.split("'")[1] for f in nudges}
+    assert names == {"pop-timeseries", "colony-snapshot"}
+    joined = " ".join(f.message for f in nudges)
+    assert "address: html:viz/pop.html" in joined     # html scheme for .html
+    assert "address: image:viz/colony.png" in joined  # image scheme for images
+    assert all(f.field_path.startswith("visualizations[") for f in nudges)
+
+    # The file-pointer entries must NOT also fire the hard address-missing error…
+    missing = by_check.get("visualization_address_missing", [])
+    missing_names = {f.message.split("'")[1] for f in missing}
+    assert "pop-timeseries" not in missing_names
+    assert "colony-snapshot" not in missing_names
+    # …and the real live renderer must not be nudged.
+    assert "live-renderer" not in names
+
+
 # ---------------------------------------------------------------------------
 # readout migration status — surface migratable + needs_human (SP2b-ii)
 # ---------------------------------------------------------------------------

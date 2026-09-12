@@ -1539,6 +1539,31 @@ def _viz_classes_in_workspace(ws_root: Path) -> set[str]:
     return out
 
 
+# Figure-file suffixes a bare file-pointer field may name. The workbench's
+# tolerant discovery renders + downloads such a figure, but the canonical
+# declaration is ``address: <scheme>:<file>``. HTML → ``html:``; images →
+# ``image:``.
+_FIGURE_FILE_SUFFIXES = {".svg", ".png", ".gif", ".jpg", ".jpeg", ".html", ".htm"}
+
+
+def _figure_file_pointer(v: dict) -> tuple[str, str] | None:
+    """If ``v`` declares a figure FILE via a bare file-pointer field
+    (``path``/``file``/``chart``/``src``) — rather than an ``address:`` scheme —
+    return ``(ref, canonical_scheme)`` for the canonical-form nudge; else None.
+    ``canonical_scheme`` is ``html`` for self-contained HTML, ``image`` for a
+    static image."""
+    for fld in ("path", "file", "chart", "src"):
+        cand = str(v.get(fld) or "").strip()
+        if not cand:
+            continue
+        suffix = Path(cand).suffix.lower()
+        if suffix not in _FIGURE_FILE_SUFFIXES:
+            continue
+        scheme = "html" if suffix in {".html", ".htm"} else "image"
+        return cand, scheme
+    return None
+
+
 def _check_visualization_addresses(ctx: _LintContext) -> None:
     """Each ``study.visualizations[].address`` of the form ``local:<Name>``
     must resolve to a class declared somewhere under a workspace
@@ -1566,6 +1591,27 @@ def _check_visualization_addresses(ctx: _LintContext) -> None:
         # cross-reference as the natural fix.
         if not isinstance(addr, str) or not addr:
             viz_name = v.get("name", f"<index-{idx}>")
+            # A figure declared via a bare file-pointer field (path/file/chart/src)
+            # renders + downloads via the workbench's tolerant discovery, but the
+            # canonical form is `address: <scheme>:<file>`. Nudge (warning), don't
+            # block, and name the right scheme for this file type.
+            ptr = _figure_file_pointer(v)
+            if ptr is not None:
+                ref, scheme = ptr
+                ctx.add(
+                    level="warning",
+                    field_path=f"visualizations[{idx}].address",
+                    message=(
+                        f"Visualization {viz_name!r} declares its figure file via a "
+                        f"bare file-pointer field instead of the canonical "
+                        f"`address:` form. The workbench renders and downloads it, "
+                        f"but use `address: {scheme}:{ref}` so figure discovery is "
+                        f"unambiguous (this is what drives the investigation "
+                        f"figure count and the `↓ figures` download zip)."
+                    ),
+                    check="visualization_path_not_canonical",
+                )
+                continue
             ctx.add(
                 level="error",
                 field_path=f"visualizations[{idx}].address",
