@@ -8,11 +8,16 @@ from pathlib import Path
 import pytest
 
 from viva_superpowers.investigation_import import (
+    _pkg_stem,
+    _preferred_spelling,
     assert_selection_ok,
     check,
+    detect_missing_deps,
+    investigation_members,
     load_selection,
     pinned_rev,
     present_slugs,
+    sync,
 )
 
 
@@ -130,3 +135,267 @@ def test_pinned_rev_from_uv_lock(tmp_path: Path) -> None:
     )
     assert pinned_rev(ws, "v2ecoli") == sha
     assert pinned_rev(ws, "nonesuch") is None
+
+
+# ---------------------------------------------------------------------------
+# Dependency propagation: member studies + package deps (sync from a real rev)
+# ---------------------------------------------------------------------------
+
+import subprocess
+
+
+def _git(repo: Path, *args: str) -> str:
+    r = subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+        cwd=repo, capture_output=True, text=True, check=True,
+    )
+    return r.stdout
+
+
+_FLAT_STUDY_YAML = textwrap.dedent(
+    """
+    schema_version: 4
+    name: ketchup-exchange-comparison
+    investigation: ketchup-baseline-comparison
+    conditions:
+      baseline:
+        composite: pbg_ketchup.composites.estimation.ketchup_baseline
+      variants:
+      - name: v2e
+        composite: v2ecoli.composites.ecoli_baseline.ecoli_baseline
+    runs:
+    - composite: pbg_ketchup.composites.dynamic.ketchup_dynamic
+      name: dyn
+    """
+)
+
+_NESTED_STUDY_YAML = textwrap.dedent(
+    """
+    schema_version: 4
+    name: nested-study
+    investigation: nested-inv
+    conditions:
+      baseline:
+        composite: pbg_ketchup.composites.estimation.ketchup_baseline
+    """
+)
+
+_UPSTREAM_WS_YAML = textwrap.dedent(
+    """
+    schema_version: 2
+    name: v2ecoli
+    package_path: v2ecoli
+    layout:
+      studies: workspace/studies
+      investigations: workspace/investigations
+    imports:
+      pbg_ketchup:
+        source: https://github.com/vivarium-collective/pbg-ketchup
+        ref: main
+        mode: reference
+        description: |
+          KETCHUP/IPOPT kinetic-parameter estimators used by the
+          ketchup-baseline-comparison investigation.
+    dashboard:
+      registry:
+        include: [v2ecoli, pbg_ketchup]
+    """
+)
+
+
+def _make_upstream_repo(tmp_path: Path) -> tuple[Path, str]:
+    """A git repo mirroring v2ecoli: nested investigations, one FLAT + one NESTED study."""
+    repo = tmp_path / "upstream"
+    repo.mkdir()
+    (repo / "workspace.yaml").write_text(_UPSTREAM_WS_YAML)
+
+    inv = repo / "workspace" / "investigations" / "ketchup-baseline-comparison"
+    inv.mkdir(parents=True)
+    (inv / "investigation.yaml").write_text(
+        "name: ketchup-baseline-comparison\nmembers:\n- ketchup-exchange-comparison\n"
+    )
+    # flat member study
+    flat = repo / "workspace" / "studies" / "ketchup-exchange-comparison"
+    flat.mkdir(parents=True)
+    (flat / "study.yaml").write_text(_FLAT_STUDY_YAML)
+
+    # a second investigation whose member study is NESTED under the investigation
+    ninv = repo / "workspace" / "investigations" / "nested-inv"
+    (ninv / "studies" / "nested-study").mkdir(parents=True)
+    (ninv / "investigation.yaml").write_text("name: nested-inv\nmembers:\n- nested-study\n")
+    (ninv / "studies" / "nested-study" / "study.yaml").write_text(_NESTED_STUDY_YAML)
+
+    _git(repo, "init", "-q")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed")
+    sha = _git(repo, "rev-parse", "HEAD").strip()
+    return repo, sha
+
+
+def _downstream_ws(tmp_path: Path, sha: str, allow: list[str], extra: str = "") -> Path:
+    ws = tmp_path / "downstream"
+    ws.mkdir()
+    (ws / "workspace.yaml").write_text(
+        textwrap.dedent(
+            f"""
+            schema_version: 2
+            name: sms-ecoli
+            package_path: pbg_v2ecoli
+            imported_investigations:
+              from: v2ecoli
+              git: https://github.com/vivarium-collective/v2ecoli.git
+              subtree: workspace/investigations
+              allow:
+            """
+        )
+        + "".join(f"    - {s}\n" for s in allow)
+        + extra
+    )
+    (ws / "uv.lock").write_text(
+        'source = { git = "https://github.com/vivarium-collective/v2ecoli.git?rev=main#'
+        + sha
+        + '" }\n'
+    )
+    return ws
+
+
+def test_investigation_members_shape() -> None:
+    # unit: members drawn from members/acceptance_criteria/at_a_glance, deduped.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "investigation.yaml"
+        p.write_text(
+            textwrap.dedent(
+                """
+                name: inv
+                members: [a, b]
+                acceptance_criteria:
+                - study: b
+                - study: c
+                at_a_glance:
+                  studies:
+                  - a: does a thing
+                  - d: does d thing
+                """
+            )
+        )
+        assert investigation_members(p) == ["a", "b", "c", "d"]
+
+
+def test_alias_aware_package_mapping() -> None:
+    assert _pkg_stem("pbg_ketchup") == "ketchup"
+    assert _pkg_stem("viva_ketchup") == "ketchup"
+    assert _pkg_stem("viva-ketchup") == "ketchup"
+    assert _pkg_stem("v2ecoli") == "v2ecoli"
+    assert _preferred_spelling("pbg_ketchup") == "viva_ketchup"
+    assert _preferred_spelling("viva_ketchup") == "viva_ketchup"
+    assert _preferred_spelling("v2ecoli") == "v2ecoli"
+
+
+def test_sync_brings_flat_member_study(tmp_path: Path) -> None:
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["ketchup-baseline-comparison"])
+    res = sync(ws, upstream_src=repo, rev=sha)
+    assert res.added == ["ketchup-baseline-comparison"]
+    # flat member study landed under the downstream (flat) studies dir
+    assert (ws / "studies" / "ketchup-exchange-comparison" / "study.yaml").is_file()
+    assert res.studies_added == {
+        "ketchup-baseline-comparison": ["ketchup-exchange-comparison"]
+    }
+
+
+def test_sync_brings_nested_member_study(tmp_path: Path) -> None:
+    # Partial-sync starting state: the investigation.yaml is already local (as after
+    # an old sync that copied only investigation.yaml) but its NESTED member study is
+    # absent. sync must reconcile it from the pinned rev via the member-study step.
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["nested-inv"])
+    inv = ws / "investigations" / "nested-inv"
+    inv.mkdir(parents=True)
+    (inv / "investigation.yaml").write_text("name: nested-inv\nmembers:\n- nested-study\n")
+    assert not (inv / "studies" / "nested-study").exists()
+
+    res = sync(ws, upstream_src=repo, rev=sha)
+    # nested upstream study lands nested under the local investigation
+    assert (inv / "studies" / "nested-study" / "study.yaml").is_file()
+    assert res.studies_added == {"nested-inv": ["nested-study"]}
+
+
+def test_sync_is_additive_for_existing_study(tmp_path: Path) -> None:
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["ketchup-baseline-comparison"])
+    # pre-place a DIVERGENT local copy of the member study
+    local = ws / "studies" / "ketchup-exchange-comparison"
+    local.mkdir(parents=True)
+    (local / "study.yaml").write_text("name: ketchup-exchange-comparison\nlocal_edit: true\n")
+    res = sync(ws, upstream_src=repo, rev=sha)
+    assert "ketchup-baseline-comparison" not in res.studies_added
+    # local divergent copy left untouched
+    assert "local_edit: true" in (local / "study.yaml").read_text()
+
+
+def test_dep_detection_maps_to_viva_ketchup_and_excludes_source(tmp_path: Path) -> None:
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["ketchup-baseline-comparison"])
+    sync(ws, upstream_src=repo, rev=sha)
+    findings = detect_missing_deps(ws, ["ketchup-baseline-comparison"])
+    pkgs = {f.package for f in findings}
+    assert pkgs == {"viva_ketchup"}  # v2ecoli (source) excluded; pbg->viva normalized
+    dep = findings[0]
+    assert dep.satisfied is False
+    assert dep.referenced_by == ["ketchup-exchange-comparison"]
+
+
+def test_dep_detection_alias_satisfied_by_viva_declaration(tmp_path: Path) -> None:
+    repo, sha = _make_upstream_repo(tmp_path)
+    # downstream already declares the viva_ spelling -> pbg_ addresses are satisfied
+    ws = _downstream_ws(
+        tmp_path, sha, ["ketchup-baseline-comparison"],
+        extra="imports:\n  viva_ketchup:\n    source: x\n",
+    )
+    sync(ws, upstream_src=repo, rev=sha)
+    findings = detect_missing_deps(ws, ["ketchup-baseline-comparison"])
+    assert all(f.satisfied for f in findings)
+
+
+def test_sync_add_deps_mirrors_source_import_block(tmp_path: Path) -> None:
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["ketchup-baseline-comparison"])
+    res = sync(ws, upstream_src=repo, rev=sha, add_deps=True)
+    assert res.deps_added == ["pbg_ketchup"]  # mirrors the source's canonical key
+    data = load_selection(ws)  # side effect: ensure workspace.yaml still parses
+    assert data.allow == ["ketchup-baseline-comparison"]
+    import yaml as _yaml
+    doc = _yaml.safe_load((ws / "workspace.yaml").read_text())
+    assert "pbg_ketchup" in doc["imports"]
+    assert doc["imports"]["pbg_ketchup"]["source"].endswith("pbg-ketchup")
+    assert "pbg_ketchup" in doc["dashboard"]["registry"]["include"]
+    # now that it's declared, detection reports it satisfied
+    assert all(f.satisfied for f in detect_missing_deps(ws, ["ketchup-baseline-comparison"]))
+
+
+def test_check_fails_when_member_study_missing(tmp_path: Path) -> None:
+    # partial-sync state: investigation.yaml present, member study dropped.
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "workspace.yaml").write_text(
+        textwrap.dedent(
+            """
+            name: t
+            imported_investigations: [ketchup-baseline-comparison]
+            native_investigations: []
+            """
+        )
+    )
+    inv = ws / "investigations" / "ketchup-baseline-comparison"
+    inv.mkdir(parents=True)
+    (inv / "investigation.yaml").write_text(
+        "name: ketchup-baseline-comparison\nmembers:\n- ketchup-exchange-comparison\n"
+    )
+    problems = check(ws)
+    assert any(
+        p.severity == "error" and "ketchup-exchange-comparison" in p.message
+        for p in problems
+    )
+    with pytest.raises(AssertionError, match="ketchup-exchange-comparison"):
+        assert_selection_ok(ws)
