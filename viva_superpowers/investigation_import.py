@@ -272,12 +272,24 @@ def investigation_members(inv_yaml: Path) -> list[str]:
         if isinstance(ac, dict) and ac.get("study"):
             out.append(str(ac["study"]))
 
-    ag = ((data.get("at_a_glance") or {}).get("studies")) or []
+    # at_a_glance is EITHER a mapping with a `studies:` list, OR a bare list of
+    # per-study rows (each `{study: <slug>, role: ...}` — the cd2 shape). Handle
+    # both, and for a `{study: ...}` row take the value, not the keys.
+    ag_raw = data.get("at_a_glance")
+    if isinstance(ag_raw, dict):
+        ag = ag_raw.get("studies") or []
+    elif isinstance(ag_raw, list):
+        ag = ag_raw
+    else:
+        ag = []
     for item in ag:
         if isinstance(item, str):
             out.append(item)
         elif isinstance(item, dict):
-            out.extend(str(k) for k in item.keys())
+            if item.get("study"):
+                out.append(str(item["study"]))
+            else:  # single-key `{slug: ...}` shape
+                out.extend(str(k) for k in item.keys())
 
     return list(dict.fromkeys(str(s) for s in out))
 

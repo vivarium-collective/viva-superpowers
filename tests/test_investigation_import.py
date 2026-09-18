@@ -282,6 +282,27 @@ def test_investigation_members_shape() -> None:
         assert investigation_members(p) == ["a", "b", "c", "d"]
 
 
+def test_investigation_members_at_a_glance_as_list() -> None:
+    # regression: at_a_glance can be a bare LIST of `{study, role}` rows (the cd2
+    # shape), not a `{studies: [...]}` mapping. Take the study value, not the keys.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "investigation.yaml"
+        p.write_text(
+            textwrap.dedent(
+                """
+                name: inv
+                at_a_glance:
+                - study: alpha
+                  role: does the alpha thing
+                - study: beta
+                  role: does the beta thing
+                """
+            )
+        )
+        assert investigation_members(p) == ["alpha", "beta"]
+
+
 def test_alias_aware_package_mapping() -> None:
     assert _pkg_stem("pbg_ketchup") == "ketchup"
     assert _pkg_stem("viva_ketchup") == "ketchup"
