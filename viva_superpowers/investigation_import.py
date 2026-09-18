@@ -444,14 +444,43 @@ def detect_missing_deps(ws_root: Path, inv_slugs: list[str]) -> list[DepFinding]
 # ---------------------------------------------------------------------------
 
 
-def check(ws_root: Path) -> list[Problem]:
+def _resolve_upstream_for_check(
+    ws_root: Path, sel: "Selection", upstream_src: Path | None = None, rev: str | None = None
+) -> "tuple[Path, str, str, str] | None":
+    """Best-effort ``(src, rev, subtree, studies_subtree)`` for check's completeness probe.
+
+    Returns ``None`` when there is no sync source, or the pinned rev / source can't be
+    resolved (e.g. offline). Callers then degrade a missing-member finding to an
+    "unverified" warning instead of a hard error, so an offline ``check`` never
+    false-fails while an online ``check``/``sync`` still catches a real partial sync.
+    ``upstream_src``/``rev`` override the resolved source/rev (tests, local checkouts).
+    """
+    if sel.source is None:
+        return None
+    try:
+        token = sel.source.rev_token
+        rev = rev or (pinned_rev(ws_root, token) if token else None)
+        if not rev:
+            return None
+        src = _ensure_source(rev, git=sel.source.git, src=upstream_src, cache_key=token or "upstream")
+        subtree = sel.source.subtree
+        return (src, rev, subtree, _source_studies_subtree(src, rev, subtree))
+    except Exception:  # noqa: BLE001 — best-effort; offline/no-source degrades to a warning
+        return None
+
+
+def check(ws_root: Path, *, upstream_src: Path | None = None, rev: str | None = None) -> list[Problem]:
     """Return conformance problems for the workspace's investigation selection.
 
     Empty list == conformant. Problems:
       * (error) an investigation present on disk that is in neither list (undeclared);
       * (error) a slug in both `imported_investigations` and `native_investigations`;
-      * (error) a member study of an imported investigation that is MISSING on disk —
-        the incompleteness a partial sync leaves behind;
+      * (error) a member study of an imported investigation that is missing on disk AND
+        exists upstream at the pinned rev — the incompleteness a partial sync leaves
+        behind (`sync` fixes it);
+      * (warning) a declared member study that does NOT exist upstream — over-declared /
+        design-spec, not a sync gap; or one that couldn't be verified (offline / no
+        sync source);
       * (warning) a package an imported investigation's studies depend on that is not
         declared in this workspace's `imports:`/`registry.include`.
 
@@ -484,20 +513,55 @@ def check(ws_root: Path) -> list[Problem]:
             )
         )
 
-    # Completeness: every member study of a PRESENT imported investigation must exist.
+    # Completeness: a member study of a PRESENT imported investigation that is missing
+    # on disk is an ERROR only when it EXISTS upstream at the pinned rev (a real partial
+    # sync that `sync` can fix). A member that does NOT exist upstream is over-declared /
+    # aspirational (a design-spec study never built upstream) — a WARNING, not a hard
+    # failure, so it doesn't break CI. If upstream can't be reached, we can't tell, so we
+    # warn ("unverified") rather than hard-fail.
     imported_present = sorted(present & set(sel.allow))
+    up = _resolve_upstream_for_check(ws_root, sel, upstream_src=upstream_src, rev=rev)
     for inv in imported_present:
         iy = investigations_dir(ws_root) / inv / "investigation.yaml"
         missing = [s for s in investigation_members(iy) if _local_study_dir(ws_root, s) is None]
-        if missing:
+        if not missing:
+            continue
+        if up is None:
+            problems.append(
+                Problem(
+                    "warning",
+                    f"imported investigation '{inv}' declares member study(ies) {missing} "
+                    "not present on disk; could not verify against upstream (no reachable "
+                    "sync source). Run `sync` where the pinned rev is reachable to "
+                    "materialize any that exist upstream.",
+                )
+            )
+            continue
+        src, rev, subtree, studies_subtree = up
+        exists_up = [
+            s for s in missing
+            if _tree_has(src, rev, f"{subtree}/{inv}/studies/{s}")
+            or _tree_has(src, rev, f"{studies_subtree}/{s}")
+        ]
+        aspirational = [s for s in missing if s not in exists_up]
+        if exists_up:
             problems.append(
                 Problem(
                     "error",
                     f"imported investigation '{inv}' is INCOMPLETE: member study(ies) "
-                    f"{missing} declared in its investigation.yaml are not present on disk "
-                    "(neither flat under studies/ nor nested under investigations/"
-                    f"{inv}/studies/). Run `python -m viva_superpowers.investigation_import "
-                    "sync` to materialize them from the pinned upstream rev.",
+                    f"{exists_up} exist upstream@{rev[:12]} but are missing on disk "
+                    "(partial sync). Run `python -m viva_superpowers.investigation_import "
+                    "sync` to materialize them.",
+                )
+            )
+        if aspirational:
+            problems.append(
+                Problem(
+                    "warning",
+                    f"imported investigation '{inv}' declares member study(ies) "
+                    f"{aspirational} that do not exist upstream@{rev[:12]} — over-declared "
+                    "/ design-spec, not a sync gap. Consider trimming the investigation's "
+                    "membership upstream.",
                 )
             )
 
@@ -517,7 +581,9 @@ def check(ws_root: Path) -> list[Problem]:
     return problems
 
 
-def assert_selection_ok(ws_root: Path | str) -> None:
+def assert_selection_ok(
+    ws_root: Path | str, *, upstream_src: Path | None = None, rev: str | None = None
+) -> None:
     """Raise AssertionError if the workspace's investigation selection is non-conformant.
 
     Only *error*-severity problems raise; advisory dep warnings do not. Intended for a
@@ -527,7 +593,11 @@ def assert_selection_ok(ws_root: Path | str) -> None:
         def test_investigation_selection():
             assert_selection_ok(WORKSPACE_ROOT)
     """
-    errors = [p.message for p in check(Path(ws_root)) if p.severity == "error"]
+    errors = [
+        p.message
+        for p in check(Path(ws_root), upstream_src=upstream_src, rev=rev)
+        if p.severity == "error"
+    ]
     if errors:
         raise AssertionError("\n".join(errors))
 

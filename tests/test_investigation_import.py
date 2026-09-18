@@ -395,8 +395,49 @@ def test_sync_add_deps_mirrors_source_import_block(tmp_path: Path) -> None:
     assert all(f.satisfied for f in detect_missing_deps(ws, ["ketchup-baseline-comparison"]))
 
 
-def test_check_fails_when_member_study_missing(tmp_path: Path) -> None:
-    # partial-sync state: investigation.yaml present, member study dropped.
+def test_check_errors_when_member_exists_upstream_but_missing(tmp_path: Path) -> None:
+    # A real partial sync: investigation.yaml present, its member study exists upstream
+    # at the pinned rev but was dropped locally → ERROR (sync fixes it).
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["ketchup-baseline-comparison"])
+    inv = ws / "investigations" / "ketchup-baseline-comparison"
+    inv.mkdir(parents=True)
+    (inv / "investigation.yaml").write_text(
+        "name: ketchup-baseline-comparison\nmembers:\n- ketchup-exchange-comparison\n"
+    )
+    problems = check(ws, upstream_src=repo, rev=sha)
+    assert any(
+        p.severity == "error" and "ketchup-exchange-comparison" in p.message
+        for p in problems
+    )
+    with pytest.raises(AssertionError, match="ketchup-exchange-comparison"):
+        assert_selection_ok(ws, upstream_src=repo, rev=sha)
+
+
+def test_check_warns_not_errors_when_member_not_upstream(tmp_path: Path) -> None:
+    # Over-declared / design-spec: the investigation declares a member study that does
+    # NOT exist upstream at the pinned rev → WARNING, never an error (so a design-spec
+    # investigation like genotype/pdmp doesn't break CI).
+    repo, sha = _make_upstream_repo(tmp_path)
+    ws = _downstream_ws(tmp_path, sha, ["ketchup-baseline-comparison"])
+    inv = ws / "investigations" / "ketchup-baseline-comparison"
+    inv.mkdir(parents=True)
+    (inv / "investigation.yaml").write_text(
+        "name: ketchup-baseline-comparison\nmembers:\n"
+        "- ketchup-exchange-comparison\n- never-built-aspirational-study\n"
+    )
+    # materialize the real one so only the aspirational member is missing
+    sync(ws, upstream_src=repo, rev=sha)
+    problems = check(ws, upstream_src=repo, rev=sha)
+    aspir = [p for p in problems if "never-built-aspirational-study" in p.message]
+    assert aspir and all(p.severity == "warning" for p in aspir)
+    assert not any(p.severity == "error" for p in problems)
+    assert_selection_ok(ws, upstream_src=repo, rev=sha)  # warnings don't raise
+
+
+def test_check_warns_unverified_when_no_source(tmp_path: Path) -> None:
+    # Guard-only workspace (plain-list imported_investigations, no sync source): a missing
+    # member can't be verified against upstream → WARNING, not a hard error.
     ws = tmp_path / "ws"
     ws.mkdir()
     (ws / "workspace.yaml").write_text(
@@ -414,9 +455,6 @@ def test_check_fails_when_member_study_missing(tmp_path: Path) -> None:
         "name: ketchup-baseline-comparison\nmembers:\n- ketchup-exchange-comparison\n"
     )
     problems = check(ws)
-    assert any(
-        p.severity == "error" and "ketchup-exchange-comparison" in p.message
-        for p in problems
-    )
-    with pytest.raises(AssertionError, match="ketchup-exchange-comparison"):
-        assert_selection_ok(ws)
+    miss = [p for p in problems if "ketchup-exchange-comparison" in p.message]
+    assert miss and all(p.severity == "warning" for p in miss)
+    assert_selection_ok(ws)  # warnings don't raise
