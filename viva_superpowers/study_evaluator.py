@@ -175,11 +175,13 @@ RUN_DATA_KINDS: frozenset[str] = frozenset({
 # ---------------------------------------------------------------------------
 
 _WS_EVALUATOR_CACHE: dict[str, dict[str, Callable]] = {}
+_WS_DERIVED_SCALAR_CACHE: dict[str, dict[str, Callable]] = {}
 
 
 def clear_workspace_evaluator_cache() -> None:
-    """Drop the per-workspace evaluator cache (used by tests / after reinstall)."""
+    """Drop the per-workspace evaluator + derived-scalar caches."""
     _WS_EVALUATOR_CACHE.clear()
+    _WS_DERIVED_SCALAR_CACHE.clear()
 
 
 def _workspace_package_slug(ws_root: Any) -> str:
@@ -278,6 +280,36 @@ def load_workspace_evaluators(ws_root: Any) -> dict[str, Callable]:
         except Exception:  # noqa: BLE001 — never let a workspace hook break evaluation
             continue
     _WS_EVALUATOR_CACHE[key] = registry
+    return registry
+
+
+def load_workspace_derived_scalars(ws_root: Any) -> dict[str, Callable]:
+    """Import the workspace's ``<pkg>.evaluators`` hook and collect derived-scalar
+    computers registered via ``register_derived_scalars(reg)``.
+
+    Returns a ``{field_name: fn}`` dict where ``fn(reader, test, ws_root) -> float``.
+    Empty if ws_root is None or no hook is present. A hook that raises is skipped
+    (a broken workspace hook must never crash evaluation). Cached per ws_root.
+    """
+    import sys
+    from pathlib import Path
+    if ws_root is None:
+        return {}
+    key = str(Path(ws_root).resolve())
+    if key in _WS_DERIVED_SCALAR_CACHE:
+        return _WS_DERIVED_SCALAR_CACHE[key]
+    registry: dict[str, Callable] = {}
+    if key not in sys.path:
+        sys.path.insert(0, key)
+    for pkg in _workspace_evaluator_packages(ws_root):
+        try:
+            mod = __import__(f"{pkg}.evaluators", fromlist=["register_derived_scalars"])
+            hook = getattr(mod, "register_derived_scalars", None)
+            if callable(hook):
+                hook(registry)
+        except Exception:  # noqa: BLE001 — never let a workspace hook break evaluation
+            continue
+    _WS_DERIVED_SCALAR_CACHE[key] = registry
     return registry
 
 
