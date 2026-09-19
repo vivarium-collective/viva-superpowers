@@ -567,11 +567,12 @@ CHECKS = (
     "missing_variants",
     "missing_planned_runs",
     "missing_readouts",
+    # HARD GATE (error, blocking, override-able): EVERY study must DECLARE ≥1
+    # visualization (a visualizations[] / embed_visualizations[] entry) — a loose
+    # on-disk figure does NOT count, since the dashboard renders declared viz.
+    # Keeps every study's Visualizations surface non-empty. Opt out for a genuinely
+    # early study via .pbg/report-lint-overrides.json (or /viva-report --force).
     "missing_visualizations",
-    # HARD GATE (error, blocking): a study that DECLARES completion must show
-    # ≥1 visualization on a rendered surface, so a completed report card never
-    # has an empty Visualizations section.
-    "status_claims_done_no_visualizations",
     # Build / Simulations tab readiness — the dashboard's study-detail
     # template renders the Build tab from `conditions.{baseline,variants,
     # model_settings}` (or legacy model_change / implementation_requirements)
@@ -2441,9 +2442,10 @@ def _has_visualization_surface(ctx: _LintContext) -> bool:
     declared ``embed_visualizations:`` entry, or an auto-discovered figure in
     ``reports/figures/<slug>/`` or ``studies/<slug>/{charts,viz}/``.
 
-    Shared by :func:`_check_missing_visualizations` (warning when a study has
-    none) and :func:`_check_status_claims_done_no_visualizations` (ERROR — the
-    hard gate — when a study that DECLARES completion still has none).
+    NOTE: this is the LENIENT surface (figures count). The hard gate
+    :func:`_check_missing_visualizations` uses the stricter
+    :func:`_has_declared_visualization` (declared viz only); this lenient helper
+    now only feeds that gate's "a figure exists but isn't declared" hint.
     """
     viz = ctx.spec.get("visualizations") or []
     if isinstance(viz, list) and len(viz) > 0:
@@ -2463,90 +2465,70 @@ def _has_visualization_surface(ctx: _LintContext) -> bool:
     return False
 
 
+def _has_declared_visualization(ctx: _LintContext) -> bool:
+    """True iff the study DECLARES a visualization the workbench's Visualizations
+    surface can render: a non-empty ``visualizations:`` list (each entry an
+    ``address: local:<Class>`` / registered v2 Visualization) or a non-empty
+    ``embed_visualizations:`` list.
+
+    Deliberately STRICTER than :func:`_has_visualization_surface`: a loose figure
+    file on disk (``reports/figures/<slug>/`` or ``studies/<slug>/{charts,viz}/``)
+    does NOT count — the dashboard renders *declared* viz, not orphan HTML, so a
+    study whose only "viz" is an on-disk file still shows an empty Visualizations
+    surface. This is the predicate the hard gate below uses.
+    """
+    viz = ctx.spec.get("visualizations") or []
+    if isinstance(viz, list) and len(viz) > 0:
+        return True
+    embeds = ctx.spec.get("embed_visualizations") or []
+    return isinstance(embeds, list) and len(embeds) > 0
+
+
 def _check_missing_visualizations(ctx: _LintContext) -> None:
-    """Warning when a study has no `visualizations:` entries.
+    """ERROR (blocking, override-able): EVERY study must DECLARE ≥1 visualization.
 
-    Visualizations are the cards the dashboard / generated report
-    renders inline. A study with no viz entries gives the expert no
-    figure to review. For studies pre-run, scaffold ≥1 PLANNED-mockup
-    viz showing what the chart WILL look like when real data lands.
+    Visualizations are the cards the dashboard / generated report renders inline;
+    a study with none gives the reviewer nothing to see and leaves the workbench's
+    Visualizations surface empty. The requirement binds every study — in-design
+    ones included — because a study without a planned figure is incomplete by
+    construction; for a pre-run study, declare ≥1 PLANNED-mockup viz (synthetic
+    data + explanatory caption) showing what the chart WILL look like.
 
-    A study that DECLARES completion with no viz is a hard error instead —
-    see :func:`_check_status_claims_done_no_visualizations`; this warning is
-    left for the pre-completion (in-design / in-progress) studies.
+    STRICT on what counts (see :func:`_has_declared_visualization`): only a
+    declared ``visualizations:`` / ``embed_visualizations:`` entry satisfies it —
+    a loose figure file on disk does not, since the dashboard renders declared viz.
+
+    Escape hatch: a study genuinely too early for even a mockup opts out by
+    recording this finding's ``override_key`` in
+    ``.pbg/report-lint-overrides.json`` (or ``/viva-report --force``), which
+    downgrades the error to a warning — the same mechanism every hard gate uses.
     """
     if ctx.slug == "<workspace>":
         return
-    if _has_visualization_surface(ctx):
+    if _has_declared_visualization(ctx):
         return
-    ctx.add(
-        level="warning",
-        field_path="visualizations",
-        message=(
-            "Study has no visualization on any rendered surface — no "
-            "visualizations[] / embed_visualizations[] declared and no figure in "
-            "reports/figures/<slug>/ or studies/<slug>/{charts,viz}/. Add ≥1 so "
-            "the expert reviewer sees concrete figures — real charts for completed "
-            "runs, or PLANNED-mockup viz (with synthetic data + explanatory "
-            "caption) for studies still in design. The dashboard renders viz "
-            "inline in the study card, so this is the most visible expert-facing "
-            "surface."
-        ),
-        check="missing_visualizations",
-    )
-
-
-def _check_status_claims_done_no_visualizations(ctx: _LintContext) -> None:
-    """ERROR — the hard visualization gate: a study that DECLARES completion
-    must show ≥1 visualization on a rendered surface.
-
-    A completed study with no figure publishes a report card with an empty
-    Visualizations section — the reader gets prose and numbers but nothing to
-    see, and (before this gate) nothing stopped it. This is the blocking
-    counterpart to the ``missing_visualizations`` warning: while a study is
-    still in design/in-progress a missing viz is a nudge, but once it claims
-    ``status: completed`` / ``gate_status: passed`` / ``evaluation_status:
-    evaluated`` the figure is required. The model itself renders from its
-    resolved composite (the bigraph-loom snapshot); this gate additionally
-    requires at least one result/behaviour-test chart alongside it.
-
-    Mirrors the completion-detection of ``status_claims_done_no_runs_recorded``.
-    Fix: add ≥1 ``visualizations:`` entry (or a figure under
-    ``studies/<slug>/{charts,viz}/`` or ``reports/figures/<slug>/``), or correct
-    the status if the study is not actually complete.
-    """
-    if ctx.slug == "<workspace>":
-        return
-    legacy = str(ctx.spec.get("status") or "").strip().lower()
-    claims_done = (
-        legacy in {"completed", "complete", "done", "passed"}
-        or ctx.spec.get("gate_status") == "passed"
-        or ctx.spec.get("evaluation_status") == "evaluated"
-    )
-    if not claims_done:
-        return  # still in design/in-progress → the warning-level check applies
-    if _has_visualization_surface(ctx):
-        return
-    claimed_by = (
-        "gate_status: passed" if ctx.spec.get("gate_status") == "passed"
-        else "evaluation_status: evaluated"
-        if ctx.spec.get("evaluation_status") == "evaluated"
-        else f"status: {ctx.spec.get('status')!r}"
+    # A loose on-disk figure doesn't satisfy the rule, but if one exists say so —
+    # the fix is usually just to DECLARE it, not to author a new chart.
+    figure_hint = (
+        "An on-disk figure was found for this study but is not declared — a figure "
+        "file alone is not rendered on the workbench's Visualizations surface. "
+        if _has_visualization_surface(ctx) else ""
     )
     ctx.add(
         level="error",
         field_path="visualizations",
         message=(
-            f"study declares completion ({claimed_by}) but has no visualization "
-            "on any rendered surface — no `visualizations:` / "
-            "`embed_visualizations:` entry and no figure in "
-            "`studies/<slug>/{charts,viz}/` or `reports/figures/<slug>/`. A "
-            "completed study must show at least one result chart alongside its "
-            "model, or the report renders an empty Visualizations section. Add "
-            "≥1 visualization (see another study's `visualizations:` for the "
-            "shape) or correct the status if the study is not actually complete."
+            "Every study must declare at least one visualization — a "
+            "`visualizations:` entry (address: local:<Class> / a registered v2 "
+            "Visualization) or an `embed_visualizations:` entry. " + figure_hint +
+            "This study declares none, so the report renders an empty "
+            "Visualizations section. Author one with /viva-viz (a real chart for a "
+            "completed run, or a PLANNED-mockup for a study still in design). A "
+            "study too early for even a mockup can opt out by recording this "
+            "finding's override_key in .pbg/report-lint-overrides.json (or run "
+            "/viva-report --force)."
         ),
-        check="status_claims_done_no_visualizations",
+        check="missing_visualizations",
     )
 
 
@@ -3621,9 +3603,8 @@ _CHECK_FUNCTIONS = (
     _check_missing_variants,
     _check_missing_planned_runs,
     _check_missing_readouts,
+    # HARD GATE (error, blocking, override-able): every study must DECLARE a viz
     _check_missing_visualizations,
-    # HARD GATE (error): completion without a visualization is blocking
-    _check_status_claims_done_no_visualizations,
     _check_missing_conditions_block,
     _check_missing_simulation_set,
     # Anti-slop & honesty checks (added 2026-05-25 after pdmp-* feedback)

@@ -2,10 +2,14 @@ name: study-incomplete
 baseline:
   - name: b1
     composite: pkg.composites.x
-# An on-disk viz (viz/chart.html) so this (evaluated) study clears the hard viz
-# gate (status_claims_done_no_visualizations) and stays isolated to the
-# incomplete_summaries check it exists to exercise. A file surface is used
-# rather than a declared `local:` address so it needs no address resolution.
+# A DECLARED viz (embed_visualizations → the on-disk viz/chart.html) so this
+# study clears the hard viz gate (missing_visualizations, which now requires a
+# declared viz — an on-disk file alone no longer counts) and stays isolated to
+# the incomplete_summaries check it exists to exercise. An embed (html_path) is
+# used rather than a `local:` address so it needs no address resolution.
+embed_visualizations:
+  - name: mechanism-chart
+    html_path: viz/chart.html
 evaluation_status: evaluated
 simulation_status: ran
 implementation_status: complete

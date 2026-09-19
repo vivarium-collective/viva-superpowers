@@ -1148,19 +1148,25 @@ def test_viz_misplaced_in_workspace_reports_fires(tmp_path):
     assert any("orphan.html" in f.message for f in checks["viz_misplaced"])
 
 
-def test_missing_visualizations_satisfied_by_embed_or_ondisk(tmp_path):
-    # embed_visualizations[] alone satisfies the "has a viz" check.
+def test_missing_visualizations_requires_a_DECLARED_viz(tmp_path):
+    # A DECLARED visualization satisfies the rule: embed_visualizations[] counts.
     ws1 = _min_viz_ws(tmp_path / "w1",
                       "name: s1\nembed_visualizations:\n"
                       "  - name: f\n    url: /reports/figures/s1/there.html\n",
                       figures=["there.html"])
     assert "missing_visualizations" not in _findings_by_check(lint_workspace_report(ws1))
-    # on-disk canonical figure alone also satisfies it.
+    # STRENGTHENED: an on-disk figure alone no longer satisfies it — only a
+    # declared visualizations[] / embed_visualizations[] does — so this now
+    # ERRORS (the workbench renders declared viz, not loose figure files).
     ws2 = _min_viz_ws(tmp_path / "w2", "name: s1\n", figures=["auto.html"])
-    assert "missing_visualizations" not in _findings_by_check(lint_workspace_report(ws2))
-    # nothing at all -> the warning fires.
+    checks2 = _findings_by_check(lint_workspace_report(ws2))
+    assert "missing_visualizations" in checks2
+    assert checks2["missing_visualizations"][0].level == "error"
+    # nothing at all -> also an error.
     ws3 = _min_viz_ws(tmp_path / "w3", "name: s1\n")
-    assert "missing_visualizations" in _findings_by_check(lint_workspace_report(ws3))
+    checks3 = _findings_by_check(lint_workspace_report(ws3))
+    assert "missing_visualizations" in checks3
+    assert checks3["missing_visualizations"][0].level == "error"
 
 
 # --- Phase-aware completeness gating (issue #97) ----------------------------

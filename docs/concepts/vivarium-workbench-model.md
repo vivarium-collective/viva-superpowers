@@ -931,8 +931,10 @@ below are the literal `check=` values emitted by
 `viva_superpowers.report_linter`; the field set + enum values themselves are
 defined by [`study.schema.json`](https://github.com/vivarium-collective/pbg-template/blob/main/template/.pbg/schemas/study.schema.json)
 (see the [multi-axis status](#multi-axis-status) table for the status enums).
-**All of these are non-blocking** — a study still passes lint with them; they
-mark the gap for the next scaffolding pass.
+**All of these are non-blocking except `missing_visualizations`** — the rest
+mark the gap for the next scaffolding pass, but every study must DECLARE at least
+one visualization or lint fails (blocking; override-able per study via
+`.pbg/report-lint-overrides.json` / `/viva-report --force`).
 
 | Check id | Field(s) | Triggers when |
 |---|---|---|
@@ -942,7 +944,7 @@ mark the gap for the next scaffolding pass.
 | `missing_simulation_set` | `simulation_set:` | absent / empty |
 | `missing_planned_runs` | `planned_runs:` / `runs:` | both absent |
 | `missing_readouts` | `readouts:` | absent / empty |
-| `missing_visualizations` | `visualizations:` | absent / empty |
+| `missing_visualizations` **(error/blocking)** | `visualizations:` / `embed_visualizations:` | no DECLARED viz (an on-disk figure alone does NOT count) — every study |
 | `missing_provenance` | a finding's `provenance:` | a `findings[]` entry has no provenance object |
 | `status_legacy_only` | multi-axis status axes | only the legacy `status:` is set |
 | `dag_edges_legacy_only` | `pipeline_gate:` | only the legacy `parent_studies:` is set |
