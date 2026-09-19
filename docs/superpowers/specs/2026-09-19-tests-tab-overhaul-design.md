@@ -123,15 +123,20 @@ steps 8–10 (window, empty-guard, `_apply_op`, axis attach) run **unchanged**.
 For mGen (`pass_if.op: range, low: 1.0, high: 1.0` over a `1.0`/`0.0` boolean)
 this grades correctly with zero new grading code.
 
-**Piece C — `_eval_safe_formula(formula, reader, window)`:** AST-based
-(`ast.parse(mode="eval")`), a **closed node whitelist** — `Expression`,
-`BinOp` (`Add|Sub|Mult|Div|Pow|Mod`), `UnaryOp` (`USub|UAdd`), `Num`/`Constant`
-(numeric only), `Name`, `Paren`. Any other node → `_agent("unsupported formula
-node: …")` (never `eval`). Each `Name` is an observable token resolved via
-`_resolve_series` and reduced to a scalar under the same `window_spec` (default
-reduction: last-in-window; a `reduce:` measure hint may select `mean|min|max`
-later — not built now). Division-by-zero / missing token → `_agent(...)`.
-Covers `final_mass / initial_mass`-style scalars with no workspace code.
+**Piece C — reuse the existing AST expression evaluator (already shipped).**
+Verified against code: `_resolve_series` (L738) already routes an arithmetic
+`path` to `_eval_expression` (L835), which is **AST-based and safe** — it
+substitutes tokens to `_v0…`, `ast.parse(mode="eval")`, then `_eval_ast_node`
+(L887) with a **closed whitelist** (`Constant`, `Name`, `BinOp +−*/`,
+`UnaryOp +−`); no `eval`. And the native path *already* passes
+`measure.formula` into `_resolve_series` (L609). So a `formula:` over **emitted
+observables** (e.g. `cell_mass / cell_mass_initial`) grades **today** with zero
+new code — it evaluates per-tick, and the existing window + `_apply_op` reduce
+it. Piece C therefore collapses to **confirm-and-test** that a study can declare
+`formula:` and get a graded result, plus optionally widening the operator
+whitelist to `Pow`/`Mod` if a study needs it. The genuinely-new code is piece A
+only. A formula that references a *derived* (non-emitted) scalar is out of
+scope for C — that is what piece A's registry is for.
 
 **Precedence:** `formula` (if present) wins; else raw observable; else the
 registry. A `field` that *is* emitted keeps today's behavior exactly (no
@@ -270,8 +275,8 @@ run store (zarr)  ──►  evaluate_test  ──►  derived-scalar registry /
 ## Implementation slices (for the plan)
 
 1. **viva-superpowers** — derived-scalar registry loader + native-path fallback
-   + safe-formula (`_eval_safe_formula`); pytest. *(Foundation; unblocks the
-   rest.)*
+   (piece A); confirm/test the existing `formula:` path (piece C — reuse
+   `_eval_expression`); pytest. *(Foundation; unblocks the rest.)*
 2. **viva-mGen** — `viva_mgen/evaluators.py` computers for the 8 studies;
    verify grading populates non-null outcomes.
 3. **vivarium-workbench** — `POST /api/study-grade` + `lib/study_grade.py` +
