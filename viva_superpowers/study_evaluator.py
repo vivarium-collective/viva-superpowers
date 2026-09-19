@@ -1495,7 +1495,7 @@ def _resolve_run_store(
 ) -> "str | None":
     """Resolve a run entry to a RunReader-openable path.
 
-    Priority: ``emitter.store`` → ``run_dir`` → ``parquet``.
+    Priority: ``emitter.store`` → ``store_path`` → ``store`` → ``run_dir`` → ``parquet``.
     Relative paths are resolved against *study_dir*, then *ws_root*, then cwd.
     For ``parquet`` candidates: if the resolved path lacks a ``history/``
     subdirectory, descend to the first child directory that has one (the
@@ -1520,6 +1520,10 @@ def _resolve_run_store(
     emitter = run.get("emitter") or {}
     if isinstance(emitter, dict) and emitter.get("store"):
         candidates.append((str(emitter["store"]), False))
+    if run.get("store_path"):
+        candidates.append((str(run["store_path"]), False))
+    if run.get("store"):
+        candidates.append((str(run["store"]), False))
     if run.get("run_dir"):
         candidates.append((str(run["run_dir"]), False))
     if run.get("parquet"):
