@@ -649,11 +649,18 @@ def evaluate_test(test: dict, reader: "RunReader", ws_root=None, config=None,
     except WindowNotSupported as exc:
         return _agent(str(exc))
 
-    # 7. Resolve the observable series
+    # 7. Resolve the observable series — falling back to a workspace-registered
+    #    derived-scalar computer when the field is not an emitted observable.
     try:
         series = _resolve_series(path, reader)
     except ObservableNotFound as exc:
-        return _agent(str(exc))
+        fn = load_workspace_derived_scalars(ws_root).get(path)
+        if fn is None:
+            return _agent(str(exc))
+        try:
+            series = _scalar_series(fn(reader, test, ws_root))
+        except Exception as exc2:  # noqa: BLE001
+            return _agent(f"derived-scalar computer {path!r} error: {exc2}")
     except Exception as exc:  # noqa: BLE001
         return _agent(f"series resolution error: {exc}")
 
@@ -862,6 +869,17 @@ def _resolve_series(path: str, reader: "RunReader") -> pl.DataFrame:
     # Either multiple observables OR a single observable embedded in an
     # arithmetic expression (e.g. "obs.a / 2") → evaluate the full expression.
     return _eval_expression(path, resolved)
+
+
+def _scalar_series(value: float) -> pl.DataFrame:
+    """Wrap a single computed scalar as the flat series shape the pipeline expects.
+
+    One row so the default ``full_lineage_from_gen_0`` window keeps it and
+    ``_apply_op`` reduces it exactly as for an emitted observable.
+    """
+    return pl.DataFrame({
+        "generation": [1], "time": [0.0], "abs_time": [0.0], "value": [float(value)],
+    })
 
 
 def _eval_expression(expr: str, token_series: dict[str, pl.DataFrame]) -> pl.DataFrame:
