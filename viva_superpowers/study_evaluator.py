@@ -175,11 +175,13 @@ RUN_DATA_KINDS: frozenset[str] = frozenset({
 # ---------------------------------------------------------------------------
 
 _WS_EVALUATOR_CACHE: dict[str, dict[str, Callable]] = {}
+_WS_DERIVED_SCALAR_CACHE: dict[str, dict[str, Callable]] = {}
 
 
 def clear_workspace_evaluator_cache() -> None:
-    """Drop the per-workspace evaluator cache (used by tests / after reinstall)."""
+    """Drop the per-workspace evaluator + derived-scalar caches."""
     _WS_EVALUATOR_CACHE.clear()
+    _WS_DERIVED_SCALAR_CACHE.clear()
 
 
 def _workspace_package_slug(ws_root: Any) -> str:
@@ -278,6 +280,36 @@ def load_workspace_evaluators(ws_root: Any) -> dict[str, Callable]:
         except Exception:  # noqa: BLE001 — never let a workspace hook break evaluation
             continue
     _WS_EVALUATOR_CACHE[key] = registry
+    return registry
+
+
+def load_workspace_derived_scalars(ws_root: Any) -> dict[str, Callable]:
+    """Import the workspace's ``<pkg>.evaluators`` hook and collect derived-scalar
+    computers registered via ``register_derived_scalars(reg)``.
+
+    Returns a ``{field_name: fn}`` dict where ``fn(reader, test, ws_root) -> float``.
+    Empty if ws_root is None or no hook is present. A hook that raises is skipped
+    (a broken workspace hook must never crash evaluation). Cached per ws_root.
+    """
+    import sys
+    from pathlib import Path
+    if ws_root is None:
+        return {}
+    key = str(Path(ws_root).resolve())
+    if key in _WS_DERIVED_SCALAR_CACHE:
+        return _WS_DERIVED_SCALAR_CACHE[key]
+    registry: dict[str, Callable] = {}
+    if key not in sys.path:
+        sys.path.insert(0, key)
+    for pkg in _workspace_evaluator_packages(ws_root):
+        try:
+            mod = __import__(f"{pkg}.evaluators", fromlist=["register_derived_scalars"])
+            hook = getattr(mod, "register_derived_scalars", None)
+            if callable(hook):
+                hook(registry)
+        except Exception:  # noqa: BLE001 — never let a workspace hook break evaluation
+            continue
+    _WS_DERIVED_SCALAR_CACHE[key] = registry
     return registry
 
 
@@ -617,11 +649,18 @@ def evaluate_test(test: dict, reader: "RunReader", ws_root=None, config=None,
     except WindowNotSupported as exc:
         return _agent(str(exc))
 
-    # 7. Resolve the observable series
+    # 7. Resolve the observable series — falling back to a workspace-registered
+    #    derived-scalar computer when the field is not an emitted observable.
     try:
         series = _resolve_series(path, reader)
     except ObservableNotFound as exc:
-        return _agent(str(exc))
+        fn = load_workspace_derived_scalars(ws_root).get(path)
+        if fn is None:
+            return _agent(str(exc))
+        try:
+            series = _scalar_series(fn(reader, test, ws_root))
+        except Exception as exc2:  # noqa: BLE001
+            return _agent(f"derived-scalar computer {path!r} error: {exc2}")
     except Exception as exc:  # noqa: BLE001
         return _agent(f"series resolution error: {exc}")
 
@@ -830,6 +869,17 @@ def _resolve_series(path: str, reader: "RunReader") -> pl.DataFrame:
     # Either multiple observables OR a single observable embedded in an
     # arithmetic expression (e.g. "obs.a / 2") → evaluate the full expression.
     return _eval_expression(path, resolved)
+
+
+def _scalar_series(value: float) -> pl.DataFrame:
+    """Wrap a single computed scalar as the flat series shape the pipeline expects.
+
+    One row so the default ``full_lineage_from_gen_0`` window keeps it and
+    ``_apply_op`` reduces it exactly as for an emitted observable.
+    """
+    return pl.DataFrame({
+        "generation": [1], "time": [0.0], "abs_time": [0.0], "value": [float(value)],
+    })
 
 
 def _eval_expression(expr: str, token_series: dict[str, pl.DataFrame]) -> pl.DataFrame:
@@ -1445,7 +1495,7 @@ def _resolve_run_store(
 ) -> "str | None":
     """Resolve a run entry to a RunReader-openable path.
 
-    Priority: ``emitter.store`` → ``run_dir`` → ``parquet``.
+    Priority: ``emitter.store`` → ``store_path`` → ``store`` → ``run_dir`` → ``parquet``.
     Relative paths are resolved against *study_dir*, then *ws_root*, then cwd.
     For ``parquet`` candidates: if the resolved path lacks a ``history/``
     subdirectory, descend to the first child directory that has one (the
@@ -1470,6 +1520,10 @@ def _resolve_run_store(
     emitter = run.get("emitter") or {}
     if isinstance(emitter, dict) and emitter.get("store"):
         candidates.append((str(emitter["store"]), False))
+    if run.get("store_path"):
+        candidates.append((str(run["store_path"]), False))
+    if run.get("store"):
+        candidates.append((str(run["store"]), False))
     if run.get("run_dir"):
         candidates.append((str(run["run_dir"]), False))
     if run.get("parquet"):
