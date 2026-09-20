@@ -291,7 +291,7 @@ Spec-verify a study before running it. Catches the cross-reference errors that w
 
 #### `preview-viz <slug> [--name <viz-name>]`
 
-Re-render the study's declared `visualizations[]` against whatever data exists, so a misconfigured viz fails in seconds instead of after a full Simulate phase. POST `/api/study-viz-render`:
+Re-render the study's declared `visualizations[]` against whatever data exists, so a misconfigured viz fails in seconds instead of after a full Simulate phase. POST `/api/investigation-render-viz`:
 
 ```json
 {"name": "<slug>"}
@@ -307,7 +307,7 @@ The dashboard builds a 1-step composite for each viz entry, runs it against the 
 **Behavior:**
 
 1. Walk up from cwd to find `workspace.yaml`.
-2. POST `{name: <slug>}` to `/api/study-viz-render`. Surfaces a 404 if the study doesn't exist; a 500 with `error: render failed: ...` if a viz raised.
+2. POST `{name: <slug>}` to `/api/investigation-render-viz`. Surfaces a 404 if the study doesn't exist; a 500 with `error: render failed: ...` if a viz raised.
 3. Print the JSON response: `{ok, study, n_visualizations, viz_paths}`. When `--name` is set, restrict the printed `viz_paths` to entries ending with `/<viz-name>.html`.
 
 **Notes:**
@@ -1266,7 +1266,7 @@ sys.exit(1 if errors or (os.environ['STRICT'] == '1' and warnings) else 0)
 
   preview-viz)
     # Build-phase render dry-run. Re-renders the study's declared
-    # visualizations[] via the dashboard's /api/study-viz-render endpoint
+    # visualizations[] via the dashboard's /api/investigation-render-viz endpoint
     # so render errors (missing observables, wrong viz address, bad config)
     # surface in seconds instead of after a full Simulate.
     SLUG="${1:-}"
@@ -1283,9 +1283,9 @@ sys.exit(1 if errors or (os.environ['STRICT'] == '1' and warnings) else 0)
 import json, os
 print(json.dumps({'name': os.environ['NAME']}))")
     RAW=$(curl -sf -X POST -H "Content-Type: application/json" \
-      -d "$BODY" "$URL/api/study-viz-render" || true)
+      -d "$BODY" "$URL/api/investigation-render-viz" || true)
     if [ -z "$RAW" ]; then
-      echo "ERROR: /api/study-viz-render returned no body (study missing or server error)." >&2
+      echo "ERROR: /api/investigation-render-viz returned no body (study missing or server error)." >&2
       exit 1
     fi
     if [ -n "$FILTER_NAME" ]; then

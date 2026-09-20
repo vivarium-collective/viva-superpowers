@@ -575,7 +575,7 @@ canonical_runs:
 A named visualization config attached to a study. Renders run output to HTML.
 
 - **Shape:** `{name, address, config}`. `address` is a dotted reference to a `Visualization` (a `Step` subclass — see `docs/conventions/visualizations.md`).
-- **API:** `POST /api/study-viz-add` (alias `/api/investigation-add-viz`), `POST /api/study-viz-render`.
+- **API:** `POST /api/investigation-add-viz`, `POST /api/investigation-render-viz` (the workbench's canonical viz routes; the `study-viz-*` aliases were retired).
 - **Skill:** `/pbg-viz`.
 
 #### Provenance & freshness {#viz-provenance-freshness}
@@ -649,7 +649,7 @@ Skills that read dashboard state do so via these HTTP endpoints:
 | `POST /api/study-intervention-add` | `{study, name, description?}` | `/pbg-study intervention-add` |
 | `POST /api/study-intervention-update` | `{study, name, description}` | `/pbg-study intervention-update` |
 | `POST /api/study-intervention-delete` | `{study, name}` | `/pbg-study intervention-delete` |
-| `POST /api/study-viz-add` | `{study, name, address, config}` | `/pbg-viz` |
+| `POST /api/investigation-add-viz` | `{study, name, address, config}` | `/pbg-viz` |
 | `POST /api/composite-test-run` | `{id, steps, emit_paths?}` | `/pbg-run` |
 
 ## Skill ↔ concept map
