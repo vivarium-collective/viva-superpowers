@@ -332,19 +332,6 @@
     ]
   },
   {
-    "name": "pbg-yalla",
-    "display_name": "viva-yalla",
-    "description": "Process-bigraph wrapper for a NumPy port of ya||a's pair-wise agent-based morphogenesis simulator",
-    "source": "https://github.com/vivarium-collective/pbg-yalla.git",
-    "ref": "main",
-    "package": "pbg_yalla",
-    "homepage": "https://github.com/vivarium-collective/pbg-yalla",
-    "tags": [
-      "agent-based",
-      "morphogenesis"
-    ]
-  },
-  {
     "name": "spatio-flux",
     "display_name": "spatio-flux",
     "description": "spatio-temporal microbial simulations with Vivarium 2.0",
