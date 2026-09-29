@@ -394,6 +394,15 @@ wheels = [
 ]
 
 [[package]]
+name = "filelock"
+version = "4.0.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/2d/5cb7a5ac017031e96a63173f3d57a8a5162ce36f9ff461e62bc6da4d88ab/filelock-4.0.6.tar.gz", hash = "sha256:323fab3b2fb22d889b29fa83774f60029addddb4b6a1bcfa1e73066eabffb5f2", size = 248237, upload-time = "2026-09-28T22:16:16.257Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/3b/b74ae9db2f78f1354278731372ae89870626be7b86cbb46b8d707acd1a98/filelock-4.0.6-py3-none-any.whl", hash = "sha256:9b139fb93b2ac5807f7feaf63aa4546fbd74074a2d3f554c040f40a4694d7b9f", size = 109077, upload-time = "2026-09-28T22:16:14.731Z" },
+]
+
+[[package]]
 name = "fire"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1109,26 +1118,6 @@ dependencies = [
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "process-bigraph" },
     { name = "sympy" },
-]
-
-[[package]]
-name = "pbg-emitters"
-version = "0.2.1"
-source = { git = "https://github.com/vivarium-collective/pbg-emitters.git?branch=main#d34c2518bbcc330659f5b5dedfbd5a0b19cf026b" }
-dependencies = [
-    { name = "bigraph-schema" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "process-bigraph" },
-]
-
-[package.optional-dependencies]
-parquet = [
-    { name = "duckdb" },
-    { name = "fsspec" },
-    { name = "polars" },
-    { name = "pyarrow" },
-    { name = "tqdm" },
 ]
 
 [[package]]
@@ -1935,7 +1924,7 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz", hash = "sha256:95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0", size = 30573822, upload-time = "2026-02-23T00:26:24.851Z" }
 wheels = [
@@ -2014,7 +2003,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a7/25/c2700dfaf6442b4effaa91af24ebce5dc9d31bb4a69706313aae70d72cd0/scipy-1.18.0.tar.gz", hash = "sha256:67b2ad2ad54c72ca6d04975a9b2df8c3638c34ddd5b28738e94fc2b57929d378", size = 30774447, upload-time = "2026-06-19T15:01:43.456Z" }
 wheels = [
@@ -2205,19 +2194,44 @@ wheels = [
 ]
 
 [[package]]
+name = "viva-emitters"
+version = "0.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bigraph-schema" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "process-bigraph" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f8/0e/8ba1cd5f8ab4494efa026fceca133f1e8dac5714453f838f851ca683b86e/viva_emitters-0.4.1.tar.gz", hash = "sha256:b3dd3d17d28f71bbd763dd24dca6f33ace5485419aeedf8accbc8b4e074bbbd6", size = 143451, upload-time = "2026-09-13T04:16:31.369Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/23/cd177a2ec85de390dc22ccab9d0560a5c717f23a4c25d0d987d56f9e35f3/viva_emitters-0.4.1-py3-none-any.whl", hash = "sha256:f6a969f049869602b8c6a98095734624fd3af3c8dd5d0e47422fa0d5af4e8d67", size = 116041, upload-time = "2026-09-13T04:16:29.816Z" },
+]
+
+[package.optional-dependencies]
+parquet = [
+    { name = "duckdb" },
+    { name = "fsspec" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "tqdm" },
+]
+
+[[package]]
 name = "viva-superpowers"
-version = "0.22.0"
+version = "0.23.0"
 source = { editable = "." }
 dependencies = [
     { name = "bigraph-schema" },
     { name = "click" },
+    { name = "filelock" },
     { name = "jinja2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
-    { name = "pbg-emitters" },
     { name = "process-bigraph" },
     { name = "pypdf" },
     { name = "pyyaml" },
     { name = "ruamel-yaml" },
+    { name = "viva-emitters" },
     { name = "viva-workspace" },
 ]
 
@@ -2228,7 +2242,7 @@ dev = [
     { name = "pytest-timeout" },
 ]
 evaluator = [
-    { name = "pbg-emitters", extra = ["parquet"] },
+    { name = "viva-emitters", extra = ["parquet"] },
 ]
 events = [
     { name = "investigation-contracts" },
@@ -2241,12 +2255,11 @@ processes = [
 requires-dist = [
     { name = "bigraph-schema", specifier = ">=0.0.60" },
     { name = "click", specifier = ">=8.1" },
+    { name = "filelock", specifier = ">=3.12" },
     { name = "investigation-contracts", marker = "extra == 'events'", git = "https://github.com/vivarium-collective/investigation-contracts.git?branch=main" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.21" },
     { name = "pbg-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/pbg-basic-processes.git?branch=main" },
-    { name = "pbg-emitters", git = "https://github.com/vivarium-collective/pbg-emitters.git?branch=main" },
-    { name = "pbg-emitters", extras = ["parquet"], marker = "extra == 'evaluator'", git = "https://github.com/vivarium-collective/pbg-emitters.git?branch=main" },
     { name = "process-bigraph", specifier = ">=1.8.2" },
     { name = "pypdf", specifier = ">=4.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4" },
@@ -2254,6 +2267,8 @@ requires-dist = [
     { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
+    { name = "viva-emitters", specifier = ">=0.2.3" },
+    { name = "viva-emitters", extras = ["parquet"], marker = "extra == 'evaluator'" },
     { name = "viva-workspace", git = "https://github.com/vivarium-collective/viva-workspace.git?branch=main" },
 ]
 provides-extras = ["dev", "evaluator", "processes", "events"]
