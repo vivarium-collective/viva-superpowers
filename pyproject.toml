@@ -32,9 +32,9 @@ dev = ["pytest>=7.4", "pytest-cov>=4.1", "pytest-timeout>=2.1"]
 evaluator = ["viva-emitters[parquet]"]
 # Default framework processes (Clock, Intervention, MathExpression).
 # Auto-register into the core registry via bigraph-schema package discovery.
-# Listed as optional until pbg-basic-processes is published to PyPI; local dev
+# Listed as optional until viva-basic-processes is published to PyPI; local dev
 # installs resolve it via [tool.uv.sources] below.
-processes = ["pbg-basic-processes"]
+processes = ["viva-basic-processes"]
 # Agentic-spine event reactor (event_client.py / RFC-0002 Phase A). Used only by
 # the optional EventClient; gated as an extra because investigation-contracts is
 # a first-party git dependency not published to PyPI. Local dev installs resolve
@@ -44,7 +44,7 @@ events = ["investigation-contracts"]
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
-pbg-basic-processes = { git = "https://github.com/vivarium-collective/pbg-basic-processes.git", branch = "main" }
+viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }
 
 [project.scripts]

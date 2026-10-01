@@ -394,15 +394,6 @@ wheels = [
 ]
 
 [[package]]
-name = "filelock"
-version = "4.0.6"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2b/2d/5cb7a5ac017031e96a63173f3d57a8a5162ce36f9ff461e62bc6da4d88ab/filelock-4.0.6.tar.gz", hash = "sha256:323fab3b2fb22d889b29fa83774f60029addddb4b6a1bcfa1e73066eabffb5f2", size = 248237, upload-time = "2026-09-28T22:16:16.257Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/3b/b74ae9db2f78f1354278731372ae89870626be7b86cbb46b8d707acd1a98/filelock-4.0.6-py3-none-any.whl", hash = "sha256:9b139fb93b2ac5807f7feaf63aa4546fbd74074a2d3f554c040f40a4694d7b9f", size = 109077, upload-time = "2026-09-28T22:16:14.731Z" },
-]
-
-[[package]]
 name = "fire"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1106,18 +1097,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3c/0b/8a3b9f4a4943b56e67247c65e1b0564ec9bf0718b85f3fd9502d70afaf32/parsimonious-0.11.0.tar.gz", hash = "sha256:e080377d98957beec053580d38ae54fcdf7c470fb78670ba4bf8b5f9d5cad2a9", size = 54238, upload-time = "2025-11-12T01:33:48.172Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/a9/a10a10f12e50993b5a3568a1a90fd70b85f83edc451875d312bf60cd39b8/parsimonious-0.11.0-py3-none-any.whl", hash = "sha256:32e3818abf9f05b3b9f3b6d87d128645e30177e91f614d2277d88a0aea98fae2", size = 54351, upload-time = "2025-11-12T01:33:46.652Z" },
-]
-
-[[package]]
-name = "pbg-basic-processes"
-version = "0.1.0"
-source = { git = "https://github.com/vivarium-collective/pbg-basic-processes.git?branch=main#af83ccc834a84af4e4b3bb5d114aca79713cf401" }
-dependencies = [
-    { name = "bigraph-schema" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "process-bigraph" },
-    { name = "sympy" },
 ]
 
 [[package]]
@@ -1924,7 +1903,7 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz", hash = "sha256:95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0", size = 30573822, upload-time = "2026-02-23T00:26:24.851Z" }
 wheels = [
@@ -2003,7 +1982,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a7/25/c2700dfaf6442b4effaa91af24ebce5dc9d31bb4a69706313aae70d72cd0/scipy-1.18.0.tar.gz", hash = "sha256:67b2ad2ad54c72ca6d04975a9b2df8c3638c34ddd5b28738e94fc2b57929d378", size = 30774447, upload-time = "2026-06-19T15:01:43.456Z" }
 wheels = [
@@ -2194,6 +2173,18 @@ wheels = [
 ]
 
 [[package]]
+name = "viva-basic-processes"
+version = "0.2.0"
+source = { git = "https://github.com/vivarium-collective/viva-basic-processes.git?branch=main#3f7d64ee06337c8887d8db6d47b0bdfc6dea0093" }
+dependencies = [
+    { name = "bigraph-schema" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "process-bigraph" },
+    { name = "sympy" },
+]
+
+[[package]]
 name = "viva-emitters"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2224,7 +2215,6 @@ source = { editable = "." }
 dependencies = [
     { name = "bigraph-schema" },
     { name = "click" },
-    { name = "filelock" },
     { name = "jinja2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
     { name = "process-bigraph" },
@@ -2248,18 +2238,16 @@ events = [
     { name = "investigation-contracts" },
 ]
 processes = [
-    { name = "pbg-basic-processes" },
+    { name = "viva-basic-processes" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "bigraph-schema", specifier = ">=0.0.60" },
     { name = "click", specifier = ">=8.1" },
-    { name = "filelock", specifier = ">=3.12" },
     { name = "investigation-contracts", marker = "extra == 'events'", git = "https://github.com/vivarium-collective/investigation-contracts.git?branch=main" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.21" },
-    { name = "pbg-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/pbg-basic-processes.git?branch=main" },
     { name = "process-bigraph", specifier = ">=1.8.2" },
     { name = "pypdf", specifier = ">=4.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4" },
@@ -2267,6 +2255,7 @@ requires-dist = [
     { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
+    { name = "viva-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/viva-basic-processes.git?branch=main" },
     { name = "viva-emitters", specifier = ">=0.2.3" },
     { name = "viva-emitters", extras = ["parquet"], marker = "extra == 'evaluator'" },
     { name = "viva-workspace", git = "https://github.com/vivarium-collective/viva-workspace.git?branch=main" },
