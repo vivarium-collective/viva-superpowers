@@ -69,7 +69,10 @@ def atomic_write(path: Path | str, text: str) -> None:
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, path)
     except BaseException:
-        tmp.unlink(missing_ok=True)
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass  # never let cleanup mask the original error
         raise
 
 
