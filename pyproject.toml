@@ -80,6 +80,11 @@ packages = ["viva_superpowers", "pbg_superpowers"]
 # installs still work.
 [tool.hatch.build.targets.wheel.force-include]
 "templates" = "viva_superpowers/_templates"
+# Ship the /viva-* Agent Skills (SKILL.md folders) inside the installed package
+# so a non-editable install carries them. A dependent (e.g. vivarium-workbench's
+# chat) can then discover the skills from the installed package, rather than only
+# from a local checkout / Claude plugin.
+"skills" = "viva_superpowers/skills"
 
 [tool.ruff]
 # Minimal lint gate for the viva_superpowers package: pyflakes (F) catches
