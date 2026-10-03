@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import polars as pl
 
+from viva_superpowers import study_io
 from viva_superpowers.test_contract import Expected, band, check, predicate, value
 from viva_superpowers.test_vocab import RANK
 
@@ -1660,7 +1661,6 @@ def compute_outcomes(
         Summary dict: ``{"runs_evaluated": int, "tests_code": int, "tests_agent": int}``
     """
     import io
-    import os
     from pathlib import Path as _Path
 
     import ruamel.yaml
@@ -1804,9 +1804,7 @@ def compute_outcomes(
     new_serialised = _new_sio.getvalue()
 
     if new_serialised != original_serialised:
-        tmp_path = study_yaml_path.with_suffix(".yaml.tmp")
-        tmp_path.write_text(new_serialised, encoding="utf-8")
-        os.replace(str(tmp_path), str(study_yaml_path))
+        study_io.atomic_write(study_yaml_path, new_serialised)
 
     return {
         "runs_evaluated": runs_evaluated,
