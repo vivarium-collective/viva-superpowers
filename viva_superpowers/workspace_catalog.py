@@ -13,13 +13,15 @@ dashboard backend) and as a CLI (``python -m viva_superpowers.workspace_catalog
 """
 from __future__ import annotations
 import argparse
-import fcntl
 import hashlib
 import json
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+# C.M. 260929: Using both Windows and Unix-type file locking got messy and was
+# demanding a lot of code. This package is built to manage it.
+from filelock import FileLock
 
 SCHEMA_VERSION = 1
 
@@ -82,34 +84,24 @@ def _atomic_write(path: Path, payload: str) -> None:
         raise
 
 
+# C.M. 260929: Hypothetically both of these should run on a Windows or Unix-type
 def _with_catalog_lock(fn):
-    """Hold an exclusive flock on the catalog lock file while running fn."""
+    """Hold an exclusive lock on the catalog lock file while running fn."""
     _home().mkdir(parents=True, exist_ok=True)
-    lock = _home() / "workspaces.json.lock"
-    with lock.open("a+") as fh:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-        try:
-            return fn()
-        finally:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    with FileLock(str(_home() / "workspaces.json.lock")):
+        return fn()
 
 
 def _with_servers_lock(fn):
-    """Hold an exclusive flock on the servers lock file while running fn.
+    """Hold an exclusive lock on the servers lock file while running fn.
 
     The lock file lives at ``~/.pbg/servers.lock`` (a sibling of the
     ``servers/`` directory, not inside it) so that ``*.json`` globs over
     the servers directory never pick it up.
     """
     _home().mkdir(parents=True, exist_ok=True)
-    lock = _home() / "servers.lock"
-    with lock.open("a+") as fh:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-        try:
-            return fn()
-        finally:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
-
+    with FileLock(str(_home() / "servers.lock")):
+        return fn()
 
 def add(path: str | Path, name: str | None = None, package: str | None = None) -> dict:
     """Append-or-noop. Returns the catalog entry. Raises ValueError if path is
