@@ -2965,6 +2965,87 @@ def _check_renders_via_dashboard(ctx: _LintContext) -> None:
         )
 
 
+def _check_render_guarantee_baseline(ctx: _LintContext) -> None:
+    """Static render-guarantee: a v3/v4 study whose baseline the workbench's
+    study-detail loader rejects will not render — catch it here, WITHOUT a
+    running server and WITHOUT importing vivarium-workbench.
+
+    This mirrors the blocking baseline rules of the workbench's
+    ``_validate_study_v3_or_v4`` (``lib/investigations.py``): a v3 study needs a
+    non-empty ``baseline`` list whose every entry is a mapping with a ``name``
+    and one of ``composite`` / ``step`` / ``process``; a v4 study's
+    ``conditions.baseline`` needs a ``composite``. ``_check_renders_via_dashboard``
+    covers the same ground only when a server is up and the error surfaces as an
+    HTTP 500 — this static twin makes "passes lint" imply "renders" offline too
+    (CI, pre-publish), which is where empty-baseline studies have been slipping
+    through to a broken detail page.
+
+    Scoped to schema_version 3/4 (the baseline-based shapes); v2 specs use a
+    different loader and are left to their own checks.
+    """
+    if ctx.slug == "<workspace>":
+        return
+    spec = ctx.spec
+    try:
+        sv = int(spec.get("schema_version"))
+    except (TypeError, ValueError):
+        return
+    if sv < 3:
+        return  # v2 (and unversioned) use a different loader shape
+
+    conditions = spec.get("conditions") if isinstance(spec.get("conditions"), dict) else {}
+    cond_baseline = conditions.get("baseline")
+    if isinstance(cond_baseline, dict):  # v4 single-object baseline
+        if not cond_baseline.get("composite"):
+            ctx.add(
+                level="error",
+                field_path="conditions.baseline.composite",
+                message=(
+                    "v4 study: 'conditions.baseline' needs a 'composite' — the "
+                    "workbench study-detail page will not render otherwise."
+                ),
+                check="render_blocked",
+            )
+        return
+
+    baseline = spec.get("baseline")
+    if not isinstance(baseline, list) or not baseline:
+        ctx.add(
+            level="error",
+            field_path="baseline",
+            message=(
+                "v3 study: 'baseline' must be a non-empty list of composites — "
+                "the workbench study-detail page refuses to render an empty/absent "
+                "baseline (it raises InvestigationSpecError). Add at least one "
+                "entry, e.g. `baseline: [{name: <id>, composite: <pkg>.composites.<x>}]` "
+                "or reference a bare `process: <ProcessName>`."
+            ),
+            check="render_blocked",
+        )
+        return
+    for i, c in enumerate(baseline):
+        if not isinstance(c, dict):
+            ctx.add(level="error", field_path=f"baseline[{i}]",
+                    message=f"v3 study: baseline[{i}] must be a mapping.",
+                    check="render_blocked")
+            continue
+        if not c.get("name"):
+            ctx.add(level="error", field_path=f"baseline[{i}].name",
+                    message=f"v3 study: baseline[{i}].name is required (workbench render-guarantee).",
+                    check="render_blocked")
+        if not (c.get("composite") or c.get("step") or c.get("process")):
+            ctx.add(
+                level="error",
+                field_path=f"baseline[{i}]",
+                message=(
+                    f"v3 study: baseline[{i}] requires one of 'composite', 'step', "
+                    "or 'process' — the workbench study-detail page will not render "
+                    "otherwise."
+                ),
+                check="render_blocked",
+            )
+
+
 # ---------------------------------------------------------------------------
 # Peer-review rigor checks (framework-rigor: G1 gate_class, G4 config
 # consumption + seed-all-stochastic, G5 units/time declared)
@@ -3573,6 +3654,9 @@ def _check_baseline_config_carry(ctx: _LintContext) -> None:
 
 _CHECK_FUNCTIONS = (
     _check_renders_via_dashboard,
+    # Static twin of the above: catches an empty/malformed v3/v4 baseline that
+    # the workbench study-detail loader rejects, WITHOUT needing a running server.
+    _check_render_guarantee_baseline,
     _check_incomplete_summaries,
     _check_status_contradictions,
     _check_missing_provenance,
