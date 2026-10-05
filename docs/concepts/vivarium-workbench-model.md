@@ -637,8 +637,8 @@ Skills that read dashboard state do so via these HTTP endpoints:
 
 | Endpoint | Body | Skill subcommand |
 |---|---|---|
-| `POST /api/study-set-objective` | `{study, text}` | `/pbg-study set-objective` |
-| `POST /api/study-set-conclusion` | `{study, text}` | `/pbg-study set-conclusion` |
+| `PATCH /api/study/<slug>` | `{objective}` | `/pbg-study set-objective` |
+| `PATCH /api/study/<slug>` | `{conclusions}` | `/pbg-study set-conclusion` |
 | `POST /api/study-baseline-add` | `{study, name, composite, params?}` | `/pbg-study baseline-add` |
 | `POST /api/study-baseline-remove` | `{study, name}` | `/pbg-study baseline-remove` |
 | `POST /api/study-run-baseline` | `{study, composite?, steps?}` | `/pbg-study run-baseline` |
@@ -959,7 +959,7 @@ planned variant, `readouts`, `behavior_tests`, and at least one
 
 - **v2 → v3 on read:** `vivarium_workbench.lib.spec_migration.migrate_v2_to_v3` runs automatically in `load_spec`. Skills never need to invoke it.
 - **v2 endpoints still aliased:** `/api/investigation-add-viz`, `/api/investigation-render-viz`, and a few others remain as aliases of their `/api/study-*` v3 counterparts. New skill code should prefer the `study-` form.
-- **Removed in v3:** `/api/study-set-baseline-params` (covered by `study-variant-set-params` + the new baseline-list shape); `/api/investigation-set-overview` (split into `set-objective` + status writes).
+- **Removed in v3:** `/api/study-set-baseline-params` (covered by `study-variant-set-params` + the new baseline-list shape); `/api/investigation-set-overview` (split into `set-objective` + status writes). The study-set-* setters have since been consolidated into `PATCH /api/study/<slug>`.
 
 ## Out of scope (deferred)
 
