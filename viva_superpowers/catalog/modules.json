@@ -1,6 +1,65 @@
 [
   {
-    "name": "pbg-amici",
+    "name": "pbg-biomodels-bundle",
+    "display_name": "viva-biomodels-bundle",
+    "description": "Regression harness for BioModels: runs each model under multiple simulators (COPASI, Tellurium) and renders an interactive comparison report.",
+    "source": "https://github.com/vivarium-collective/pbg-biomodels-bundle.git",
+    "ref": "main",
+    "package": "pbg_biomodels_bundle",
+    "homepage": "https://github.com/vivarium-collective/pbg-biomodels-bundle",
+    "tags": []
+  },
+  {
+    "name": "pbg-idynomics2",
+    "display_name": "viva-idynomics2",
+    "description": "Process-bigraph wrapper for IDynoMiCS 2.0, the Kreft lab's Java-based individual-based biofilm simulator",
+    "source": "https://github.com/vivarium-collective/pbg-idynomics2.git",
+    "ref": "main",
+    "package": "pbg_idynomics2",
+    "homepage": "https://github.com/vivarium-collective/pbg-idynomics2",
+    "tags": []
+  },
+  {
+    "name": "pbg-yalla",
+    "display_name": "viva-yalla",
+    "description": "Process-bigraph wrapper for a NumPy port of ya||a's pair-wise agent-based morphogenesis simulator",
+    "source": "https://github.com/vivarium-collective/viva-yalla.git",
+    "ref": "main",
+    "package": "pbg_yalla",
+    "homepage": "https://github.com/vivarium-collective/viva-yalla",
+    "tags": [
+      "agent-based",
+      "morphogenesis"
+    ]
+  },
+  {
+    "name": "spatio-flux",
+    "display_name": "spatio-flux",
+    "description": "spatio-temporal microbial simulations with Vivarium 2.0",
+    "source": "https://github.com/vivarium-collective/spatio-flux.git",
+    "ref": "main",
+    "package": "spatio_flux",
+    "homepage": "https://github.com/vivarium-collective/spatio-flux",
+    "tags": [
+      "microbial",
+      "metabolism"
+    ]
+  },
+  {
+    "name": "v2ecoli",
+    "display_name": "v2ecoli",
+    "description": "Whole-cell E. coli model in Vivarium 2",
+    "source": "https://github.com/vivarium-collective/v2ecoli.git",
+    "ref": "main",
+    "package": "v2ecoli",
+    "homepage": "https://github.com/vivarium-collective/v2ecoli",
+    "tags": [
+      "whole-cell",
+      "ecoli"
+    ]
+  },
+  {
+    "name": "viva-amici",
     "display_name": "viva-amici",
     "description": "Process-bigraph wrapper for AMICI (CVODES-based ODE/DAE simulator). Real bridge to https://github.com/AMICI-dev/AMICI.",
     "source": "https://github.com/vivarium-collective/viva-amici.git",
@@ -12,17 +71,29 @@
     ]
   },
   {
-    "name": "pbg-biomodels-bundle",
-    "display_name": "viva-biomodels-bundle",
-    "description": "Regression harness for BioModels: runs each model under multiple simulators (COPASI, Tellurium) and renders an interactive comparison report.",
-    "source": "https://github.com/vivarium-collective/pbg-biomodels-bundle.git",
+    "name": "viva-biomodels",
+    "display_name": "viva-biomodels",
+    "description": "Process-bigraph workspace: BIOMODELS regression — installs pbg-biomodels-bundle and drives investigations against the BioModels corpus",
+    "source": "https://github.com/vivarium-collective/viva-biomodels.git",
     "ref": "main",
-    "package": "pbg_biomodels_bundle",
-    "homepage": "https://github.com/vivarium-collective/pbg-biomodels-bundle",
+    "package": "pbg_biomodels",
+    "homepage": "https://github.com/vivarium-collective/viva-biomodels",
     "tags": []
   },
   {
-    "name": "pbg-caspule",
+    "name": "viva-bioreactordesign",
+    "display_name": "viva-bioreactordesign",
+    "description": "Process-bigraph wrapper for BioReactorDesign (BiRD) bioreactor simulation",
+    "source": "https://github.com/vivarium-collective/viva-bioreactordesign.git",
+    "ref": "main",
+    "package": "pbg_bioreactordesign",
+    "homepage": "https://github.com/vivarium-collective/viva-bioreactordesign",
+    "tags": [
+      "bioreactor"
+    ]
+  },
+  {
+    "name": "viva-caspule",
     "display_name": "viva-caspule",
     "description": "Process-bigraph wrapper for CASPULE (a LAMMPS variant with dynamic bond formation/breaking)",
     "source": "https://github.com/vivarium-collective/viva-caspule.git",
@@ -65,7 +136,21 @@
     }
   },
   {
-    "name": "pbg-composite-nfsim-caspule",
+    "name": "viva-comets",
+    "display_name": "viva-comets",
+    "description": "Process-bigraph wrapper for COMETS (dynamic FBA + 2D spatial microbial ecosystems)",
+    "source": "https://github.com/vivarium-collective/viva-comets.git",
+    "ref": "main",
+    "package": "pbg_comets",
+    "homepage": "https://github.com/vivarium-collective/viva-comets",
+    "tags": [
+      "microbial",
+      "spatial",
+      "fba"
+    ]
+  },
+  {
+    "name": "viva-composite-nfsim-caspule",
     "display_name": "viva-composite-nfsim-caspule",
     "description": "Process-bigraph composite: CASPULE bond-aware MD coupled to NFSim rule-based kinetics through a configurable observable detector that converts spatial bond clusters into non-spatial species counts.",
     "source": "https://github.com/vivarium-collective/viva-composite-nfsim-caspule.git",
@@ -78,167 +163,6 @@
       "kinetics",
       "md",
       "composite"
-    ]
-  },
-  {
-    "name": "pbg-idynomics2",
-    "display_name": "viva-idynomics2",
-    "description": "Process-bigraph wrapper for IDynoMiCS 2.0, the Kreft lab's Java-based individual-based biofilm simulator",
-    "source": "https://github.com/vivarium-collective/pbg-idynomics2.git",
-    "ref": "main",
-    "package": "pbg_idynomics2",
-    "homepage": "https://github.com/vivarium-collective/pbg-idynomics2",
-    "tags": []
-  },
-  {
-    "name": "pbg-lammps",
-    "display_name": "viva-lammps",
-    "description": "Process-bigraph wrapper for the LAMMPS molecular dynamics simulator",
-    "source": "https://github.com/vivarium-collective/viva-lammps.git",
-    "ref": "main",
-    "package": "pbg_lammps",
-    "homepage": "https://github.com/vivarium-collective/viva-lammps",
-    "tags": [
-      "lammps",
-      "md"
-    ]
-  },
-  {
-    "name": "pbg-mem3dg",
-    "display_name": "viva-mem3dg",
-    "description": "Process-bigraph wrapper for Mem3DG membrane mechanics simulator",
-    "source": "https://github.com/vivarium-collective/viva-mem3dg.git",
-    "ref": "main",
-    "package": "pbg_mem3dg",
-    "homepage": "https://github.com/vivarium-collective/viva-mem3dg",
-    "tags": [
-      "membrane"
-    ]
-  },
-  {
-    "name": "pbg-membrane-actin-composite",
-    "display_name": "viva-membrane-actin-composite",
-    "description": "Process-bigraph composite: pbg-mem3dg + pbg-readdy as a Brownian ratchet (actin pushing on membrane, closed-loop)",
-    "source": "https://github.com/vivarium-collective/viva-membrane-actin-composite.git",
-    "ref": "main",
-    "package": "pbg_membrane_actin_composite",
-    "homepage": "https://github.com/vivarium-collective/viva-membrane-actin-composite",
-    "tags": [
-      "membrane",
-      "composite",
-      "particle"
-    ]
-  },
-  {
-    "name": "pbg-nfsim",
-    "display_name": "viva-nfsim",
-    "description": "A process-bigraph wrapper for BioNetGen/NFSim",
-    "source": "https://github.com/vivarium-collective/viva-nfsim.git",
-    "ref": "main",
-    "package": "pbg_nfsim",
-    "homepage": "https://github.com/vivarium-collective/viva-nfsim",
-    "tags": [
-      "rule-based"
-    ]
-  },
-  {
-    "name": "pbg-readdy",
-    "display_name": "viva-readdy",
-    "description": "Process-bigraph wrapper for the ReaDDy particle-based reaction-diffusion simulator",
-    "source": "https://github.com/vivarium-collective/viva-readdy.git",
-    "ref": "main",
-    "package": "pbg_readdy",
-    "homepage": "https://github.com/vivarium-collective/viva-readdy",
-    "tags": [
-      "particle",
-      "reaction-diffusion"
-    ]
-  },
-  {
-    "name": "pbg-simbio",
-    "display_name": "viva-simbio",
-    "description": "Process-bigraph wrapper for simbio (Chemical Reaction Network simulation) — load models from Antimony, simulate with simbio",
-    "source": "https://github.com/vivarium-collective/viva-simbio.git",
-    "ref": "main",
-    "package": "pbg_simbio",
-    "homepage": "https://github.com/vivarium-collective/viva-simbio",
-    "tags": [
-      "sbml"
-    ]
-  },
-  {
-    "name": "pbg-yalla",
-    "display_name": "viva-yalla",
-    "description": "Process-bigraph wrapper for a NumPy port of ya||a's pair-wise agent-based morphogenesis simulator",
-    "source": "https://github.com/vivarium-collective/viva-yalla.git",
-    "ref": "main",
-    "package": "pbg_yalla",
-    "homepage": "https://github.com/vivarium-collective/viva-yalla",
-    "tags": [
-      "agent-based",
-      "morphogenesis"
-    ]
-  },
-  {
-    "name": "spatio-flux",
-    "display_name": "spatio-flux",
-    "description": "spatio-temporal microbial simulations with Vivarium 2.0",
-    "source": "https://github.com/vivarium-collective/spatio-flux.git",
-    "ref": "main",
-    "package": "spatio_flux",
-    "homepage": "https://github.com/vivarium-collective/spatio-flux",
-    "tags": [
-      "microbial",
-      "metabolism"
-    ]
-  },
-  {
-    "name": "v2ecoli",
-    "display_name": "v2ecoli",
-    "description": "Whole-cell E. coli model in Vivarium 2",
-    "source": "https://github.com/vivarium-collective/v2ecoli.git",
-    "ref": "main",
-    "package": "v2ecoli",
-    "homepage": "https://github.com/vivarium-collective/v2ecoli",
-    "tags": [
-      "whole-cell",
-      "ecoli"
-    ]
-  },
-  {
-    "name": "viva-biomodels",
-    "display_name": "viva-biomodels",
-    "description": "Process-bigraph workspace: BIOMODELS regression — installs pbg-biomodels-bundle and drives investigations against the BioModels corpus",
-    "source": "https://github.com/vivarium-collective/viva-biomodels.git",
-    "ref": "main",
-    "package": "pbg_biomodels",
-    "homepage": "https://github.com/vivarium-collective/viva-biomodels",
-    "tags": []
-  },
-  {
-    "name": "viva-bioreactordesign",
-    "display_name": "viva-bioreactordesign",
-    "description": "Process-bigraph wrapper for BioReactorDesign (BiRD) bioreactor simulation",
-    "source": "https://github.com/vivarium-collective/viva-bioreactordesign.git",
-    "ref": "main",
-    "package": "pbg_bioreactordesign",
-    "homepage": "https://github.com/vivarium-collective/viva-bioreactordesign",
-    "tags": [
-      "bioreactor"
-    ]
-  },
-  {
-    "name": "viva-comets",
-    "display_name": "viva-comets",
-    "description": "Process-bigraph wrapper for COMETS (dynamic FBA + 2D spatial microbial ecosystems)",
-    "source": "https://github.com/vivarium-collective/viva-comets.git",
-    "ref": "main",
-    "package": "pbg_comets",
-    "homepage": "https://github.com/vivarium-collective/viva-comets",
-    "tags": [
-      "microbial",
-      "spatial",
-      "fba"
     ]
   },
   {
@@ -276,6 +200,19 @@
     "tags": []
   },
   {
+    "name": "viva-lammps",
+    "display_name": "viva-lammps",
+    "description": "Process-bigraph wrapper for the LAMMPS molecular dynamics simulator",
+    "source": "https://github.com/vivarium-collective/viva-lammps.git",
+    "ref": "main",
+    "package": "pbg_lammps",
+    "homepage": "https://github.com/vivarium-collective/viva-lammps",
+    "tags": [
+      "lammps",
+      "md"
+    ]
+  },
+  {
     "name": "viva-martini",
     "display_name": "viva-martini",
     "description": "Process-bigraph wrapper for the Martini coarse-grained force field — membrane systems, micelles, protein-lipid complexes, and vesicles",
@@ -302,6 +239,32 @@
     ]
   },
   {
+    "name": "viva-mem3dg",
+    "display_name": "viva-mem3dg",
+    "description": "Process-bigraph wrapper for Mem3DG membrane mechanics simulator",
+    "source": "https://github.com/vivarium-collective/viva-mem3dg.git",
+    "ref": "main",
+    "package": "pbg_mem3dg",
+    "homepage": "https://github.com/vivarium-collective/viva-mem3dg",
+    "tags": [
+      "membrane"
+    ]
+  },
+  {
+    "name": "viva-membrane-actin-composite",
+    "display_name": "viva-membrane-actin-composite",
+    "description": "Process-bigraph composite: pbg-mem3dg + pbg-readdy as a Brownian ratchet (actin pushing on membrane, closed-loop)",
+    "source": "https://github.com/vivarium-collective/viva-membrane-actin-composite.git",
+    "ref": "main",
+    "package": "pbg_membrane_actin_composite",
+    "homepage": "https://github.com/vivarium-collective/viva-membrane-actin-composite",
+    "tags": [
+      "membrane",
+      "composite",
+      "particle"
+    ]
+  },
+  {
     "name": "viva-munk",
     "display_name": "viva-munk",
     "description": "vivarium wrapper for pymunk",
@@ -310,6 +273,18 @@
     "package": "viva_munk",
     "homepage": "https://github.com/vivarium-collective/viva-munk",
     "tags": []
+  },
+  {
+    "name": "viva-nfsim",
+    "display_name": "viva-nfsim",
+    "description": "A process-bigraph wrapper for BioNetGen/NFSim",
+    "source": "https://github.com/vivarium-collective/viva-nfsim.git",
+    "ref": "main",
+    "package": "pbg_nfsim",
+    "homepage": "https://github.com/vivarium-collective/viva-nfsim",
+    "tags": [
+      "rule-based"
+    ]
   },
   {
     "name": "viva-oxidizeme",
@@ -330,6 +305,31 @@
     "package": "pbg_reactive_system",
     "homepage": "https://github.com/vivarium-collective/viva-reactive-system",
     "tags": []
+  },
+  {
+    "name": "viva-readdy",
+    "display_name": "viva-readdy",
+    "description": "Process-bigraph wrapper for the ReaDDy particle-based reaction-diffusion simulator",
+    "source": "https://github.com/vivarium-collective/viva-readdy.git",
+    "ref": "main",
+    "package": "pbg_readdy",
+    "homepage": "https://github.com/vivarium-collective/viva-readdy",
+    "tags": [
+      "particle",
+      "reaction-diffusion"
+    ]
+  },
+  {
+    "name": "viva-simbio",
+    "display_name": "viva-simbio",
+    "description": "Process-bigraph wrapper for simbio (Chemical Reaction Network simulation) — load models from Antimony, simulate with simbio",
+    "source": "https://github.com/vivarium-collective/viva-simbio.git",
+    "ref": "main",
+    "package": "pbg_simbio",
+    "homepage": "https://github.com/vivarium-collective/viva-simbio",
+    "tags": [
+      "sbml"
+    ]
   },
   {
     "name": "viva-smoldyn",
