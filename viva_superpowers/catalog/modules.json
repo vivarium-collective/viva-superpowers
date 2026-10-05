@@ -65,20 +65,6 @@
     }
   },
   {
-    "name": "pbg-comets",
-    "display_name": "viva-comets",
-    "description": "Process-bigraph wrapper for COMETS (dynamic FBA + 2D spatial microbial ecosystems)",
-    "source": "https://github.com/vivarium-collective/viva-comets.git",
-    "ref": "main",
-    "package": "pbg_comets",
-    "homepage": "https://github.com/vivarium-collective/viva-comets",
-    "tags": [
-      "microbial",
-      "spatial",
-      "fba"
-    ]
-  },
-  {
     "name": "pbg-composite-nfsim-caspule",
     "display_name": "viva-composite-nfsim-caspule",
     "description": "Process-bigraph composite: CASPULE bond-aware MD coupled to NFSim rule-based kinetics through a configurable observable detector that converts spatial bond clusters into non-spatial species counts.",
@@ -92,18 +78,6 @@
       "kinetics",
       "md",
       "composite"
-    ]
-  },
-  {
-    "name": "pbg-compucell3d",
-    "display_name": "viva-compucell3d",
-    "description": "Process-bigraph wrapper for the CompuCell3D multicellular simulation environment",
-    "source": "https://github.com/vivarium-collective/viva-compucell3d.git",
-    "ref": "main",
-    "package": "pbg_compucell3d",
-    "homepage": "https://github.com/vivarium-collective/viva-compucell3d",
-    "tags": [
-      "multicellular"
     ]
   },
   {
@@ -127,32 +101,6 @@
     "tags": [
       "lammps",
       "md"
-    ]
-  },
-  {
-    "name": "pbg-martini",
-    "display_name": "viva-martini",
-    "description": "Process-bigraph wrapper for the Martini coarse-grained force field — membrane systems, micelles, protein-lipid complexes, and vesicles",
-    "source": "https://github.com/vivarium-collective/viva-martini.git",
-    "ref": "main",
-    "package": "pbg_martini",
-    "homepage": "https://github.com/vivarium-collective/viva-martini",
-    "tags": [
-      "membrane",
-      "coarse-grained"
-    ]
-  },
-  {
-    "name": "pbg-medyan",
-    "display_name": "viva-medyan",
-    "description": "Process-bigraph wrapper for the MEDYAN cytoskeleton simulator: pure-Python re-implementation + a subprocess-driven bridge to the real MEDYAN C++ binary (with checkpoint-restart and HDF5 vesicle support).",
-    "source": "https://github.com/vivarium-collective/viva-medyan.git",
-    "ref": "main",
-    "package": "pbg_medyan",
-    "homepage": "https://github.com/vivarium-collective/viva-medyan",
-    "tags": [
-      "cytoskeleton",
-      "membrane"
     ]
   },
   {
@@ -194,16 +142,6 @@
     ]
   },
   {
-    "name": "pbg-oxidizeme",
-    "display_name": "viva-oxidizeme",
-    "description": "Process-bigraph wrapper for OxidizeME — a genome-scale ME-model of E. coli with ROS damage/repair (Yang et al. 2019 PNAS / Palsson lab)",
-    "source": "https://github.com/vivarium-collective/viva-oxidizeme.git",
-    "ref": "main",
-    "package": "pbg_oxidizeme",
-    "homepage": "https://github.com/vivarium-collective/viva-oxidizeme",
-    "tags": []
-  },
-  {
     "name": "pbg-readdy",
     "display_name": "viva-readdy",
     "description": "Process-bigraph wrapper for the ReaDDy particle-based reaction-diffusion simulator",
@@ -226,19 +164,6 @@
     "homepage": "https://github.com/vivarium-collective/viva-simbio",
     "tags": [
       "sbml"
-    ]
-  },
-  {
-    "name": "pbg-vcell-fvsolver",
-    "display_name": "viva-vcell-fvsolver",
-    "description": "process-bigraph wrapper around pyvcell / pyvcell-fvsolver — VCell's finite-volume 3D reaction-diffusion PDE solver as a PBG Process",
-    "source": "https://github.com/vivarium-collective/viva-vcell-fvsolver.git",
-    "ref": "main",
-    "package": "pbg_vcell_fvsolver",
-    "homepage": "https://github.com/vivarium-collective/viva-vcell-fvsolver",
-    "tags": [
-      "reaction-diffusion",
-      "pde"
     ]
   },
   {
@@ -303,6 +228,32 @@
     ]
   },
   {
+    "name": "viva-comets",
+    "display_name": "viva-comets",
+    "description": "Process-bigraph wrapper for COMETS (dynamic FBA + 2D spatial microbial ecosystems)",
+    "source": "https://github.com/vivarium-collective/viva-comets.git",
+    "ref": "main",
+    "package": "pbg_comets",
+    "homepage": "https://github.com/vivarium-collective/viva-comets",
+    "tags": [
+      "microbial",
+      "spatial",
+      "fba"
+    ]
+  },
+  {
+    "name": "viva-compucell3d",
+    "display_name": "viva-compucell3d",
+    "description": "Process-bigraph wrapper for the CompuCell3D multicellular simulation environment",
+    "source": "https://github.com/vivarium-collective/viva-compucell3d.git",
+    "ref": "main",
+    "package": "pbg_compucell3d",
+    "homepage": "https://github.com/vivarium-collective/viva-compucell3d",
+    "tags": [
+      "multicellular"
+    ]
+  },
+  {
     "name": "viva-copasi",
     "display_name": "viva-copasi",
     "description": "process-bigraph-compatible COPASI Steps and Processes for SBML simulation",
@@ -325,6 +276,32 @@
     "tags": []
   },
   {
+    "name": "viva-martini",
+    "display_name": "viva-martini",
+    "description": "Process-bigraph wrapper for the Martini coarse-grained force field — membrane systems, micelles, protein-lipid complexes, and vesicles",
+    "source": "https://github.com/vivarium-collective/viva-martini.git",
+    "ref": "main",
+    "package": "pbg_martini",
+    "homepage": "https://github.com/vivarium-collective/viva-martini",
+    "tags": [
+      "membrane",
+      "coarse-grained"
+    ]
+  },
+  {
+    "name": "viva-medyan",
+    "display_name": "viva-medyan",
+    "description": "Process-bigraph wrapper for the MEDYAN cytoskeleton simulator: pure-Python re-implementation + a subprocess-driven bridge to the real MEDYAN C++ binary (with checkpoint-restart and HDF5 vesicle support).",
+    "source": "https://github.com/vivarium-collective/viva-medyan.git",
+    "ref": "main",
+    "package": "pbg_medyan",
+    "homepage": "https://github.com/vivarium-collective/viva-medyan",
+    "tags": [
+      "cytoskeleton",
+      "membrane"
+    ]
+  },
+  {
     "name": "viva-munk",
     "display_name": "viva-munk",
     "description": "vivarium wrapper for pymunk",
@@ -332,6 +309,16 @@
     "ref": "main",
     "package": "viva_munk",
     "homepage": "https://github.com/vivarium-collective/viva-munk",
+    "tags": []
+  },
+  {
+    "name": "viva-oxidizeme",
+    "display_name": "viva-oxidizeme",
+    "description": "Process-bigraph wrapper for OxidizeME — a genome-scale ME-model of E. coli with ROS damage/repair (Yang et al. 2019 PNAS / Palsson lab)",
+    "source": "https://github.com/vivarium-collective/viva-oxidizeme.git",
+    "ref": "main",
+    "package": "pbg_oxidizeme",
+    "homepage": "https://github.com/vivarium-collective/viva-oxidizeme",
     "tags": []
   },
   {
@@ -368,6 +355,19 @@
     "homepage": "https://github.com/vivarium-collective/viva-tellurium",
     "tags": [
       "sbml"
+    ]
+  },
+  {
+    "name": "viva-vcell-fvsolver",
+    "display_name": "viva-vcell-fvsolver",
+    "description": "process-bigraph wrapper around pyvcell / pyvcell-fvsolver — VCell's finite-volume 3D reaction-diffusion PDE solver as a PBG Process",
+    "source": "https://github.com/vivarium-collective/viva-vcell-fvsolver.git",
+    "ref": "main",
+    "package": "pbg_vcell_fvsolver",
+    "homepage": "https://github.com/vivarium-collective/viva-vcell-fvsolver",
+    "tags": [
+      "reaction-diffusion",
+      "pde"
     ]
   }
 ]
