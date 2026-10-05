@@ -1,22 +1,22 @@
 [
   {
-    "name": "pbg-biomodels-bundle",
+    "name": "viva-biomodels-bundle",
     "display_name": "viva-biomodels-bundle",
     "description": "Regression harness for BioModels: runs each model under multiple simulators (COPASI, Tellurium) and renders an interactive comparison report.",
-    "source": "https://github.com/vivarium-collective/pbg-biomodels-bundle.git",
+    "source": "https://github.com/vivarium-collective/viva-biomodels-bundle.git",
     "ref": "main",
     "package": "pbg_biomodels_bundle",
-    "homepage": "https://github.com/vivarium-collective/pbg-biomodels-bundle",
+    "homepage": "https://github.com/vivarium-collective/viva-biomodels-bundle",
     "tags": []
   },
   {
-    "name": "pbg-idynomics2",
+    "name": "viva-idynomics2",
     "display_name": "viva-idynomics2",
     "description": "Process-bigraph wrapper for IDynoMiCS 2.0, the Kreft lab's Java-based individual-based biofilm simulator",
-    "source": "https://github.com/vivarium-collective/pbg-idynomics2.git",
+    "source": "https://github.com/vivarium-collective/viva-idynomics2.git",
     "ref": "main",
     "package": "pbg_idynomics2",
-    "homepage": "https://github.com/vivarium-collective/pbg-idynomics2",
+    "homepage": "https://github.com/vivarium-collective/viva-idynomics2",
     "tags": []
   },
   {
