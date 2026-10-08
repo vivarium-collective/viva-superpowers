@@ -213,6 +213,59 @@ def _inplace_merge_pyproject(existing_path: Path, template_deps: list[str]) -> l
     return to_add
 
 
+def _inplace_merge_pyproject_cli_extra(existing_path: Path) -> bool:
+    """Ensure [project.optional-dependencies] declares cli = ["typer", "rich"]
+    so the scaffolded cli/ subpackage (see _inplace_create_cli) is
+    installable via `uv pip install -e ".[cli]"`. Returns True if added;
+    leaves an existing `cli` extra untouched (don't clobber user edits)."""
+    import tomllib
+    text = existing_path.read_text(encoding="utf-8")
+    parsed = tomllib.loads(text)
+    extras = (parsed.get("project") or {}).get("optional-dependencies") or {}
+    if "cli" in extras:
+        return False
+    entry = 'cli = ["typer", "rich"]\n'
+    if "[project.optional-dependencies]" in text:
+        text = re.sub(r"(\[project\.optional-dependencies\]\s*\n)",
+                      rf"\1{entry}", text, count=1)
+    else:
+        sep = "" if text.endswith("\n") else "\n"
+        text = f"{text}{sep}\n[project.optional-dependencies]\n{entry}"
+    existing_path.write_text(text)
+    return True
+
+
+def _inplace_merge_pyproject_scripts(
+    existing_path: Path, workspace_name: str, package_path: str,
+) -> bool:
+    """Ensure [project.scripts] declares
+    <workspace_name> = "<package_path>.cli.__main__:main" so the scaffolded
+    cli/ subpackage installs as a real console-script entrypoint. Returns
+    True if added; leaves a pre-existing entry for this name untouched
+    (don't clobber a user's own script mapping)."""
+    import tomllib
+    text = existing_path.read_text(encoding="utf-8")
+    parsed = tomllib.loads(text)
+    scripts = (parsed.get("project") or {}).get("scripts") or {}
+    entry_value = f"{package_path}.cli.__main__:main"
+    if workspace_name in scripts:
+        if scripts[workspace_name] != entry_value:
+            click.echo(
+                f"warning: [project.scripts] already maps '{workspace_name}' "
+                f"to {scripts[workspace_name]!r}; leaving it as-is "
+                f"(wanted {entry_value!r})", err=True,
+            )
+        return False
+    entry = f'{workspace_name} = "{entry_value}"\n'
+    if "[project.scripts]" in text:
+        text = re.sub(r"(\[project\.scripts\]\s*\n)", rf"\1{entry}", text, count=1)
+    else:
+        sep = "" if text.endswith("\n") else "\n"
+        text = f"{text}{sep}\n[project.scripts]\n{entry}"
+    existing_path.write_text(text)
+    return True
+
+
 def _dep_name(dep_spec: str) -> str:
     """Extract the package name from a PEP-440 dep spec like 'foo>=1.0' → 'foo'."""
     import re as _re
@@ -308,6 +361,184 @@ def _inplace_create_pkg(workspace_root: Path, package_path: str) -> bool:
     return True
 
 
+def _inplace_create_cli(workspace_root: Path, workspace_name: str, package_path: str) -> bool:
+    """Create <package_path>/cli/{__init__.py,__main__.py} if the cli
+    subpackage doesn't already exist. Returns True if files were created.
+
+    Mirrors viva-template's own template-init.sh cli scaffold byte-for-byte
+    (module-level content only — package_path/workspace_name are the two
+    substitution points), so a workspace scaffolded in-place via this plugin
+    and one scaffolded fresh via viva-template end up with the same CLI.
+    """
+    cli_dir = workspace_root / package_path / "cli"
+    if cli_dir.is_dir() and (cli_dir / "__init__.py").is_file():
+        return False
+    cli_dir.mkdir(parents=True, exist_ok=True)
+    (cli_dir / "__init__.py").write_text(
+        f'"""{package_path}.cli — the workspace\'s command-line interface."""\n'
+    )
+    (cli_dir / "__main__.py").write_text(_CLI_MAIN_TEMPLATE.format(
+        package_path=package_path, workspace_name=workspace_name,
+    ))
+    return True
+
+
+# Kept in parity with viva-template's template/template-init.sh CLI heredoc —
+# the common, generic command interface every viva-* workspace/wrapper gets.
+# {package_path} / {workspace_name} are the only substitution points.
+_CLI_MAIN_TEMPLATE = '''"""{package_path}.cli.__main__ — the workspace's CLI entrypoint.
+
+Common, generic command interface for viva-* workspaces: `run` builds and
+runs any catalog composite (spec or generator) directly against
+process-bigraph's own discovery + Composite APIs — the same primitives the
+dashboard's composite resolver (`vivarium_workbench.lib.composite_resolve`)
+is itself built on, minus that resolver's dashboard/cloud-dispatch layers,
+which don't apply to a plain local CLI run. No server required. Add
+workspace-specific sub-CLIs as sibling modules under cli/ and mount them on
+`app` below.
+"""
+from __future__ import annotations
+
+import importlib
+import sys
+from pathlib import Path
+from typing import Any
+
+import typer
+import yaml
+from rich.console import Console
+
+app = typer.Typer(name="{workspace_name}", help="{workspace_name} workspace CLI.")
+console = Console()
+
+
+@app.callback()
+def _callback() -> None:
+    """{workspace_name} workspace CLI.
+
+    Keeps `run` an explicit subcommand (`{workspace_name} run ...`) even while
+    it is the only command — Typer collapses a single `@app.command` into the
+    bare top-level invocation unless a callback is registered. Add
+    workspace-specific sub-CLIs as more `@app.command`s below, or mount
+    sibling Typer apps here with `app.add_typer(...)`.
+    """
+
+
+def _find_workspace_root(start: "Path | None" = None) -> Path:
+    """Walk up from `start` (default cwd) to the nearest workspace.yaml."""
+    current = (start or Path.cwd()).resolve()
+    for candidate in (current, *current.parents):
+        if (candidate / "workspace.yaml").is_file():
+            return candidate
+    raise typer.BadParameter(
+        "no workspace.yaml found in this directory or any parent"
+    )
+
+
+def _package_path(workspace_root: Path) -> str:
+    ws_data = yaml.safe_load(
+        (workspace_root / "workspace.yaml").read_text(encoding="utf-8")
+    ) or {{}}
+    return ws_data.get("package_path") or "{package_path}"
+
+
+def _parse_override(raw: str) -> tuple[str, Any]:
+    """Parse a `key=value` override; value is YAML-loaded so ints/floats/
+    bools/lists parse naturally and plain strings still round-trip."""
+    if "=" not in raw:
+        raise typer.BadParameter(f"override must be key=value, got: {{raw!r}}")
+    key, _, value = raw.partition("=")
+    return key.strip(), yaml.safe_load(value)
+
+
+def _resolve_composite_spec(workspace_root: Path, package_path: str, composite_id: str):
+    """Resolve `composite_id` to a live process_bigraph CompositeSpec.
+
+    Covers both composite conventions this ecosystem uses — a static
+    `*.composite.yaml`/`.json` file under the workspace package, and a
+    `@composite_spec`/`@composite_generator`-decorated Python generator —
+    since both register into the same process_bigraph.composite_spec
+    registry. `discover_specs` alone only reaches installed packages'
+    top-level modules (an editable install of THIS workspace's own package
+    is invisible to it — same caveat as build_core()'s own discovery, see
+    core.py); when the id still misses, import the module the id names
+    (a generator id is `<dotted.module>.<generator_name>`) so its decorator
+    fires, then retry.
+    """
+    from process_bigraph.composite_spec import discover_specs, get as get_spec
+
+    if str(workspace_root) not in sys.path:
+        sys.path.insert(0, str(workspace_root))
+
+    discover_specs(workspace=workspace_root / package_path)
+    spec = get_spec(composite_id)
+    if spec is None and "." in composite_id:
+        module_name = composite_id.rsplit(".", 1)[0]
+        try:
+            importlib.import_module(module_name)
+        except Exception:
+            pass
+        spec = get_spec(composite_id)
+    if spec is None:
+        raise typer.BadParameter(f"composite not found: {{composite_id}}")
+    return spec
+
+
+@app.command(name="run")
+def run_composite(
+    composite_id: str = typer.Argument(
+        ..., help="Dotted composite reference, e.g. pkg.composites.my_model"
+    ),
+    steps: float = typer.Option(
+        None, "--steps",
+        help="Simulation duration in steps. Defaults to the composite's own default_n_steps, or 10.",
+    ),
+    emit: str = typer.Option(
+        None, "--emit", help="Comma-separated '/'-joined store paths to print. Defaults to the full state."
+    ),
+    param: list[str] = typer.Option(
+        [], "--param", help="Parameter override as key=value (repeatable)."
+    ),
+) -> None:
+    """Build and run a catalog composite via process-bigraph directly.
+
+    The generalized, built-in execution entrypoint: resolve `composite_id`
+    to a CompositeSpec, then build+run it with the spec's own
+    `to_composite()` (process-bigraph's single canonical builder for both
+    spec-file and generator-decorated composites — it normalizes either
+    return shape and installs the spec's declared emitters). No dashboard
+    server involved.
+    """
+    workspace_root = _find_workspace_root()
+    package_path = _package_path(workspace_root)
+    core_module = importlib.import_module(f"{{package_path}}.core")
+    core = core_module.build_core()
+
+    overrides = dict(_parse_override(p) for p in param)
+    spec = _resolve_composite_spec(workspace_root, package_path, composite_id)
+    composite = spec.to_composite(overrides, core=core)
+    duration = steps if steps is not None else (spec.default_n_steps or 10)
+    composite.run(duration)
+
+    if emit:
+        for path in (p.strip() for p in emit.split(",") if p.strip()):
+            value: Any = composite.state
+            for part in path.split("/"):
+                value = value[part]
+            console.print(f"{{path}} = {{value}}")
+    else:
+        console.print(composite.state)
+
+
+def main() -> None:
+    app()
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+
 def scaffold_workspace_in_place(
     *,
     workspace_root: Path,
@@ -394,14 +625,21 @@ def scaffold_workspace_in_place(
         # didn't copy because it'd clobber the existing one).
         template_pyproject = staging / "pyproject.toml.j2"
         added_deps: list[str] = []
+        added_cli_extra = False
+        added_cli_script = False
         if template_pyproject.is_file():
             tpl_text = _render_text(template_pyproject.read_text(encoding="utf-8"), subs)
             tpl_deps = _inplace_extract_template_deps(tpl_text)
             existing_pyproject = workspace_root / "pyproject.toml"
             if existing_pyproject.is_file():
                 added_deps = _inplace_merge_pyproject(existing_pyproject, tpl_deps)
+                added_cli_extra = _inplace_merge_pyproject_cli_extra(existing_pyproject)
+                added_cli_script = _inplace_merge_pyproject_scripts(
+                    existing_pyproject, workspace_name, pkg_slug)
             else:
-                # No pyproject at all — write the rendered template's wholesale.
+                # No pyproject at all — write the rendered template's wholesale
+                # (viva-template's own pyproject.toml.j2 already declares the
+                # cli extra + [project.scripts] entry).
                 existing_pyproject.write_text(tpl_text)
                 added_deps = list(tpl_deps)
 
@@ -421,6 +659,7 @@ def scaffold_workspace_in_place(
 
         # Python package skeleton.
         pkg_created = _inplace_create_pkg(workspace_root, pkg_slug)
+        cli_created = _inplace_create_cli(workspace_root, workspace_name, pkg_slug)
 
     # Commit so the workspace branch has a single bootstrap commit.
     try:
@@ -452,9 +691,14 @@ def scaffold_workspace_in_place(
     # Print a concise summary.
     click.echo(f"  branch:    {branch}")
     click.echo(f"  package:   {pkg_slug}{' (created)' if pkg_created else ' (existing)'}")
+    click.echo(f"  cli:       {pkg_slug}.cli{' (created)' if cli_created else ' (existing)'}")
     click.echo(f"  files copied from template: {copied}")
     if added_deps:
         click.echo(f"  deps added to pyproject.toml: {', '.join(added_deps)}")
+    if added_cli_extra:
+        click.echo("  pyproject.toml: added [project.optional-dependencies] cli extra")
+    if added_cli_script:
+        click.echo(f"  pyproject.toml: added [project.scripts] entry '{workspace_name}'")
     if added_ignore_lines:
         click.echo(f"  .gitignore lines added: {added_ignore_lines}")
     if autopin_path:
