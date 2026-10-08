@@ -1,9 +1,10 @@
 [project]
 name = "viva-superpowers"
-version = "0.22.0"
+version = "0.23.0"
 description = "Plugin Python helpers for the viva-superpowers skills (was pbg-superpowers)"
 requires-python = ">=3.11"
 dependencies = [
+    "filelock>=3.12",
     "pyyaml>=6.0",
     "ruamel.yaml>=0.18",
     "jsonschema[format-nongpl]>=4.21",
@@ -31,9 +32,9 @@ dev = ["pytest>=7.4", "pytest-cov>=4.1", "pytest-timeout>=2.1"]
 evaluator = ["viva-emitters[parquet]"]
 # Default framework processes (Clock, Intervention, MathExpression).
 # Auto-register into the core registry via bigraph-schema package discovery.
-# Listed as optional until pbg-basic-processes is published to PyPI; local dev
+# Listed as optional until viva-basic-processes is published to PyPI; local dev
 # installs resolve it via [tool.uv.sources] below.
-processes = ["pbg-basic-processes"]
+processes = ["viva-basic-processes"]
 # Agentic-spine event reactor (event_client.py / RFC-0002 Phase A). Used only by
 # the optional EventClient; gated as an extra because investigation-contracts is
 # a first-party git dependency not published to PyPI. Local dev installs resolve
@@ -43,7 +44,7 @@ events = ["investigation-contracts"]
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
-pbg-basic-processes = { git = "https://github.com/vivarium-collective/pbg-basic-processes.git", branch = "main" }
+viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }
 
 [project.scripts]
@@ -80,6 +81,11 @@ packages = ["viva_superpowers", "pbg_superpowers"]
 # installs still work.
 [tool.hatch.build.targets.wheel.force-include]
 "templates" = "viva_superpowers/_templates"
+# Ship the /viva-* Agent Skills (SKILL.md folders) inside the installed package
+# so a non-editable install carries them. A dependent (e.g. vivarium-workbench's
+# chat) can then discover the skills from the installed package, rather than only
+# from a local checkout / Claude plugin.
+"skills" = "viva_superpowers/skills"
 
 [tool.ruff]
 # Minimal lint gate for the viva_superpowers package: pyflakes (F) catches

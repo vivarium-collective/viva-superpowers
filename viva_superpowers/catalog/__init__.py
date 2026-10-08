@@ -26,12 +26,12 @@ def canonical_registry() -> list[dict]:
     """The curated available-modules list.
 
     Ownership of the ecosystem registry has moved to the dedicated
-    ``viva-marketplace`` repo/package — read it from there when it's installed so
+    ``viva-catalog`` repo/package — read it from there when it's installed so
     there's a single source of truth. The copy shipped here is a fallback kept
-    for standalone / offline use (e.g. viva-marketplace not installed)."""
+    for standalone / offline use (e.g. viva-catalog not installed)."""
     try:
-        import viva_marketplace  # noqa: PLC0415
-        mods = viva_marketplace.load_modules()
+        import viva_catalog  # noqa: PLC0415
+        mods = viva_catalog.load_modules()
         if mods:
             return mods
     except Exception:  # noqa: BLE001 — any import/read failure falls back to the local copy

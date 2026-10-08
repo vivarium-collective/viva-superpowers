@@ -63,7 +63,7 @@ Draft the `question`, `hypothesis`, `objective`, and/or `description` fields of 
 
    - `hypothesis:` / `objective:` / `description:` (DEPRECATED — draft only if named explicitly) — superseded by `claim` / `experiment` / `result`. If drafted: `hypothesis` = predicted outcome (quantitative thresholds only when in the source docs); `objective` = imperative statement of what the study builds/measures; `description` = two-to-four paragraphs of scientific context.
 
-   **v4 narrative-spine fields** (drafted only when `--include-narrative` or named explicitly in `--fields`; written via `POST /api/study-narrative-set` — `report`, `study_card`, and `biological_summary` are canonical narrative roots the endpoint accepts as dotted-path leaf writes):
+   **v4 narrative-spine fields** (drafted only when `--include-narrative` or named explicitly in `--fields`; written via `PATCH /api/study/<slug>` with body `{"narrative": {"path": "<dotted.path>", "value": ...}}` — one leaf per request; `report`, `study_card`, and `biological_summary` are among the allowlisted narrative roots the endpoint accepts as dotted-path leaf writes, and a `null`/`""` value deletes the leaf):
 
    - `report:` — Object with sub-fields. `verdict` defaults to `not-yet-run` until simulations land; `confidence` defaults to `low`; `evidence_quality` defaults to `aspirational`. Draft `objective`, `main_insight`, and `caveat` from the plan's expected-outcome + caveats sections. Leave `conclusion` blank (it's a Decide-phase field). `key_metrics` is hand-authored; do not invent numbers.
 
@@ -82,13 +82,13 @@ Draft the `question`, `hypothesis`, `objective`, and/or `description` fields of 
    - `no` — abort without writing; print "No changes made."
    - `edit <field> <new-prompt>` — re-draft only that field using the new prompt, then repeat the preview for it before asking again. Loop until the user says `yes` or `no`.
 
-7. **Write via API.** POST `/api/study-set-description` with only the fields being written:
+7. **Write via API.** `PATCH /api/study/<slug>` with only the fields being written. Overview fields (`claim`, `experiment`, `result`, `question`, `hypothesis`, `topic`, `status`) go under `overview`; `objective` is a top-level field:
 
    ```json
-   {"study": "<slug>", "question": "...", "hypothesis": "...", "objective": "...", "description": "..."}
+   {"overview": {"claim": "...", "experiment": "...", "result": "...", "question": "...", "hypothesis": "..."}, "objective": "..."}
    ```
 
-   The endpoint accepts partial bodies — omit any field not being updated. After the POST, verify by fetching `/api/study/<slug>` and printing the resulting values of the written fields so the user can confirm what landed.
+   The endpoint accepts partial bodies — omit any field not being updated — and returns `{ok, applied: [...]}`. `overview.status` must be one of `draft | in-progress | completed | archived`. There is no write path for `description`; do not send it. After the PATCH, verify by fetching `/api/study/<slug>` and printing the resulting values of the written fields so the user can confirm what landed.
 
 8. **Report.** Print a one-line summary per field: field name, character count before and after, and confirmation that the dashboard now shows the new value.
 
@@ -97,14 +97,14 @@ Draft the `question`, `hypothesis`, `objective`, and/or `description` fields of 
 - Be conservative with hypothesis thresholds. Only state numbers that appear explicitly in the source docs. Prefer "approximately" phrasing over invented precision.
 - A `question:` field longer than four sentences is too long — revise.
 - If a field already has user-authored content that is substantively different from the draft, present both side-by-side and let the user decide before overwriting.
-- `/api/study-set-description` is the canonical study-* endpoint (registered in the workbench as an alias of the underlying `/api/investigation-set-overview`). Prefer the study-* name in new skill code; the `/api/investigation-set-overview` form is the v2 alias kept for backwards compatibility. There is no `/api/study-set-overview` route.
+- `PATCH /api/study/<slug>` (body model `StudyPatchBody`) is the write route for a study's overview fields, `objective`, narrative leaves, and `conclusions`. The legacy `POST /api/study-set-description`, `/api/investigation-set-overview`, `/api/study-set-objective`, `/api/study-narrative-set`, and `/api/study-set-conclusion` setters were consolidated into it and are no longer routed (they return 405) — do not call them.
 
 #### `set-objective <study-name> '<text>'`
 
-Replace the Study's objective. POST `/api/study-set-objective`:
+Replace the Study's objective. `PATCH /api/study/<study-name>`:
 
 ```json
-{"study": "<study-name>", "text": "<text>"}
+{"objective": "<text>"}
 ```
 
 #### `baseline-add <study-name> --name <n> --composite <id> [--params '<json>']`
@@ -612,11 +612,13 @@ No `pbg-study` subcommands run here directly. Evaluation is driven by:
 
 #### `set-conclusion <study-name> '<markdown>'`
 
-Replace the Study's conclusion. POST `/api/study-set-conclusion`:
+Replace the Study's conclusions (`conclusions` in `study.yaml`). `PATCH /api/study/<study-name>`:
 
 ```json
-{"study": "<study-name>", "text": "<markdown>"}
+{"conclusions": "<markdown>"}
 ```
+
+Bodies over 256 KB are rejected.
 
 The markdown is canonically structured under H2 headers: `## Claims`, `## Evidence`, `## Limitations`, `## Next steps`.
 
@@ -850,6 +852,13 @@ post() {
   curl -sf -X POST -H "Content-Type: application/json" -d "$body" "$URL$path" | python3 -m json.tool
 }
 
+# Helper: partial-update a study's metadata (PATCH /api/study/<slug>).
+patch_study() {
+  local slug="$1"; shift
+  local body="$1"; shift
+  curl -sf -X PATCH -H "Content-Type: application/json" -d "$body" "$URL/api/study/$slug" | python3 -m json.tool
+}
+
 # Study runs are DETACHED: /api/study-run-* returns 202 {run_id, status:"running"}.
 # Poll to completion before treating the run as done — a 202 is "running", not "ran"
 # (see the evidence-before-verdict gate in SKILL.md). Charts refresh server-side on
@@ -891,18 +900,18 @@ print(json.dumps({'name': os.environ['SNAME'], 'source': os.environ['CID']}))")
 
   set-objective)
     NAME="$1"; TEXT="$2"
-    BODY=$(NAME="$NAME" TEXT="$TEXT" python3 -c "
+    BODY=$(TEXT="$TEXT" python3 -c "
 import json, os
-print(json.dumps({'study': os.environ['NAME'], 'text': os.environ['TEXT']}))")
-    post "/api/study-set-objective" "$BODY"
+print(json.dumps({'objective': os.environ['TEXT']}))")
+    patch_study "$NAME" "$BODY"
     ;;
 
   set-conclusion)
     NAME="$1"; MD="$2"
-    BODY=$(NAME="$NAME" MD="$MD" python3 -c "
+    BODY=$(MD="$MD" python3 -c "
 import json, os
-print(json.dumps({'study': os.environ['NAME'], 'text': os.environ['MD']}))")
-    post "/api/study-set-conclusion" "$BODY"
+print(json.dumps({'conclusions': os.environ['MD']}))")
+    patch_study "$NAME" "$BODY"
     ;;
 
   fill-overview)

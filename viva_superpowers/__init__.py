@@ -1,5 +1,5 @@
 """Helpers shared by pbg-superpowers skills."""
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 
 # Light, import-safe contract (no process_bigraph): eager.
 from viva_superpowers.test_contract import (  # noqa: E402,F401

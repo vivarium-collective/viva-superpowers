@@ -6,11 +6,19 @@ catalog. Run it to re-curate the list (it overwrites the package resource
 
     python3 -m viva_superpowers.catalog.sync_catalog
 
-Pulls every `pbg-*` repo on vivarium-collective (excluding pbg-superpowers
-and pbg-template, which aren't simulation modules), plus the explicitly
-listed extras (v2ecoli, spatio-flux, Viva-munk). Re-emits modules.json
-sorted by name; curator-authored fields (e.g. ``system_dependencies.checks``)
-on existing entries are preserved across a re-sync.
+Refreshes GitHub-derived metadata for the modules already tracked in
+modules.json (matched by their source **repo**, so repo renames don't drop
+them), plus any still-``pbg-``-named org repos (stragglers mid-rename) and the
+explicitly listed extras (v2ecoli, spatio-flux, viva-munk). Re-emits
+modules.json sorted by name.
+
+The module set used to be discovered purely by the ``pbg-`` repo-name prefix.
+Now that modules are being renamed to ``viva-*`` — indistinguishable from the
+many other ``viva-*`` org repos (docs, apps, investigations) — the tracked set
+is sourced from the existing modules.json instead, and the install ``name`` /
+import ``package`` are **curator-owned** (preserved across a re-sync, since a
+repo's dist name may still lag its repo name during the migration). Other
+curator-authored fields (e.g. ``system_dependencies.checks``) are preserved too.
 
 Requires `gh` CLI authenticated against GitHub. To add/remove a module from
 the ecosystem registry, re-run this (or hand-edit modules.json) and release
@@ -35,8 +43,8 @@ ORG = "vivarium-collective"
 # the catalog. Keep this list tight — workspace-y repos (vEcoli*,
 # multiscale-bioprocess, etc.) and infrastructure (bigraph-*, sms-*)
 # do NOT belong here.
-EXTRAS = ["v2ecoli", "spatio-flux", "Viva-munk"]
-EXCLUDE = {"pbg-superpowers", "pbg-template"}
+EXTRAS = ["v2ecoli", "spatio-flux", "viva-munk"]
+EXCLUDE = {"pbg-superpowers", "pbg-template", "viva-superpowers", "viva-template"}
 
 
 def _gh_list_org(org: str) -> list[dict]:
@@ -145,13 +153,24 @@ def _entry(repo: dict) -> dict:
 
 
 # Fields that this script owns — it overwrites them on every run from the
-# GitHub metadata. Any OTHER field on an existing entry is curator-owned
-# (e.g. hand-authored `checks:` blocks for runtime dependency validation,
-# like the OpenMPI + lammps-importable probes on pbg-lammps) and must be
-# preserved across a re-sync — otherwise running this script eats curation.
+# GitHub metadata. Any OTHER field on an existing entry is curator-owned and
+# must be preserved across a re-sync — otherwise running this script eats
+# curation. The install `name` and import `package` are curator-owned (NOT
+# here): during the pbg->viva migration a repo's dist/install name may lag its
+# repo name, so they must not be clobbered by the repo name. A brand-new entry
+# still gets both from `_entry` (keyed off the repo name) as a sensible default.
 _AUTO_KEYS = frozenset({
-    "name", "display_name", "description", "source", "ref", "package", "homepage", "tags",
+    "display_name", "description", "source", "ref", "homepage", "tags",
 })
+
+
+def _repo_of(entry: dict) -> str:
+    """The GitHub repo basename backing an entry, from its `source` URL
+    (falling back to `name`). This is the stable key across a repo rename."""
+    src = (entry.get("source") or "").rstrip("/")
+    if src.endswith(".git"):
+        src = src[: -len(".git")]
+    return src.rsplit("/", 1)[-1] if src else (entry.get("name") or "")
 
 
 def _merge_extras(fresh: dict, existing: dict | None) -> dict:
@@ -173,54 +192,52 @@ def _merge_extras(fresh: dict, existing: dict | None) -> dict:
 def main() -> int:
     repos = _gh_list_org(ORG)
     by_name = {r["name"]: r for r in repos}
-    selected: list[dict] = []
-    for r in repos:
-        nm = r["name"]
-        if nm in EXCLUDE:
-            continue
-        if nm.startswith("pbg-"):
-            selected.append(r)
-    for nm in EXTRAS:
-        if nm in by_name:
-            selected.append(by_name[nm])
-        else:
-            print(f"warning: '{nm}' not found on {ORG}", file=sys.stderr)
-    selected.sort(key=lambda r: r["name"])
 
     out_path = Path(__file__).parent / "modules.json"
-    existing_by_name: dict[str, dict] = {}
+    existing: list[dict] = []
     if out_path.is_file():
         try:
-            for e in json.loads(out_path.read_text(encoding="utf-8")):
-                if isinstance(e, dict) and e.get("name"):
-                    existing_by_name[e["name"]] = e
+            existing = [
+                e for e in json.loads(out_path.read_text(encoding="utf-8"))
+                if isinstance(e, dict) and e.get("name")
+            ]
         except (json.JSONDecodeError, OSError):
-            pass
+            existing = []
+    existing_by_repo = {_repo_of(e): e for e in existing}
 
-    out = [
-        _merge_extras(_entry(r), existing_by_name.get(r["name"]))
-        for r in selected
-    ]
+    # The module set = repos we already track (keyed by their backing repo, so
+    # a rename doesn't drop them) + the explicit extras. We no longer discover
+    # modules by a `pbg-`/`viva-` name prefix: modules are being renamed to
+    # `viva-*` and are then indistinguishable from the many other `viva-*` org
+    # repos (docs, apps, investigations), so a prefix scan would pull in
+    # non-modules. New modules are added by hand-editing modules.json (or via
+    # EXTRAS); this script refreshes GitHub metadata for the curated set.
+    repo_names: set[str] = set(existing_by_repo)
+    repo_names |= set(EXTRAS)
+    repo_names -= EXCLUDE
 
-    # Surface any preserved-extras so the operator running the sync can
-    # eyeball that nothing meaningful got dropped on a stale-entry removal.
-    preserved = [
-        e["name"] for e in out
-        if any(k not in _AUTO_KEYS for k in e)
-    ]
-    dropped_stale = sorted(set(existing_by_name) - {r["name"] for r in selected})
+    out: list[dict] = []
+    missing: list[str] = []
+    for repo in sorted(repo_names):
+        gh = by_name.get(repo)
+        existing_entry = existing_by_repo.get(repo)
+        if gh is None:
+            # Repo not in the org listing (e.g. deleted). Keep the existing
+            # curated entry verbatim rather than silently dropping it.
+            if existing_entry is not None:
+                out.append(existing_entry)
+                missing.append(repo)
+            else:
+                print(f"warning: '{repo}' not found on {ORG} and not in catalog", file=sys.stderr)
+            continue
+        out.append(_merge_extras(_entry(gh), existing_entry))
+    out.sort(key=lambda e: e["name"].lower())
 
-    out_path.write_text(json.dumps(out, indent=2) + "\n")
+    out_path.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n")
     print(f"wrote {len(out)} entries to {out_path}")
-    if preserved:
-        print(f"  preserved curator-authored extras on: {', '.join(sorted(preserved))}")
-    if dropped_stale:
-        print(f"  WARNING: dropped entries no longer on {ORG}: {', '.join(dropped_stale)}")
-        for nm in dropped_stale:
-            e = existing_by_name[nm]
-            extras = [k for k in e if k not in _AUTO_KEYS]
-            if extras:
-                print(f"    {nm}: had curator-authored fields {extras} — verify they're not needed")
+    if missing:
+        print(f"  kept {len(missing)} entries whose repo is not in the org listing "
+              f"(archived/renamed/deleted): {', '.join(missing)}")
     return 0
 
 

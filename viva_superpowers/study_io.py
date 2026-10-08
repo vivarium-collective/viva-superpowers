@@ -57,11 +57,23 @@ def dump_yaml(spec: dict) -> str:
 
 
 def atomic_write(path: Path | str, text: str) -> None:
-    """Write ``text`` to ``path`` via a tmp file + ``os.replace`` (atomic)."""
+    """Write ``text`` to ``path`` via a tmp file + ``os.replace`` (atomic).
+
+    Always UTF-8: specs carry em dashes etc., and the write must not depend on the
+    process locale (an ASCII one raised UnicodeEncodeError mid-write). The tmp file
+    is removed if the write fails, so a failure never leaves a stray file behind.
+    """
     path = Path(path)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text)
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass  # never let cleanup mask the original error
+        raise
 
 
 def save_yaml_atomic(path: Path | str, data: dict) -> None:
