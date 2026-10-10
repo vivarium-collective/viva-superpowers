@@ -22,6 +22,11 @@ from pathlib import Path
 # C.M. 260929: Using both Windows and Unix-type file locking got messy and was
 # demanding a lot of code. This package is built to manage it.
 from filelock import FileLock
+# C.M. 261006: Similar to the file locking, code like "os.kill" has different
+# behaviors depending on the operating system. Instead of writing code from
+# scratch for each system, it is cleaner to use a package already designed
+# for these nuances.
+import psutil
 
 SCHEMA_VERSION = 1
 
@@ -218,19 +223,17 @@ def unregister_server(path) -> bool:
     return found
 
 
+# C.M. 261006: Previously this code used os.kill, which has different behavior
+# between Unix and windows. The new call still uses os.kill for Unix under the surface
+# but modifies the behavior to also be appropriate for windows. psutil.pid_exists
+# reports a dead process as False, not with an error.
 def _pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
     try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        # PID owned by another user but exists → treat as alive.
-        return True
+        return psutil.pid_exists(pid)
     except OSError:
         return False
-    return True
 
 
 def find_entry(path) -> dict | None:
