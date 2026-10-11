@@ -518,7 +518,16 @@ For every scaffolded study, replace the stubs with the real content:
   4. Record the run via `vivarium_workbench.lib.run_log.append_run_event` —
      a `started` event before the run and a `completed` (or `failed`)
      event after, both keyed by a fresh `run_id`, written against
-     `workspace_root` = the **repo root** (not the study dir):
+     `workspace_root` = the **repo root** (not the study dir).
+  5. Mirror the rendered `viz/*.html` into the run's per-run viz artifact via
+     `vivarium_workbench.lib.run_viz.mirror_viz_dir(WORKSPACE_ROOT, run_id,
+     [<rendered paths>])`. This writes `.pbg/runs/<run_id>/viz.json` =
+     `{panel_name: html}`, which is what the dashboard **Runs tab's "📊 Viz"**
+     action serves (`/api/composite-run/<run_id>/artifact/viz`). Without it the
+     run logs fine but its Viz button comes up empty. Keep it best-effort —
+     never fail the run on a viz-mirror error (the helper already swallows
+     missing/unreadable files; wrap the call in `try/except` if you want belt
+     and braces).
 
 ```python
 #!/usr/bin/env python3
@@ -537,6 +546,7 @@ WORKSPACE_ROOT = STUDY_DIR.parents[1]
 from viva_<tool>.core import build_core
 from viva_<tool>.composites.<topic> import <gen>
 from vivarium_workbench.lib.run_log import append_run_event
+from vivarium_workbench.lib.run_viz import mirror_viz_dir
 
 SPEC_ID = "viva_<tool>.composites.<topic>.<gen>"
 STUDY_SLUG = "<slug>"
@@ -563,6 +573,7 @@ def main() -> int:
         viz_dir = STUDY_DIR / "viz"
         viz_dir.mkdir(parents=True, exist_ok=True)
         # ... render an interactive Plotly/Three.js viz to viz_dir / "<name>.html" ...
+        viz_paths = [viz_dir / "<name>.html"]  # every file you rendered above
     except Exception:
         append_run_event(WORKSPACE_ROOT, {
             "run_id": run_id, "event": "completed",
@@ -570,6 +581,8 @@ def main() -> int:
         })
         raise
 
+    # Carry the figures into the Runs-tab "📊 Viz" action (.pbg/runs/<id>/viz.json).
+    mirror_viz_dir(WORKSPACE_ROOT, run_id, viz_paths)
     append_run_event(WORKSPACE_ROOT, {
         "run_id": run_id, "event": "completed",
         "completed_at": time.time(), "n_steps": 1, "status": "completed",
