@@ -774,6 +774,39 @@ def _investigation_from_wrapper_study_stub(
             "default": True,
         }],
         "visualizations": [],
+        # --- EVIDENCE -> DECISION tab stubs (fill at Evaluate/Decide) ---------
+        # Present so the study-detail Overview + Conclusions + Readouts tabs
+        # render a structured "to fill" state instead of empty panels, and so the
+        # agentic loop knows exactly which fields a finished study carries.
+        "claim": "TBD — one-line headline of what we now believe (fill at Evaluate).",
+        "result": "TBD — one-line result (fill after the run).",
+        "confidence": "Planned",
+        # findings[] items are {id, kind, status, statement, evidence:{from_test,
+        # from_run, observed, units}, expected:{cites}, explanation, next_action};
+        # authored at Evaluate from the graded behavior tests (left empty here).
+        "findings": [],
+        # readouts[] items are {name, store_path|index_by, units, description,
+        # status}; declare the graded observables so the Readouts tab shows them.
+        "readouts": [],
+        "report": {
+            "title": slug.replace("-", " ").capitalize(),
+            "verdict": "TBD — PASS/FAIL headline (fill at Decide).",
+            "confidence": "medium",
+            "main_insight": "TBD — the one thing this study establishes.",
+            "conclusion": "TBD",
+            "caveat": "TBD — the main caveat / calibration.",
+            "key_metrics": [],
+        },
+        "conclusion_verdicts": {
+            "biological_validation": {"result": "PENDING", "basis": "TBD — fill at Decide."},
+            "explanatory_gain": {"result": "PENDING", "basis": "TBD — fill at Decide."},
+        },
+        "limitations": [],
+        "discovery_implications": {
+            "resolved_uncertainties": [],
+            "remaining_uncertainties": [],
+            "followup_study_proposals": [],
+        },
         "conclusion": None,
     }
 
