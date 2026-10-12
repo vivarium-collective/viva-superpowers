@@ -744,7 +744,9 @@ def _investigation_from_wrapper_study_stub(
             "composite": generator,
             "params": {},
         }],
-        "variants": [],
+        # A reference variant (the published params) beats an empty list — a
+        # study with no variants reads as "design incomplete" to the linter.
+        "variants": [{"name": "reference", "params": {}}],
         "expected_behavior": [{
             "name": behavior_name,
             "en": "TBD — plain-language statement of the expected behavior.",
@@ -761,6 +763,12 @@ def _investigation_from_wrapper_study_stub(
             "measure": {"kind": "derived_scalar", "field": "TBD"},
             "pass_if": {"op": "<", "value": None},
             "requires_simulation": "baseline",
+            # Rigor: a threshold pre-stated BEFORE the run is an acceptance_criterion;
+            # one set AFTER seeing the run is a regression_pin. Default to the
+            # honest pre-stated case; flip to regression_pin if the band was tuned
+            # to the observed run. (A first-principles/conservation band also sets
+            # band_basis: first_principles instead of a literature cite.)
+            "gate_class": "acceptance_criterion",
         }],
         "pipeline_gate": {
             "prerequisites": prerequisites,
@@ -774,6 +782,57 @@ def _investigation_from_wrapper_study_stub(
             "default": True,
         }],
         "visualizations": [],
+        # --- EVIDENCE -> DECISION tab stubs (fill at Evaluate/Decide) ---------
+        # Present so the study-detail Overview + Conclusions + Readouts tabs
+        # render a structured "to fill" state instead of empty panels, and so the
+        # agentic loop knows exactly which fields a finished study carries.
+        # Rigor / readiness fields so a scaffolded study starts with no linter
+        # gaps for study_type, conditions (Build tab), units, or run specs.
+        "study_type": "exploratory",
+        "conditions": {"baseline": {"composite": generator, "params": {}}},
+        "units_and_time": {
+            "tick": "TBD — what one simulation step maps to (e.g. '1 s forward-Euler step')",
+            "note": "Declare the units a claim/finding uses (concentration, temperature, …).",
+        },
+        "simulation_set": [{
+            "name": "baseline", "kind": "single", "base_model": generator,
+            "is_baseline": True, "status": "planned",
+        }],
+        "claim": "TBD — one-line headline of what we now believe (fill at Evaluate).",
+        "result": "TBD — one-line result (fill after the run).",
+        "confidence": "Planned",
+        # findings[] items are {id, kind, status, statement, evidence:{from_test,
+        # from_run, observed, units}, expected:{cites}, explanation, next_action};
+        # authored at Evaluate from the graded behavior tests (left empty here).
+        "findings": [],
+        # readouts[] items are {name, store_path|index_by, units, description,
+        # status}; declare the graded observables so the Readouts tab shows them.
+        "readouts": [],
+        # Provenance: anchors tie each literature expectation to the model
+        # observable that measures it and the papers it rests on (cites: [bib_key]
+        # resolving against references/papers.bib). The report + study Overview
+        # render these with citation chips, and findings should carry
+        # expected.cites so every quantitative claim traces to a source.
+        "literature_anchors": [],
+        "report": {
+            "title": slug.replace("-", " ").capitalize(),
+            "verdict": "TBD — PASS/FAIL headline (fill at Decide).",
+            "confidence": "medium",
+            "main_insight": "TBD — the one thing this study establishes.",
+            "conclusion": "TBD",
+            "caveat": "TBD — the main caveat / calibration.",
+            "key_metrics": [],
+        },
+        "conclusion_verdicts": {
+            "biological_validation": {"result": "PENDING", "basis": "TBD — fill at Decide."},
+            "explanatory_gain": {"result": "PENDING", "basis": "TBD — fill at Decide."},
+        },
+        "limitations": [],
+        "discovery_implications": {
+            "resolved_uncertainties": [],
+            "remaining_uncertainties": [],
+            "followup_study_proposals": [],
+        },
         "conclusion": None,
     }
 

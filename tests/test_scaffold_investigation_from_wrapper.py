@@ -59,6 +59,26 @@ def test_each_study_written_with_expected_shape(tmp_path):
         assert study["canonical_runs"][0]["default"] is True
 
 
+def test_study_stub_carries_evidence_to_decision_tab_fields(tmp_path):
+    """A scaffolded study is born with the Overview/Conclusions/Readouts tab
+    fields (as fill-me stubs) so those study-detail tabs render a structured
+    "to fill" state instead of empty panels."""
+    ws = _ws(tmp_path)
+    result = scaffold_investigation_from_wrapper(ws, "demo-showcase", FAKE_GENERATORS)
+    study = yaml.safe_load(Path(result["studies"][0]["path"]).read_text())
+    for key in ("claim", "result", "confidence", "findings", "readouts", "report",
+                "conclusion_verdicts", "limitations", "discovery_implications"):
+        assert key in study, f"study stub missing tab field {key!r}"
+    # Shapes the tabs read.
+    assert isinstance(study["findings"], list) and isinstance(study["readouts"], list)
+    assert set(study["report"]) >= {"title", "verdict", "confidence", "main_insight"}
+    assert study["report"]["confidence"] in {"high", "medium", "low"}
+    assert set(study["conclusion_verdicts"]) == {"biological_validation", "explanatory_gain"}
+    assert study["conclusion_verdicts"]["biological_validation"]["result"] == "PENDING"
+    assert set(study["discovery_implications"]) == {
+        "resolved_uncertainties", "remaining_uncertainties", "followup_study_proposals"}
+
+
 def test_pipeline_gate_is_a_linear_chain(tmp_path):
     ws = _ws(tmp_path)
     result = scaffold_investigation_from_wrapper(ws, "demo-showcase", FAKE_GENERATORS)

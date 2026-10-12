@@ -242,15 +242,16 @@ from process_bigraph import Process, Step, Composite, allocate_core
 
 ```python
 class MyStep(Step):
+    contract = {"summary": "(substrate) -> product — one-line what it computes."}
     config_schema = {
         "param": {"_type": "float", "_default": 1.0},
     }
 
     def inputs(self):
-        return {"substrate": "float"}
+        return {"substrate": {"_type": "float", "_units": "molar"}}
 
     def outputs(self):
-        return {"product": "float"}
+        return {"product": {"_type": "float", "_units": "molar"}}
 
     def update(self, state):
         return {"product": state["substrate"] * self.config["param"]}
@@ -260,15 +261,27 @@ class MyStep(Step):
 
 ```python
 class MyProcess(Process):
+    # Every Process declares a `contract` (class attribute). The loom renders it
+    # as the process's Description and the contract audit grades it. `summary` is
+    # required; fill the rest so each port + claim is documented and traceable.
+    contract = {
+        "summary": "One line: (inputs) -> outputs — what this process computes.",
+        "description": "Fuller prose: the method, the REAL tool it drives, the invariants it holds.",
+        "inputs":  {"level": "substrate level (molar)"},
+        "outputs": {"level": "level change per step (molar)"},
+        "assumptions": ["key modelling assumptions"],
+        "references": ["bibkey"],   # ties the process to references/papers.bib
+    }
     config_schema = {
         "rate": {"_type": "float", "_default": 0.1},
     }
 
     def inputs(self):
-        return {"level": "float"}
+        # Every numeric port carries UNITS — never a bare `float`.
+        return {"level": {"_type": "float", "_units": "molar"}}
 
     def outputs(self):
-        return {"level": "float"}
+        return {"level": {"_type": "float", "_units": "molar"}}
 
     def initial_state(self):
         return {"level": 4.4}
@@ -280,6 +293,8 @@ class MyProcess(Process):
 Rules:
 
 - `inputs()` and `outputs()` return `{port_name: schema_expression}`.
+- **Every numeric port carries units.** Write `{"_type": "float", "_units": "<pint unit>"}` (kelvin, molar, volt, mole/second, pascal, dimensionless, …) — never a bare `"float"`. `_units` is metadata (the runtime value stays a plain float), so it costs nothing, makes the port's physical meaning checkable, and shows in the loom card. Sensor ports keep the same unit: `{"_type": "overwrite[float]", "_units": "volt"}`. A boolean flag is inherently dimensionless and needs none. (If a unit's write is silently dropped, it isn't registered in the core's unit registry — confirm a real port write survives, e.g. via a test, rather than dropping the unit.)
+- **Every Process declares a `contract`** class attribute with at least a `summary`; fill `description`, per-port `inputs`/`outputs` prose (naming the unit), `assumptions`, and `references` (bibkeys → `references/papers.bib`). No contract ⇒ the loom shows "no contract" and the audit can't grade it.
 - `config_schema` uses bigraph-schema format.
 - Register processes with `core.register_link("MyProcess", MyProcess)`.
 
@@ -405,13 +420,21 @@ the short version:
 from process_bigraph.composite_generator import composite_generator
 
 
+# Name a composite for WHAT IT DOES — a general, reusable module (e.g.
+# `serpentinizing_vent_reactor`, `hydrogen_carbon_fixation`), NOT after a study
+# (`og_00_<study>_baseline`). The Processes are the shared building blocks;
+# composites compose + CONFIGURE them, and several studies may reuse one
+# composite with different params. Put it in a topic-named module
+# (composites/vent_reactor.py), not campaign0.py.
 @composite_generator(
-    name="<tool>_baseline",
+    name="serpentinizing_vent_reactor",
     description="One-line summary for the dashboard parameter form.",
     parameters={
-        "rate":  {"type": "float",  "default": 1.0,
-                  "description": "Multiplicative factor"},
-        "model": {"type": "string", "default": "default"},
+        # Config params carry units too (the dashboard shows the unit beside the
+        # type): {"type": "float", "units": "<pint unit>", "default": …}.
+        "olivine_rate": {"type": "float", "units": "dimensionless", "default": 0.15,
+                         "description": "Olivine dissolution extent per step"},
+        "model":        {"type": "string", "default": "default"},
     },
 )
 def baseline(core=None, *, rate=1.0, model="default"):

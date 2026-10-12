@@ -529,6 +529,7 @@ CHECKS = (
     # bullet (dnaa-replication 2026-06-07). Error: every finding must be filled in.
     "finding_without_statement",
     "finding_cites_unknown_bib_key",
+    "finding_missing_cites",
     "finding_references_unknown_expert_doc",
     # Band provenance (stage 3a): expert-sourced bands should carry structured cites
     "band_test_missing_cites",
@@ -1401,17 +1402,78 @@ def _check_band_test_missing_cites(ctx: _LintContext) -> None:
             cites = test.get("cites") or []
             if cites:  # has at least one cite — silent
                 continue
+            # A conservation law / machine-precision / numerical-exactness band
+            # (charge balance, FVM flux-divergence residual, a solver tolerance)
+            # is NOT a literature band — there is no paper to cite. A
+            # ``band_basis`` annotation documents the non-cited source instead of
+            # forcing a meaningless cite.
+            basis = str(test.get("band_basis") or "").strip().lower()
+            if basis in {"first_principles", "conservation_law", "machine_precision", "numerical"}:
+                continue
             name = test.get("name", f"<index-{idx}>")
             ctx.add(
                 level="warning",
                 field_path=f"{section}[{idx}]",
                 message=(
                     f"Test {name!r} has a numeric acceptance band but no cites. "
-                    "Add cites: [bib_key] sourcing the band so its provenance is "
-                    "machine-linked (not just prose). See references/papers.bib."
+                    "Add cites: [bib_key] sourcing the band, or band_basis: "
+                    "first_principles|conservation_law|machine_precision for a "
+                    "non-literature band. See references/papers.bib."
                 ),
                 check="band_test_missing_cites",
             )
+
+
+def _check_finding_missing_cites(ctx: _LintContext) -> None:
+    """Interpretation-tier findings with no traceable source → warning.
+
+    A finding that confirms / partially-confirms / contradicts a quantitative
+    claim should trace to the literature: either its own ``expected.cites``, or
+    the ``behavior_tests`` entry it rests on (``evidence.from_test``) carrying
+    ``cites`` / ``band_basis``. This keeps provenance machine-linked, so the
+    report and study Overview can render a citation chip back to the source.
+    Warning, not error — it nudges rather than blocks (back-compat with existing
+    uncited studies). ``novel`` / ``methodological`` findings are exempt: they
+    report a new result, not agreement with a prior one.
+    """
+    findings = ctx.spec.get("findings") or []
+    if not isinstance(findings, list):
+        return
+    tests_by_name: dict = {}
+    for section in ("behavior_tests", "tests"):
+        for t in (ctx.spec.get(section) or []):
+            if isinstance(t, dict) and isinstance(t.get("name"), str):
+                tests_by_name[t["name"]] = t
+    _BASIS_OK = {"first_principles", "conservation_law", "machine_precision", "numerical"}
+    for idx, f in enumerate(findings):
+        if not isinstance(f, dict):
+            continue
+        status = str(f.get("status") or "").strip().lower()
+        if status not in {"confirms", "partial", "contradicts"}:
+            continue
+        exp = f.get("expected") if isinstance(f.get("expected"), dict) else {}
+        if exp.get("cites") or f.get("cites"):
+            continue
+        ev = f.get("evidence") if isinstance(f.get("evidence"), dict) else {}
+        ft = ev.get("from_test")
+        t = tests_by_name.get(ft) if ft else None
+        if isinstance(t, dict):
+            if t.get("cites"):
+                continue
+            if str(t.get("band_basis") or "").strip().lower() in _BASIS_OK:
+                continue
+        fid = f.get("id") or f"<index-{idx}>"
+        ctx.add(
+            level="warning",
+            field_path=f"findings[{idx}]",
+            message=(
+                f"Finding {fid!r} ({status}) has no cited source. Add "
+                "expected.cites: [bib_key], or cite / band_basis-annotate its "
+                "from_test, so the claim traces to the literature. "
+                "See references/papers.bib."
+            ),
+            check="finding_missing_cites",
+        )
 
 
 def _check_band_cites_unknown_bib_key(ctx: _LintContext) -> None:
@@ -1515,17 +1577,29 @@ def _viz_classes_in_workspace(ws_root: Path) -> set[str]:
         children = list(ws_root.iterdir())
     except OSError:
         return out
+    module_files: list[Path] = []
     for child in children:
         if not child.is_dir():
             continue
         v = child / "visualizations"
         if v.is_dir():
             candidates.append(v)
+        # Viz classes don't have to live in a visualizations/ subpackage — a
+        # workspace that defines its Visualization subclasses in <package>/viz.py
+        # (a common, supported layout) registers + renders them fine. Scan each
+        # package's top-level modules too, so `local:<Class>` resolves instead of
+        # reporting a false "unresolved" gap.
+        try:
+            module_files.extend(child.glob("*.py"))
+        except OSError:
+            pass
     direct = ws_root / "visualizations"
     if direct.is_dir():
         candidates.append(direct)
+    _scan_files: list[Path] = list(module_files)
     for d in candidates:
-        for py in d.rglob("*.py"):
+        _scan_files.extend(d.rglob("*.py"))
+    for py in _scan_files:
             try:
                 src = py.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
@@ -3583,6 +3657,7 @@ _CHECK_FUNCTIONS = (
     _check_finding_without_evidence,
     _check_finding_without_statement,
     _check_finding_cites_unknown_bib_key,
+    _check_finding_missing_cites,
     _check_finding_references_unknown_expert_doc,
     # Band provenance (stage 3a)
     _check_band_test_missing_cites,
