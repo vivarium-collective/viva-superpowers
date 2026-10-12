@@ -744,7 +744,9 @@ def _investigation_from_wrapper_study_stub(
             "composite": generator,
             "params": {},
         }],
-        "variants": [],
+        # A reference variant (the published params) beats an empty list — a
+        # study with no variants reads as "design incomplete" to the linter.
+        "variants": [{"name": "reference", "params": {}}],
         "expected_behavior": [{
             "name": behavior_name,
             "en": "TBD — plain-language statement of the expected behavior.",
@@ -761,6 +763,12 @@ def _investigation_from_wrapper_study_stub(
             "measure": {"kind": "derived_scalar", "field": "TBD"},
             "pass_if": {"op": "<", "value": None},
             "requires_simulation": "baseline",
+            # Rigor: a threshold pre-stated BEFORE the run is an acceptance_criterion;
+            # one set AFTER seeing the run is a regression_pin. Default to the
+            # honest pre-stated case; flip to regression_pin if the band was tuned
+            # to the observed run. (A first-principles/conservation band also sets
+            # band_basis: first_principles instead of a literature cite.)
+            "gate_class": "acceptance_criterion",
         }],
         "pipeline_gate": {
             "prerequisites": prerequisites,
@@ -778,6 +786,18 @@ def _investigation_from_wrapper_study_stub(
         # Present so the study-detail Overview + Conclusions + Readouts tabs
         # render a structured "to fill" state instead of empty panels, and so the
         # agentic loop knows exactly which fields a finished study carries.
+        # Rigor / readiness fields so a scaffolded study starts with no linter
+        # gaps for study_type, conditions (Build tab), units, or run specs.
+        "study_type": "exploratory",
+        "conditions": {"baseline": {"composite": generator, "params": {}}},
+        "units_and_time": {
+            "tick": "TBD — what one simulation step maps to (e.g. '1 s forward-Euler step')",
+            "note": "Declare the units a claim/finding uses (concentration, temperature, …).",
+        },
+        "simulation_set": [{
+            "name": "baseline", "kind": "single", "base_model": generator,
+            "is_baseline": True, "status": "planned",
+        }],
         "claim": "TBD — one-line headline of what we now believe (fill at Evaluate).",
         "result": "TBD — one-line result (fill after the run).",
         "confidence": "Planned",

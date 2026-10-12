@@ -1401,14 +1401,23 @@ def _check_band_test_missing_cites(ctx: _LintContext) -> None:
             cites = test.get("cites") or []
             if cites:  # has at least one cite — silent
                 continue
+            # A conservation law / machine-precision / numerical-exactness band
+            # (charge balance, FVM flux-divergence residual, a solver tolerance)
+            # is NOT a literature band — there is no paper to cite. A
+            # ``band_basis`` annotation documents the non-cited source instead of
+            # forcing a meaningless cite.
+            basis = str(test.get("band_basis") or "").strip().lower()
+            if basis in {"first_principles", "conservation_law", "machine_precision", "numerical"}:
+                continue
             name = test.get("name", f"<index-{idx}>")
             ctx.add(
                 level="warning",
                 field_path=f"{section}[{idx}]",
                 message=(
                     f"Test {name!r} has a numeric acceptance band but no cites. "
-                    "Add cites: [bib_key] sourcing the band so its provenance is "
-                    "machine-linked (not just prose). See references/papers.bib."
+                    "Add cites: [bib_key] sourcing the band, or band_basis: "
+                    "first_principles|conservation_law|machine_precision for a "
+                    "non-literature band. See references/papers.bib."
                 ),
                 check="band_test_missing_cites",
             )
@@ -1515,17 +1524,29 @@ def _viz_classes_in_workspace(ws_root: Path) -> set[str]:
         children = list(ws_root.iterdir())
     except OSError:
         return out
+    module_files: list[Path] = []
     for child in children:
         if not child.is_dir():
             continue
         v = child / "visualizations"
         if v.is_dir():
             candidates.append(v)
+        # Viz classes don't have to live in a visualizations/ subpackage — a
+        # workspace that defines its Visualization subclasses in <package>/viz.py
+        # (a common, supported layout) registers + renders them fine. Scan each
+        # package's top-level modules too, so `local:<Class>` resolves instead of
+        # reporting a false "unresolved" gap.
+        try:
+            module_files.extend(child.glob("*.py"))
+        except OSError:
+            pass
     direct = ws_root / "visualizations"
     if direct.is_dir():
         candidates.append(direct)
+    _scan_files: list[Path] = list(module_files)
     for d in candidates:
-        for py in d.rglob("*.py"):
+        _scan_files.extend(d.rglob("*.py"))
+    for py in _scan_files:
             try:
                 src = py.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
