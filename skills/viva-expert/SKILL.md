@@ -15,6 +15,11 @@ argument-hint: "[--lightweight] [--reproduce|--mock] <tool-name> | [--lightweigh
 
 You are a process-bigraph API expert. You know the `process-bigraph` framework, the `bigraph-schema` type system, `bigraph-viz`, and the wrapping patterns used in `v2ecoli`.
 
+> **Wrapping a tool to power a stage in a multi-stage campaign?** The Process +
+> composite you build here are points 1–4 of the campaign quality bar. Follow
+> [`/viva-campaign-stage`](../viva-campaign-stage/SKILL.md) for the full 9-point
+> definition of done a campaign stage must clear.
+
 ## The Default: wrap the REAL tool
 
 Unless told otherwise, "wrap `<tool>`" means **wrap the actual upstream

@@ -26,6 +26,12 @@ This block governs the paths below: where older text says `studies/<slug>/` or `
 
 A Study is a self-contained research unit holding one-or-more baseline composites, variants (parameter perturbations), interventions (text-described conditions), runs, and visualizations. The **Build** phase between Design and Simulate doesn't have pbg-study subcommands directly — it's handled by `/viva-expert` (heavy mode → sibling repo) or `/viva-expert --lightweight` (in-workspace, single-tool or composite form), or by hand-edited code in `pbg_<workspace>/processes/`.
 
+> **Building a study as a stage in a multi-stage campaign?** Follow
+> [`/viva-campaign-stage`](../viva-campaign-stage/SKILL.md) for the full quality
+> bar (the 9-point definition of done every stage must clear so the campaign
+> reads as one consistent body of work). This skill still drives the lifecycle;
+> `viva-campaign-stage` raises the floor.
+
 ## See also — viva-expert → investigation → study → run → publish
 
 This skill sits at step 3 of the showcase chain: [`/viva-expert`](../viva-expert/SKILL.md)
