@@ -808,6 +808,12 @@ def _investigation_from_wrapper_study_stub(
         # readouts[] items are {name, store_path|index_by, units, description,
         # status}; declare the graded observables so the Readouts tab shows them.
         "readouts": [],
+        # Provenance: anchors tie each literature expectation to the model
+        # observable that measures it and the papers it rests on (cites: [bib_key]
+        # resolving against references/papers.bib). The report + study Overview
+        # render these with citation chips, and findings should carry
+        # expected.cites so every quantitative claim traces to a source.
+        "literature_anchors": [],
         "report": {
             "title": slug.replace("-", " ").capitalize(),
             "verdict": "TBD — PASS/FAIL headline (fill at Decide).",

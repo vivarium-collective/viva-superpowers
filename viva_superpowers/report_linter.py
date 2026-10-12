@@ -529,6 +529,7 @@ CHECKS = (
     # bullet (dnaa-replication 2026-06-07). Error: every finding must be filled in.
     "finding_without_statement",
     "finding_cites_unknown_bib_key",
+    "finding_missing_cites",
     "finding_references_unknown_expert_doc",
     # Band provenance (stage 3a): expert-sourced bands should carry structured cites
     "band_test_missing_cites",
@@ -1421,6 +1422,58 @@ def _check_band_test_missing_cites(ctx: _LintContext) -> None:
                 ),
                 check="band_test_missing_cites",
             )
+
+
+def _check_finding_missing_cites(ctx: _LintContext) -> None:
+    """Interpretation-tier findings with no traceable source → warning.
+
+    A finding that confirms / partially-confirms / contradicts a quantitative
+    claim should trace to the literature: either its own ``expected.cites``, or
+    the ``behavior_tests`` entry it rests on (``evidence.from_test``) carrying
+    ``cites`` / ``band_basis``. This keeps provenance machine-linked, so the
+    report and study Overview can render a citation chip back to the source.
+    Warning, not error — it nudges rather than blocks (back-compat with existing
+    uncited studies). ``novel`` / ``methodological`` findings are exempt: they
+    report a new result, not agreement with a prior one.
+    """
+    findings = ctx.spec.get("findings") or []
+    if not isinstance(findings, list):
+        return
+    tests_by_name: dict = {}
+    for section in ("behavior_tests", "tests"):
+        for t in (ctx.spec.get(section) or []):
+            if isinstance(t, dict) and isinstance(t.get("name"), str):
+                tests_by_name[t["name"]] = t
+    _BASIS_OK = {"first_principles", "conservation_law", "machine_precision", "numerical"}
+    for idx, f in enumerate(findings):
+        if not isinstance(f, dict):
+            continue
+        status = str(f.get("status") or "").strip().lower()
+        if status not in {"confirms", "partial", "contradicts"}:
+            continue
+        exp = f.get("expected") if isinstance(f.get("expected"), dict) else {}
+        if exp.get("cites") or f.get("cites"):
+            continue
+        ev = f.get("evidence") if isinstance(f.get("evidence"), dict) else {}
+        ft = ev.get("from_test")
+        t = tests_by_name.get(ft) if ft else None
+        if isinstance(t, dict):
+            if t.get("cites"):
+                continue
+            if str(t.get("band_basis") or "").strip().lower() in _BASIS_OK:
+                continue
+        fid = f.get("id") or f"<index-{idx}>"
+        ctx.add(
+            level="warning",
+            field_path=f"findings[{idx}]",
+            message=(
+                f"Finding {fid!r} ({status}) has no cited source. Add "
+                "expected.cites: [bib_key], or cite / band_basis-annotate its "
+                "from_test, so the claim traces to the literature. "
+                "See references/papers.bib."
+            ),
+            check="finding_missing_cites",
+        )
 
 
 def _check_band_cites_unknown_bib_key(ctx: _LintContext) -> None:
@@ -3604,6 +3657,7 @@ _CHECK_FUNCTIONS = (
     _check_finding_without_evidence,
     _check_finding_without_statement,
     _check_finding_cites_unknown_bib_key,
+    _check_finding_missing_cites,
     _check_finding_references_unknown_expert_doc,
     # Band provenance (stage 3a)
     _check_band_test_missing_cites,

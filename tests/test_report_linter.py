@@ -1503,3 +1503,31 @@ def test_viz_classes_resolved_from_top_level_viz_module(tmp_path):
         "class MyPlot(Visualization):\n    pass\n", encoding="utf-8")
     found = _viz_classes_in_workspace(tmp_path)
     assert "MyPlot" in found
+
+
+def test_finding_missing_cites_nudges_uncited_quantitative_findings(tmp_path):
+    """A confirms/partial/contradicts finding must trace to a source (its own
+    expected.cites, or a cited / first-principles from_test); novel findings and
+    cited ones are exempt."""
+    from viva_superpowers.report_linter import _LintContext, _check_finding_missing_cites
+    spec = {
+        "behavior_tests": [
+            {"name": "charge-conserved", "pass_if": {"op": "<=", "value": 1e-6},
+             "band_basis": "first_principles"},
+            {"name": "yield-in-range", "pass_if": {"low": 0.1, "high": 0.3}},
+        ],
+        "findings": [
+            {"id": "f-uncited", "status": "confirms", "statement": "x",
+             "evidence": {"from_test": "yield-in-range"}},           # fires
+            {"id": "f-cited", "status": "confirms", "statement": "x",
+             "expected": {"cites": ["preiner2020"]}},                 # silent (own cite)
+            {"id": "f-firstprinc", "status": "confirms", "statement": "x",
+             "evidence": {"from_test": "charge-conserved"}},          # silent (band_basis)
+            {"id": "f-novel", "status": "novel", "statement": "x"},    # silent (novel)
+        ],
+    }
+    ctx = _LintContext(ws_root=tmp_path, slug="s1", spec=spec)
+    _check_finding_missing_cites(ctx)
+    fired = [f for f in ctx.findings if f.check == "finding_missing_cites"]
+    assert len(fired) == 1
+    assert "f-uncited" in fired[0].message
