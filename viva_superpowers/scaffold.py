@@ -773,7 +773,49 @@ def _investigation_from_wrapper_study_stub(
             "label": slug,
             "default": True,
         }],
-        "visualizations": [],
+        # Three-view standard (World / Mechanism / Decision). The Decision view
+        # is a PHASE MAP over a swept grid — PASS and FAILURE regions — not a
+        # single representative run (enrichment-plan principle 1). Fill in the
+        # address/render for each once sims/run.py produces the data + grid; the
+        # report_linter's `decision_viz_single_run` nudge flags a Decision view
+        # that is still a single run.
+        "visualizations": [
+            {
+                "name": f"{slug}-world",
+                "view": "world",
+                "status": "stub",
+                "description": "Fill in: the environment/state the study runs in.",
+            },
+            {
+                "name": f"{slug}-mechanism",
+                "view": "mechanism",
+                "status": "stub",
+                "description": "Fill in: the mechanism/trajectory that drives the result.",
+            },
+            {
+                "name": f"{slug}-decision",
+                "view": "decision",
+                "phase_map": True,
+                "grid_artifact": f"studies/{slug}/grid/phase_map.parquet",
+                "status": "stub",
+                "description": (
+                    "Fill in: phase map identifying PASS and FAILURE regions across "
+                    "a swept grid (not a single run). Built by sims/run.py's "
+                    "grid sweep; persisted to grid_artifact."
+                ),
+            },
+        ],
+        # Findings carry provenance on every quantitative claim (quality-bar
+        # item 4): each authored finding should fill expected.cites (→
+        # references/papers.bib) or an expert_reference. The report_linter's
+        # `finding_missing_cites` nudge flags an uncited quantitative finding.
+        "findings": [],
+        # derive-confidence / gate wiring. `confidence:` is the graph-node badge;
+        # it must match study_verdict.derive_confidence(spec) — at Design that is
+        # "Planned". Advance it (and `report.verdict`) from real evidence at
+        # Decide; the `authored_confidence_diverges` nudge flags a mismatch.
+        "confidence": "Planned",
+        "report": {"verdict": None},
         "conclusion": None,
     }
 

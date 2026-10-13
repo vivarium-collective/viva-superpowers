@@ -502,8 +502,75 @@ def _check_investigation_narrative_spine(ctx: "_LintContext") -> None:
         )
 
 
+_ADVERSARIAL_KINDS = frozenset({
+    "adversarial", "ablation", "negative_control", "negative-control",
+    "negative control",
+})
+
+
+def _study_is_adversarial(spec: dict) -> bool:
+    """True when a study is a negative control / adversarial / ablation member.
+
+    Enrichment-plan principles 4 & 5: feature ablations find NECESSARY (not
+    merely correlated) mechanisms, and negative controls must fail the same
+    gates (vent-specificity). Keys on ``kind: adversarial|ablation|
+    negative_control`` or an explicit ``ablation:`` block.
+    """
+    if not isinstance(spec, dict):
+        return False
+    kind = str(spec.get("kind") or "").strip().lower()
+    if kind in _ADVERSARIAL_KINDS:
+        return True
+    if spec.get("ablation"):
+        return True
+    return False
+
+
+def _check_investigation_missing_adversarial(ctx: _LintContext) -> None:
+    """An investigation with no adversarial / ablation member study → warning.
+
+    A campaign that only tells a success story is weak evidence. The
+    enrichment-plan design principles require at least one member that passes
+    by REJECTION — a negative control that fails the same gates, or a feature
+    ablation that removes a mechanism and shows the claim break. Warning: add
+    one, or opt out explicitly via ``adversarial_coverage_skip: true`` with a
+    ``adversarial_coverage_skip_reason``.
+    """
+    spec = ctx.spec or {}
+    if spec.get("adversarial_coverage_skip") is True:
+        return
+    member_slugs = spec.get("studies") or []
+    if not isinstance(member_slugs, list) or not member_slugs:
+        return
+    member_slugs = {str(s).strip() for s in member_slugs if str(s).strip()}
+
+    def _build_index() -> dict:
+        return {slug: s for slug, s in _iter_study_specs(ctx.ws_root)}
+
+    study_index = _cached(ctx, "study_specs_by_slug", _build_index)
+    has_adversarial = any(
+        _study_is_adversarial(study_index.get(slug) or {}) for slug in member_slugs
+    )
+    if has_adversarial:
+        return
+    ctx.add(
+        level="warning",
+        field_path="studies",
+        message=(
+            "Investigation has no adversarial / ablation member study — a "
+            "system that should FAIL the same gates (negative control / "
+            "vent-specificity) or a feature ablation that removes a mechanism "
+            "and shows the claim break. Add one (study `kind: adversarial` or "
+            "`kind: ablation`), or opt out with `adversarial_coverage_skip: "
+            "true` + a reason. A campaign that only passes is weak evidence."
+        ),
+        check="investigation_missing_adversarial",
+    )
+
+
 _INVESTIGATION_CHECK_FUNCTIONS = (
     _check_investigation_narrative_spine,
+    _check_investigation_missing_adversarial,
 )
 
 
@@ -615,6 +682,15 @@ CHECKS = (
     # Otherwise the workbench viewer shows composite defaults, not a
     # reproducible spec, and a Run won't reproduce the study.
     "baseline_config_carry",
+    # Campaign quality bar + enrichment-plan design principles (viva-genesis):
+    # provenance on every quantitative claim; phase-maps-not-single-runs for a
+    # Decision view; authored vs derived confidence reconciliation.
+    "finding_missing_cites",
+    "decision_viz_single_run",
+    "authored_confidence_diverges",
+    # Investigation-level: at least one adversarial / ablation (negative-control)
+    # member study — a system that should fail the same gates.
+    "investigation_missing_adversarial",
 )
 
 
@@ -1611,6 +1687,25 @@ def _check_visualization_addresses(ctx: _LintContext) -> None:
                         f"figure count and the `↓ figures` download zip)."
                     ),
                     check="visualization_path_not_canonical",
+                )
+                continue
+            # A design-stage stub (status: stub) legitimately has no address
+            # yet — the three-view scaffold declares World/Mechanism/Decision
+            # views up front and the author wires each one as the study is
+            # built. Downgrade to an info nudge rather than a blocking error so
+            # a freshly-scaffolded study isn't buried in viz errors; a non-stub
+            # entry missing its address is still the blocking KeyError below.
+            if str(v.get("status") or "").strip().lower() == "stub":
+                ctx.add(
+                    level="info",
+                    field_path=f"visualizations[{idx}].address",
+                    message=(
+                        f"Visualization {viz_name!r} is a design-stage stub with "
+                        "no `address:` yet. Wire it to a class in "
+                        "<package>/visualizations/ (address: local:<ClassName>) "
+                        "as the study is built, then drop `status: stub`."
+                    ),
+                    check="visualization_address_missing",
                 )
                 continue
             ctx.add(
@@ -3571,6 +3666,187 @@ def _check_baseline_config_carry(ctx: _LintContext) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Campaign quality bar + enrichment-plan design principles
+# (viva-genesis lessons, 2026-10 — see feedback_campaign_build_quality_bar +
+# the Scientific Enrichment Plan §14 design principles).
+# ---------------------------------------------------------------------------
+
+_NUMBER_RE = _re.compile(r"-?\d")
+
+
+def _finding_is_quantitative(f: dict) -> bool:
+    """A finding is quantitative if it pins a number a reader could check.
+
+    Keys on the structured slots the biology-forward scaffold fills:
+    ``expected.range`` / ``expected.value`` / ``expected.band`` (an authored
+    expectation), a numeric ``divergence_factor``, or an ``evidence.observed``
+    string that contains a digit. A purely qualitative observation
+    ("the pore concentrates solutes") is NOT quantitative and is left alone.
+    """
+    if not isinstance(f, dict):
+        return False
+    expected = f.get("expected")
+    if isinstance(expected, dict):
+        for key in ("range", "value", "band", "threshold"):
+            if expected.get(key) is not None:
+                return True
+    if isinstance(f.get("divergence_factor"), (int, float)):
+        return True
+    ev = f.get("evidence")
+    if isinstance(ev, dict):
+        observed = ev.get("observed")
+        if isinstance(observed, str) and _NUMBER_RE.search(observed):
+            return True
+    return False
+
+
+def _check_finding_missing_cites(ctx: _LintContext) -> None:
+    """A quantitative finding with no provenance → warning.
+
+    Every quantitative claim should name its source: the memory quality bar
+    item 4 (provenance on every quantitative claim). A finding that pins a
+    number (``expected.range`` / observed value / divergence factor) but
+    carries no ``expected.cites`` AND no ``expert_reference`` AND no
+    ``provenance`` is making an unsourced quantitative claim. Warning (nudge,
+    not blocking) — qualitative findings and findings that already carry any
+    provenance handle are silent.
+    """
+    findings = ctx.spec.get("findings") or []
+    if not isinstance(findings, list):
+        return
+    for idx, f in enumerate(findings):
+        if not isinstance(f, dict):
+            continue
+        if not _finding_is_quantitative(f):
+            continue
+        expected = f.get("expected") if isinstance(f.get("expected"), dict) else {}
+        has_cites = bool(expected.get("cites"))
+        has_expert_ref = bool(f.get("expert_reference"))
+        has_provenance = bool(f.get("provenance"))
+        if has_cites or has_expert_ref or has_provenance:
+            continue
+        fid = f.get("id", f"<index-{idx}>")
+        ctx.add(
+            level="warning",
+            field_path=f"findings[{idx}].expected.cites",
+            message=(
+                f"Finding {fid!r} makes a quantitative claim but carries no "
+                "provenance. Add expected.cites: [bib_key] (→ references/papers.bib), "
+                "an expert_reference, or a provenance note so the number is "
+                "traceable to its source."
+            ),
+            check="finding_missing_cites",
+        )
+
+
+_DECISION_VIEW_TAGS = frozenset({"decision", "decide", "phase-map", "phase_map"})
+
+
+def _viz_is_decision_view(v: dict) -> bool:
+    """A visualization entry declared as the study's Decision view.
+
+    Keys on an explicit ``view:``/``role:`` tag (``decision``), or a name/title
+    that reads as a phase map. Deliberately narrow so the check only fires on a
+    study that has actually opted into the three-view standard.
+    """
+    if not isinstance(v, dict):
+        return False
+    for key in ("view", "role"):
+        val = str(v.get(key) or "").strip().lower()
+        if val in _DECISION_VIEW_TAGS:
+            return True
+    return False
+
+
+def _viz_is_phase_map(v: dict) -> bool:
+    """True when a Decision-view entry is backed by a grid/phase-map, not a run.
+
+    A phase map identifies PASS and FAILURE regions across a swept grid
+    (enrichment-plan principle 1). It is backed by a persisted grid artifact,
+    not a single canonical run. Accept any of: ``phase_map: true``, a
+    ``grid``/``grid_artifact``/``sweep`` reference, or a ``kind`` that names a
+    phase map / heatmap.
+    """
+    if not isinstance(v, dict):
+        return False
+    if v.get("phase_map") is True:
+        return True
+    for key in ("grid", "grid_artifact", "sweep", "sweep_artifact"):
+        if v.get(key):
+            return True
+    kind = str(v.get("kind") or v.get("chart_kind") or "").strip().lower()
+    if kind in {"phase-map", "phase_map", "phasemap", "heatmap"}:
+        return True
+    return False
+
+
+def _check_decision_viz_single_run(ctx: _LintContext) -> None:
+    """A Decision view that is a single run, not a phase map → warning.
+
+    Enrichment-plan principle 1: every major claim identifies PASS and FAILURE
+    regions, so the Decision view should be a phase map over a swept grid, not
+    a representative trajectory. Fires only when the study declares a Decision
+    view (``view: decision``) and none of its Decision-view entries is backed by
+    a persisted grid/phase-map artifact. Warning — a nudge toward the standard.
+    """
+    vizzes = ctx.spec.get("visualizations") or []
+    if not isinstance(vizzes, list):
+        return
+    decision = [v for v in vizzes if _viz_is_decision_view(v)]
+    if not decision:
+        return
+    if any(_viz_is_phase_map(v) for v in decision):
+        return
+    names = ", ".join(
+        str(v.get("name") or f"<index-{i}>") for i, v in enumerate(decision)
+    )
+    ctx.add(
+        level="warning",
+        field_path="visualizations",
+        message=(
+            f"Decision view ({names}) looks like a single run, not a phase map. "
+            "A Decision view should identify PASS and FAILURE regions across a "
+            "swept grid (phase map), not a representative trajectory. Back it "
+            "with a persisted grid artifact and mark it phase_map: true (or "
+            "grid_artifact: <path>). See the three-view standard in /viva-study."
+        ),
+        check="decision_viz_single_run",
+    )
+
+
+def _check_authored_confidence_diverges(ctx: _LintContext) -> None:
+    """Authored confidence disagrees with the derived value → warning.
+
+    A hand-set ``confidence:`` that :func:`study_verdict.derive_confidence`
+    contradicts (e.g. ``Accepted`` over a ``failed`` verdict) makes the
+    graph node, the rail dot, and the badge tell different stories. Warning:
+    reconcile the authored value with the evidence, or drop it and let the
+    derived value stand.
+    """
+    authored = str(ctx.spec.get("confidence") or "").strip()
+    if not authored:
+        return
+    try:
+        from viva_superpowers import study_verdict
+    except Exception:  # noqa: BLE001 — never let an import crash the lint run
+        return
+    if not study_verdict.confidence_diverges_from_derived(ctx.spec):
+        return
+    derived = study_verdict.derive_confidence(ctx.spec)
+    ctx.add(
+        level="warning",
+        field_path="confidence",
+        message=(
+            f"Authored confidence {authored!r} diverges from the derived value "
+            f"{derived!r} (from the study's verdict/status). Reconcile the "
+            "authored confidence with the evidence, or remove it and let the "
+            "derived value stand so the graph node, rail dot, and badge agree."
+        ),
+        check="authored_confidence_diverges",
+    )
+
+
 _CHECK_FUNCTIONS = (
     _check_renders_via_dashboard,
     _check_incomplete_summaries,
@@ -3627,6 +3903,13 @@ _CHECK_FUNCTIONS = (
     # Reproducibility — baseline must resolve to a real run-config (not bare
     # composite defaults / {seed, cache_dir}); config_file ⊕ params ⊕ runtime.
     _check_baseline_config_carry,
+    # Campaign quality bar + enrichment-plan design principles (viva-genesis):
+    # (b) a quantitative finding with no provenance;
+    # (a) a Decision view that is a single run, not a phase map;
+    # (d) authored confidence that diverges from derive_confidence.
+    _check_finding_missing_cites,
+    _check_decision_viz_single_run,
+    _check_authored_confidence_diverges,
 )
 
 

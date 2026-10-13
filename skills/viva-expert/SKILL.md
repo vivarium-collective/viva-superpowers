@@ -334,6 +334,39 @@ When you map a tool's API to PBG ports, ask of every tool input: *"Could a sibli
 
 A bridge with no inputs (`def inputs(self): return {}`) is almost always wrong. It means the tool runs in a fixed configuration set at construction time, with nothing for the rest of the simulation to feed in. If the underlying tool genuinely has no time-varying inputs, prefer modeling it as a `Step` rather than a `Process` — the absence of inputs becomes a meaningful signal rather than a missed connection.
 
+### 3. Type physical ports with UNITS — never a bare `float`
+
+A port that carries a physical quantity must carry its units. A bare `float`
+reads as untyped: the loom shows the port type, and `temperature: "float"`
+tells a reader (and the wiring checker) nothing about whether it's kelvin or
+°C. The physical meaning of a port is part of its contract, so declare it with
+the bigraph-schema units form:
+
+```python
+def inputs(self):
+    return {
+        "temperature":   {"_type": "float", "_units": "kelvin"},
+        "potential":     {"_type": "float", "_units": "mV"},
+        "flux":          {"_type": "float", "_units": "mol/s"},
+        "ph":            {"_type": "float", "_units": "dimensionless"},  # pH is unitless — say so
+        "concentrations": {"_type": "map", "_key": "string",
+                           "_value": {"_type": "float", "_units": "mmol/L"}},
+    }
+```
+
+Rules:
+
+- **Every physical-quantity port gets `_units`.** kelvin, mV, mol/s, mmol/L,
+  µm, minutes — whatever the quantity is. A genuinely dimensionless quantity
+  (a pH, a ratio, a count) is typed `_units: "dimensionless"` explicitly, so a
+  reader can tell "unitless by nature" from "nobody said". An honest
+  dimensionless label beats a borrowed physical one no calibration earns.
+- **Units compose with the delta semantics from principle 1** — a units-typed
+  `float` still applies additively. Units are a `_type` annotation, not a
+  switch to `overwrite`.
+- The workspace linter flags a bare-`float` physical port on a real
+  (non-draft) Process; author the units from the start rather than retrofitting.
+
 ### Right vs. wrong
 
 ```python
@@ -362,6 +395,43 @@ class TissueSim(Process):
             'phase': 'enum[string,"G1","S","G2","M"]',  # replaced (no delta semantics)
         }
 ```
+
+## Process contract — a filled `describe()` on every Process
+
+Every Process (and Step) must carry a complete, filled contract the loom
+renders — a summary, a full description, and documented ports — never
+"contract n/a". The loom surfaces this as the Process's **Description**; an
+empty one reads as an untyped black box on the card. Author it as the
+`describe()` convention (the `v2ecoli` processes are the precedent):
+
+```python
+class SerpentinizationProcess(Process):
+    """Serpentinization of olivine → H2 + alkalinity in a hydrothermal pore."""
+
+    def describe(self):
+        return {
+            "summary": "Olivine + water → serpentine + magnetite + H2, tracking "
+                       "Fe(II)/Fe(III) balance and alkalinity generation.",
+            "description": (
+                "Mineral-resolved serpentinization. Consumes temperature and "
+                "incoming fluid composition; produces H2 flux, alkalinity, and "
+                "a precipitation rate that feeds the pore-morphology process. "
+                "Rates follow <cite> under the assumptions documented in the "
+                "showcase study."
+            ),
+            "ports": {
+                "temperature": "vent fluid temperature (kelvin)",
+                "h2_flux":     "H2 production rate (mol/s), additive delta",
+                "alkalinity":  "OH- generation (mmol/L)",
+            },
+        }
+```
+
+- **Fill the summary + description + per-port notes.** The port notes restate
+  what each wired quantity means and its units — the human-readable twin of
+  the units-typed port schemas above.
+- The workspace linter flags a Process whose contract/`describe()` is missing
+  or empty; scaffold the stub when you author the class, not after review.
 
 ## Composite Assembly
 
@@ -393,6 +463,16 @@ sim.run(100.0)
 ```
 
 ### Ship composite generators, not free functions
+
+**Composites are general-purpose reusable MODULES — name them for what they
+do, not for the study that first needed them.** A composite generator is a
+building block configured per study via its `parameters`, so name it
+`serpentinizing_vent_reactor`, `hydrothermal_carbon_fixation`,
+`protometabolic_network` — never `og_00_<study>` or any study-scoped id. One
+study-named generator per study defeats reuse and clutters the Composites tab;
+a well-named general module is parameterized by many studies. The Processes are
+the shared primitives; composites compose and configure them. (See
+[[feedback_models_always_real_composites]].)
 
 A `viva-*` package's composites must be **`@composite_generator`-decorated**
 so they surface in `discover_generators()` (and therefore in the

@@ -515,6 +515,17 @@ For every scaffolded study, replace the stubs with the real content:
      plotly.py ≥6 serializes numpy arrays as compact typed-array JSON
      (`{"dtype": "f8", "bdata": "..."}`), which `plotly-2.27.0.min.js`
      cannot decode — the chart renders blank with no console error.
+
+     Produce the **three-view standard** the study's `visualizations[]` declare
+     (World / Mechanism / Decision — see
+     [pbg-study → Three-view standard](../viva-study/SKILL.md)). The **Decision
+     view is a PHASE MAP, not a single run**: sweep a grid (parameter × seed, or
+     condition × condition), colour each cell pass/fail (or by the graded
+     metric), and **persist the grid** to `studies/<slug>/grid/phase_map.parquet`
+     (the `grid_artifact:` the Decision `visualizations[]` entry points at) so
+     the phase map is reproducible and the `decision_viz_single_run` lint nudge
+     stays quiet. A single flagship run shows the model *can* pass, not *where*
+     it passes and where it breaks.
   4. Record the run via `vivarium_workbench.lib.run_log.append_run_event` —
      a `started` event before the run and a `completed` (or `failed`)
      event after, both keyed by a fresh `run_id`, written against
@@ -580,6 +591,15 @@ def main() -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 ```
+
+- **Findings + verdict + confidence** — once the run lands, author each
+  quantitative finding with provenance (`expected.cites` → `references/papers.bib`,
+  or an `expert_reference`), write `report.verdict` from the evidence, and only
+  then set the graph-node `confidence:` (it must match
+  `study_verdict.derive_confidence(spec)`). The scaffolded study is born with a
+  `report.verdict: null` slot and `confidence: Planned`; advance both from real
+  evidence at Decide, never on wishful completion. The `finding_missing_cites`
+  and `authored_confidence_diverges` lint nudges flag the gaps.
 
 #### 3. Run the studies
 

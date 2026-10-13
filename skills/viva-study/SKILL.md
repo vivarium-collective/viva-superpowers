@@ -411,6 +411,47 @@ blank — prompt the expert for each rather than shipping an empty section:
   `narrative_spine_completeness` with the exact missing set. Draft from plan +
   expert docs with `fill-overview <slug> --include-narrative`.
 
+## Three-view visualization standard — World · Mechanism · Decision
+
+Bake three complementary views into every study's `visualizations[]` design
+(tag each with a `view:` field), so a reviewer can see the setup, the
+mechanism, and the verdict without reading the code:
+
+| View | `view:` | Shows | Form |
+|---|---|---|---|
+| **World** | `world` | the environment / state the study runs in | the setup — a schematic, a snapshot, the initial condition |
+| **Mechanism** | `mechanism` | the process/trajectory that drives the result | time-series / flux / a dynamic trace |
+| **Decision** | `decision` | the verdict region — **a PHASE MAP, not a single run** | a swept grid identifying PASS and FAILURE regions |
+
+**The Decision view is a phase map, never a representative trajectory.** Every
+major claim must identify both its PASS and its FAILURE regions (enrichment-plan
+design principle 1), so the Decision view sweeps a grid (a parameter × seed
+grid, or a condition × condition grid) and colours each cell by pass/fail or by
+the graded metric. A single flagship run is not a Decision view — it shows that
+the model *can* pass, not *where* it passes and where it breaks.
+
+**Persist the grid as an artifact.** The phase map must be backed by a
+persisted grid (e.g. `studies/<slug>/grid/phase_map.parquet`), referenced from
+the Decision `visualizations[]` entry via `grid_artifact: <path>` (and marked
+`phase_map: true`), so the view is reproducible and the sweep isn't lost in a
+notebook. Build it in the study's `sims/run.py` grid sweep.
+
+```yaml
+visualizations:
+  - {name: <slug>-world,     view: world,     address: local:<WorldViz>}
+  - {name: <slug>-mechanism, view: mechanism, address: local:<TraceViz>}
+  - name: <slug>-decision
+    view: decision
+    phase_map: true
+    grid_artifact: studies/<slug>/grid/phase_map.parquet
+    address: local:<PhaseMapViz>
+```
+
+`report_linter`'s `decision_viz_single_run` nudge flags a Decision view that
+is still a single run (no `phase_map: true` and no grid backing). `/viva-study
+new` scaffolds these three entries as stubs (incl. the Decision phase-map) — fill
+in the addresses and build the grid.
+
 ## Sub-commands
 
 Organized by lifecycle phase (Design → Build → Simulate → Evaluate → Decide).
@@ -503,6 +544,27 @@ Gate this on real evidence, never on wishful completion: advance ONLY when a `re
 If the evidence isn't there, the honest verdict is `blocked` or an OPEN QUESTION —
 not `passed`. This is the discipline `/viva-harden-investigation` enforces
 retroactively; applying it here means you rarely need it.
+
+**Reconcile authored `confidence:` with the derived value before calling a
+study passed.** If you hand-set the graph-node `confidence:` field, it MUST
+agree with `viva_superpowers.study_verdict.derive_confidence(spec)` — the same
+value the left-rail dot and the badge read. An authored `confidence: Accepted`
+over a `report.verdict: failed` (which derives to `Refuted`) makes the three
+status surfaces tell different stories, and a reviewer reads it as spin. The
+rule of thumb: don't author `confidence:` at all unless the derived value is
+genuinely wrong; when you do, make it match the evidence. `report_linter`'s
+`authored_confidence_diverges` nudge flags the mismatch —
+`study_verdict.confidence_diverges_from_derived(spec)` is the pure check.
+
+**Provenance on every quantitative finding.** A finding that pins a number
+(`expected.range`, an observed value, a divergence factor) must name its
+source: `expected.cites: [bib_key]` → `references/papers.bib`, an
+`expert_reference`, or a recorded `provenance`. An uncited quantitative finding
+is flagged by `report_linter`'s `finding_missing_cites`; a cited bib-key that
+isn't in `papers.bib` is the harder error `finding_cites_unknown_bib_key`. (See
+the mechanism-discipline section above: a reference you reach for must be one
+the expert provided — otherwise it's a `proposed_inputs` pending item, not a
+cite.)
 
 | Subcommand | Purpose |
 |---|---|
