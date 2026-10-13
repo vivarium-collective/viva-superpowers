@@ -227,6 +227,27 @@ def diverges_from_authored(spec: dict) -> bool:
     return authored_mapped != verdict["result"]
 
 
+def confidence_diverges_from_derived(spec: dict) -> bool:
+    """True when the authored study-graph ``confidence:`` disagrees with
+    :func:`derive_confidence`.
+
+    ``confidence:`` is the investigation-graph node badge an author may set by
+    hand at Decide; :func:`derive_confidence` is the single canonical value the
+    left-rail dot and graph node otherwise read. When the author pins a
+    ``confidence:`` that the status/verdict evidence does not support — e.g.
+    ``Accepted`` on a study whose rolled-up verdict is ``failed`` — the three
+    status surfaces tell different stories and a reviewer reads it as spin.
+
+    Pure ``spec -> bool``: False when no ``confidence:`` is authored (nothing to
+    compare) or when the authored value matches the derived one (case-folded).
+    """
+    spec = spec or {}
+    authored = str(spec.get("confidence") or "").strip()
+    if not authored:
+        return False
+    return authored.lower() != derive_confidence(spec).strip().lower()
+
+
 # ---------------------------------------------------------------------------
 # Gate classification (review G1) — regression_pin vs acceptance_criterion
 # ---------------------------------------------------------------------------

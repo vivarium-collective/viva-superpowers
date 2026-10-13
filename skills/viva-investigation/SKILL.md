@@ -145,6 +145,49 @@ the per-study checklist. Full guide:
 [`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md).
 `pbg-autopoiesis` is the reference (5/5 investigation, every study 8/8).
 
+### Design principles — build the investigation as a MAP OF BOTTLENECKS
+
+An exploratory campaign is strongest when it exposes *dependencies, failure
+regimes, and discriminating experiments*, and weakest when it produces one
+successful narrative. A passing gate means the model satisfies a prespecified
+criterion under its assumptions — it does NOT establish that the real transition
+occurred. Carry these investigation-level expectations (from the viva-genesis
+Scientific Enrichment Plan §14):
+
+1. **Phase maps, not representative trajectories.** Every major claim identifies
+   its PASS *and* its FAILURE regions. At the study level this is the Decision
+   view (see [pbg-study → Three-view standard](../viva-study/SKILL.md)); at the
+   investigation level, the `scientific_argument` should read the failure
+   regions as findings, not footnotes.
+2. **Provenance class on every parameter** — measured vs calibrated vs
+   extrapolated, carried explicitly (the per-study `cites` / `provenance: theory`
+   / `proposed_inputs` discipline rolls up here).
+3. **Conservation accounting** — matter, charge, and free-energy ledgers across
+   the composed processes, with losses bounded and reported.
+4. **Feature ablations find NECESSARY (not merely correlated) mechanisms.**
+   Include member studies that remove one mechanism at a time (`kind: ablation`
+   or an `ablation:` block naming what's removed) and show the claim break —
+   that's how you distinguish a load-bearing mechanism from a bystander.
+5. **Negative controls that fail the same gates.** At least one adversarial
+   member (`kind: adversarial`) — a system that should NOT qualify (a
+   vent-specificity / non-vent control) and passes the gate by rejecting it.
+6. **Shared modules across scenarios.** Multiple scenarios (deep/shallow vents,
+   terrestrial geothermal, photochemical) reuse the same composite modules and
+   are compared through the same gates (see the composites-are-reusable-modules
+   rule in [pbg-expert](../viva-expert/SKILL.md)).
+7. **Negative results are scientific output.** A broken transition is a finding,
+   not a failure to hide — it identifies an experimentally targetable
+   bottleneck. Frame a member study that *refutes* its hypothesis as a result
+   (`confidence: Refuted`, a `claim:` that states what broke), and let the
+   investigation `verdict` carry it honestly (the status triad takes the
+   weakest honest reading — see below).
+
+`report_linter`'s `investigation_missing_adversarial` flags an investigation
+whose member studies include no `kind: adversarial` and no `kind: ablation`
+(nor an `ablation:` block). Add one, or — for a genuinely single-arm screen —
+opt out explicitly with `adversarial_coverage_skip: true` and an
+`adversarial_coverage_skip_reason`.
+
 Every member study must also reference a **REAL registered composite**
 (`baseline[].composite` resolves in the registry — run `/viva-catalog` to see
 them) and **persist its runs via an emitter** (sqlite / parquet / xarray, or a
