@@ -224,11 +224,11 @@ The dashboard and every `sims/run.py` call this `build_core()` (not bare
 `allocate_core()`) so the workspace's own processes are always registered
 regardless of how the editable install was made. This is **not** the
 anti-pattern the old wording of this section warned against — that warning
-is about redundant `register_link()` calls for *other* compliant `pbg-*`/
+is about redundant `register_link()` calls for *other* compliant `viva-*`/
 `viva-*` dependencies (those remain auto-discovered normally); it does not
 apply to the workspace's own package under a pixi/uv-build editable
 install, which genuinely needs the explicit registration. See the
-`pbg_artistoo` and `viva-fenics` precedents.
+`viva_artistoo` and `viva-fenics` precedents.
 
 ## Process-Bigraph API Essentials
 
@@ -780,7 +780,7 @@ Heavy mode is viva's longest workflow — clone → build → wrap → test → 
 2. Phase 2: Design the Wrapper
 3. Phase 3: Implement
 4. Phase 4: Test
-5. Phase 4.5: Promote to a discoverable pbg-workspace
+5. Phase 4.5: Promote to a discoverable viva-workspace
 6. Phase 5: Showcase Investigation + Published Read-only Workbench
 
 Create a todo per phase and complete them in order.
@@ -829,7 +829,7 @@ Instantiation, `update()`, composite assembly, a short run, serialization,
 edge cases, offline operation, and generator-registration. Full test
 templates in **reference.md**.
 
-### Phase 4.5: Promote to a discoverable pbg-workspace
+### Phase 4.5: Promote to a discoverable viva-workspace
 
 `vwb scaffold-workspace --in-place`, `vwb catalog-add`,
 `scripts/lint-workspace.py` — not optional. Full command sequence in

@@ -15,7 +15,7 @@ Create a new Study seeded with one baseline composite. The dashboard's seed endp
 - **Validation layer** — ★ `behavior_tests` · ★ `readouts` · `biological_summary` · `literature_anchors`
 - **Implementation + decisions** — `model_change` · `implementation_requirements` · `design_pivot_required` · ★ `conclusion_verdicts`
 
-★ sections are the ones to author first — they render at the top of the rendered study page. All v4 fields are optional per `study.schema.json`, so the scaffold is lint-clean on day one and the user opts in by uncommenting + filling sections. See `template/NEXT_STEPS.md` in pbg-template for the full walking guide.
+★ sections are the ones to author first — they render at the top of the rendered study page. All v4 fields are optional per `study.schema.json`, so the scaffold is lint-clean on day one and the user opts in by uncommenting + filling sections. See `template/NEXT_STEPS.md` in viva-template for the full walking guide.
 
 POST `/api/study-create`:
 
@@ -482,7 +482,7 @@ After the script exits with code 0, automatically invokes `refresh-viz` for the 
 > **When NOT to use run-script.** If the study's runner can be expressed as a composite plus `parameter_overrides`, prefer `run-baseline` / `run-variant` — those go through the dashboard, surface the run in `runs.db`, and integrate with the auto-renderer. `run-script` is for runners that genuinely can't fit that mold (multi-gen division, external orchestration, custom emitter pipelines).
 
 > **Gap — declarative sweeps not yet runnable.** The `study.yaml` schema
-> (`pbg-template`, Pass B) accepts `simulation_set` entries with
+> (`viva-template`, Pass B) accepts `simulation_set` entries with
 > `kind: sweep`, `axes`, `seeds`, `metrics`, `candidate_selection`, and
 > populated-after-execution fields (`runs[]`, `aggregate_metrics`,
 > `candidates_selected`, `rejection_reasons`). No `run-sweep` subcommand
@@ -603,7 +603,7 @@ Wipe conventional simulator output for a study so a `from scratch` rerun starts 
 
 ### Evaluate subcommands
 
-No `pbg-study` subcommands run here directly. Evaluation is driven by:
+No `viva-study` subcommands run here directly. Evaluation is driven by:
 
 - `POST /api/study-tests-run {study}` — run the study's pytest suite (Tests tab in the dashboard); results land in `study.yaml.tests.last_results`.
 - `/viva-viz` — add or render visualizations (Visualizations tab).
@@ -1358,7 +1358,7 @@ esac
 ```text
 # Create a study from a composite (emits a v4-shape study.yaml with the
 # 14-section narrative spine commented in as TODO placeholders)
-/viva-study new dnaa-binding pbg_chromosome_rep1.composites.dnaa-binding
+/viva-study new dnaa-binding viva_chromosome_rep1.composites.dnaa-binding
 
 # Draft question, hypothesis, objective, description from plan + expert PDFs
 /viva-study fill-overview dnaa-01 --from-plan references/expert/dnaa-plan.pdf
@@ -1371,7 +1371,7 @@ esac
 /viva-study set-objective dnaa-binding "Does DnaA threshold gate initiation?"
 
 # Add a second baseline composite to compare
-/viva-study baseline-add dnaa-binding --name alt --composite pbg_chromosome_rep1.composites.alt-binding
+/viva-study baseline-add dnaa-binding --name alt --composite viva_chromosome_rep1.composites.alt-binding
 
 # Add a low-threshold variant of the original baseline
 /viva-study variant-add dnaa-binding --name low --base-composite dnaa-binding --params '{"threshold": 30}'

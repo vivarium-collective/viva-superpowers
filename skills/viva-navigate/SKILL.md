@@ -508,7 +508,7 @@ print("used by studies:", ", ".join(d["used_by_studies"]) or "(none)")
 /viva-navigate finding-by-observable bulk.ATP[c]
 /viva-navigate dag chromosome-cycle-calibration
 /viva-navigate observable bulk.ATP[c]
-/viva-navigate composite pbg_chromosome_rep1.composites.dnaa-binding
+/viva-navigate composite viva_chromosome_rep1.composites.dnaa-binding
 ```
 
 ## Notes

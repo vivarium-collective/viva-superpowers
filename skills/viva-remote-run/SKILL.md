@@ -78,7 +78,7 @@ param set from the workspace/study spec, so prefer it:
   - `run_simulation(*, simulator_id, num_generations, num_seeds, run_parca, observables, …)`
     → `POST /api/v1/simulations` (legacy). `run_parca` is a **required** kwarg;
     `observables` becomes repeated query keys.
-  - `compose_submit(pbg_bytes, extra_pip_deps, interval_time, filename)`
+  - `compose_submit(viva_bytes, extra_pip_deps, interval_time, filename)`
     → `POST /compose/v1/simulation/run` (multipart process-bigraph `.pbg` document).
 - `lib/remote_run.run_remote(ws_root, composite_id, n_steps, overrides, …)` — the
   deployment-target flow: `export_composite_pbg` → `compose_submit` → poll →

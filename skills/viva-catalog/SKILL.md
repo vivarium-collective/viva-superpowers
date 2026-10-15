@@ -16,7 +16,7 @@ Single front door for the workspace catalog.
 |---|---|
 | `/viva-catalog`  (no args) | Same as `/viva-catalog list`. |
 | `/viva-catalog list` | One-screen workspace summary — composites, studies, registry, installed modules, dirty count. Fetches `/api/workspace-manifest`. |
-| `/viva-catalog install <pkg>` | Add a curated `pbg-*` package, install it into the workspace `.venv`, edit `pyproject.toml`, refresh the registry. Wraps `/api/catalog-install`. |
+| `/viva-catalog install <pkg>` | Add a curated `viva-*` package, install it into the workspace `.venv`, edit `pyproject.toml`, refresh the registry. Wraps `/api/catalog-install`. |
 | `/viva-catalog uninstall <pkg>` | Inverse — remove an installed catalog module. Wraps `/api/catalog-uninstall`. |
 
 Both `install` and `uninstall` commit on the workspace's active workstream
@@ -122,11 +122,11 @@ Sample `list` output:
 
 ```text
 Workspace: v2ecoli-chromosome-rep1  (branch main, 2 dirty files)
-  package_path: pbg_chromosome_rep1
+  package_path: viva_chromosome_rep1
   has_origin:   yes
 
 Composites (5):
-  - pbg_chromosome_rep1.composites.dnaa-binding   spec    viz_steps=0
+  - viva_chromosome_rep1.composites.dnaa-binding   spec    viz_steps=0
   ...
 
 Studies (2):
@@ -141,5 +141,5 @@ Skills (11):
 
 ## Notes
 
-- For an external `pbg-*` repo audit (NOT a workspace module), use the
+- For an external `viva-*` repo audit (NOT a workspace module), use the
   maintainer script `python scripts/audit-pbg-repo.py <repo>`.

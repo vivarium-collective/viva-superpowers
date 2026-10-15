@@ -60,14 +60,14 @@ these, skip the `uv venv` step above entirely and manage the environment
 with **pixi** instead: one `pixi.toml` on the `conda-forge` channel holding
 **both** the simulator (via `[dependencies]`, conda packages) **and** the
 pbg/dashboard stack (via `[pypi-dependencies]`: `process-bigraph`,
-`bigraph-schema`, `vivarium-workbench`, `pbg-superpowers`, plus this
+`bigraph-schema`, `vivarium-workbench`, `viva-superpowers`, plus this
 wrapper's own package as an editable path dependency). Every command in
 this skill (`pytest`, the study runners, `vivarium-workbench-publish`,
 `scripts/lint-workspace.py`) then runs via `pixi run <cmd>` instead of
 `source .venv/bin/activate && <cmd>`.
 
 Precedents: `viva-fenics` (dolfinx + gmsh + mpich alongside the full pbg
-stack in one pixi env) and `pbg-compucell3d` (cc3d from its own conda
+stack in one pixi env) and `viva-compucell3d` (cc3d from its own conda
 channel). Minimal `pixi.toml` shape (adapt channels/deps per tool):
 
 ```toml
@@ -89,7 +89,7 @@ process-bigraph = { git = "https://github.com/vivarium-collective/process-bigrap
 bigraph-schema = "*"
 bigraph-viz2 = "*"
 vivarium-workbench = { git = "https://github.com/vivarium-collective/vivarium-workbench.git", branch = "main" }
-pbg-superpowers = "*"    # dist name intentionally still "pbg-superpowers" post-rebrand (PyPI)
+viva-superpowers = "*"    # dist name intentionally still "viva-superpowers" post-rebrand (PyPI)
 plotly = "*"
 pytest = "*"
 viva-<tool> = { path = ".", editable = true }
@@ -142,7 +142,7 @@ is (see **Auto-Discovery Convention** below for why, and the required
 ## Deliverables
 
 Every `viva-<tool>` repo this skill produces is **also a discoverable
-pbg-workspace** (`workspace.yaml` at root, registered in
+viva-workspace** (`workspace.yaml` at root, registered in
 `~/.pbg/workspaces.json`, scanned by the dashboard's Composites tab via
 `@composite_generator` decorators). Heavy-mode is workspace-first; the
 package, showcase investigation, and tests all live inside that workspace
@@ -402,7 +402,7 @@ def test_generator_is_registered():
     assert matches, f"<tool>_baseline missing; have {list(_REGISTRY)[:5]}"
 ```
 
-### Phase 4.5: Promote to a discoverable pbg-workspace
+### Phase 4.5: Promote to a discoverable viva-workspace
 
 After processes, generators, and tests are in place, run the
 in-place workspace scaffolder so the repo also appears in the
@@ -518,7 +518,7 @@ For every scaffolded study, replace the stubs with the real content:
 
      Produce the **three-view standard** the study's `visualizations[]` declare
      (World / Mechanism / Decision — see
-     [pbg-study → Three-view standard](../viva-study/SKILL.md)). The **Decision
+     [viva-study → Three-view standard](../viva-study/SKILL.md)). The **Decision
      view is a PHASE MAP, not a single run**: sweep a grid (parameter × seed, or
      condition × condition), colour each cell pass/fail (or by the graded
      metric), and **persist the grid** to `studies/<slug>/grid/phase_map.parquet`
@@ -818,7 +818,7 @@ Optional wrapper-pattern references (study their bridge implementations and show
 
 - `v2ecoli` — bridge pattern for tools with internal simulation loops (look at `v2ecoli/bridge.py`, `v2ecoli/generate.py`, `v2ecoli/types/__init__.py`).
 - `viva-fenics` — canonical showcase-investigation + pixi + `build_core()` template (look at `investigations/fenics-showcase/investigation.yaml`, any `studies/*/sims/run.py`, `viva_fenics/core.py`, and `pixi.toml`). The worked example for the whole of **Phase 5** above.
-- `pbg-compucell3d` — conda-only tool managed via pixi (no PyPI wheel for the simulator itself); precedent for the **Conda-only tools** subsection above.
+- `viva-compucell3d` — conda-only tool managed via pixi (no PyPI wheel for the simulator itself); precedent for the **Conda-only tools** subsection above.
 
 If you have local clones of any of the above, prefer reading them directly. Otherwise, work from the patterns documented in this skill.
 
@@ -1082,7 +1082,7 @@ verify `.pbg/runs.jsonl`, and publish exactly as in Phase 5 steps 1-4.
 
 Include: science motivation, which tools are composed and where to find their wrappers, installation (including editable-local-clone install), a wiring diagram, wiring table, quick start, a link to the published read-only workbench, and known limitations.
 
-#### Step 7.5: Promote to a discoverable pbg-workspace
+#### Step 7.5: Promote to a discoverable viva-workspace
 
 Same ritual as single-tool mode's Phase 4.5 — `workspace.yaml`,
 `scripts/`, dashboard catalog registration. Wrap the composite's
@@ -1155,7 +1155,7 @@ Given `$ARGUMENTS` (strip recognized flags first; they may appear in any order):
 - Else if one positional arg: study the tool, install the real upstream simulator, create `viva-<tool>/`,
   implement the package with **`@composite_generator`-decorated
   composites under `viva_<tool>/composites/`**, test it, **promote it to a
-  pbg-workspace via `scaffold workspace --in-place` and register it in
+  viva-workspace via `scaffold workspace --in-place` and register it in
   the dashboard catalog**, then **scaffold the showcase investigation
   (`investigation-from-wrapper`), author each study's `expected_behavior` +
   `behavior_tests` + `sims/run.py` with a committed interactive viz, run the
@@ -1164,7 +1164,7 @@ Given `$ARGUMENTS` (strip recognized flags first; they may appear in any order):
 - Else if two or more positional args: inventory the listed wrappers,
   design the wiring table, build `viva-<name>-composite/` (workspace-shaped
   with a top-level `@composite_generator` wrapping `build_document`),
-  validate, test, **promote to a pbg-workspace and register it**, then
+  validate, test, **promote to a viva-workspace and register it**, then
   **scaffold the showcase investigation, author studies + interactive viz,
   run into `.pbg/runs.jsonl`, publish the read-only workbench, and open the
   published bundle** (same terminus as single-tool mode) — commit locally.
