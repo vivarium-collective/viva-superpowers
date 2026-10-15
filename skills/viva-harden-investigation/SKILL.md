@@ -34,8 +34,9 @@ not a result; (b) when the claim is a *passed gate*, re-run it under a **seed/pa
 pass that holds only at one seed or one calibration is **knife-edge**, not a certificate.
 
 **1. Survey & triage — locate the load-bearing gap.**
-Run `/viva-report --audit` if available (Pass A surfaces verdict↔chart drift, stale framings,
-uncommitted state, suggested follow-ups); else audit the gate axes by hand. Rank
+Run [`/viva-report`](../viva-report/SKILL.md) `--audit` if available (its Pass A audit is the
+owner of what gets surfaced — verdict↔chart drift, stale framings, follow-ups); else audit the
+gate axes by hand. Rank
 the gaps by *leverage on the headline claim* and pick the ONE that matters most. Do not enumerate;
 prioritize.
 
@@ -57,23 +58,16 @@ prioritize.
 > metric's support; never report a CI bound outside the metric's range.
 
 **2b. Reviewer lens — hunt the review's durable failure modes.**
-After classifying the load-bearing gap, sweep the investigation once against
-this checklist. Each row is a failure mode external peer review keeps finding in
-*finished* investigations — and each now has a rigor-scorecard dimension or
-report-linter check behind it (see
-[`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)),
-so point authors at the enforcing check rather than re-litigating the principle:
-
-| Failure mode to hunt | Signature | Enforced by |
-|---|---|---|
-| Post-hoc gate presented as acceptance | behavior_test with no `gate_class`, or a threshold that first appears in the same commit as the run it grades | `gate_class` lint; rigor threshold-provenance + pre-registration dims; `study_verdict.preregistration_status()` |
-| Tuned surrogate labeled substitutability | swap/equivalence claim with no HELD-OUT condition (tuned and graded on the same data); degrees-of-freedom vs constraints unreported | rigor held-out-generalization dim; `/viva-tests audit` discrimination |
-| Under-powered stochastic causal claim | n < 20 replicates per arm, gated on a single seed, no rank test, no drift-null control | rigor Replication dim (causal-claim tier) |
-| Authored criterion dressed as emergence | interpretation-tier finding missing `mechanism_origin`, or `engineered` behavior narrated as emergent | rigor engineered-vs-emergent dim |
-| Missing conservation ledger | a representation conversion (lattice→particles, field→agents, …) with no tally of the conserved quantity on both sides | conservation-ledger check |
-| Unseeded stochastic / dropped config keys | a stochastic process with no explicit seed; a composite config key that never reaches its process | `stochastic_unseeded` / `config_consumption` lints |
-| Decorative physical unit labels | µm / mM / minutes on axes or claims with no `units_and_time:` declaration or calibration behind them | `units_declared` / unearned-unit-labels lint |
-| Best-seed headline | verdict or claim quotes the flagship seed instead of the ensemble band | band-not-best-seed lint; lead with the band |
+After classifying the load-bearing gap, sweep the investigation once for the
+failure modes external peer review keeps finding in *finished* investigations:
+post-hoc gate presented as acceptance, tuned surrogate labeled substitutability,
+under-powered stochastic causal claim (n<20/arm, single seed, no rank test or
+drift-null), authored criterion dressed as emergence, missing conservation
+ledger, unseeded stochastic / dropped config keys, decorative physical unit
+labels, best-seed headline. The full criteria — each mode's signature and the
+rigor-scorecard dimension or report-linter check behind it — live once in
+[`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md);
+point authors at the enforcing check rather than re-litigating the principle.
 
 Any hit is a hardening gap in its own right — fold it into the step-2 table
 (most land in "passed-but-thin" or "overclaimed verdict") and fix it per kind.
@@ -305,11 +299,10 @@ With threshold T only:
   divergence_factor = (measured - T) / T   (signed)
 ```
 
-**Guard:** `literature_target` must be in the observable's own units. A
-parameter-calibration citation (e.g. a Kd) belongs in the study's
-`model_settings[].cites`, never here — writing a parameter value as
-`literature_target` on a differently-united observable makes
-`divergence_factor` meaningless. See `/viva-tests cite-bands` Step 3.
+**Guard:** `literature_target` must be in the observable's own units, never a
+parameter value (a Kd / affinity / rate constant). The full parameter-vs-band
+units classification — and why a mis-routed Kd corrupts `divergence_factor` —
+lives once in [`/viva-tests`](../viva-tests/SKILL.md) cite-bands Step 3 (the owner).
 
 #### Full workflow example
 

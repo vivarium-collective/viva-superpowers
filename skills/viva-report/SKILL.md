@@ -52,19 +52,13 @@ This exports `$INVESTIGATIONS_DIR`, `$STUDIES_DIR`, `$REPORTS_DIR`, etc. (each =
 ## Resolve the workbench server URL
 
 Pass B (lint), Pass B½ (readout migration), and Render are thin clients of the
-`vivarium-workbench` dashboard API — resolve its URL with `/viva-catalog`'s
-exact preamble:
+`vivarium-workbench` dashboard API. Resolve the server per `/viva-workbench`
+(walk up to the `workspace.yaml` root, then read the running server's URL from
+`.pbg/server/server-info`, erroring with `Run /viva-workbench start` when it's
+absent) — `$WORKSPACE_ROOT` is already resolved above:
 
 ```bash
-# Walk up to workspace root.
-DIR="$PWD"
-while [ "$DIR" != "/" ] && [ ! -f "$DIR/workspace.yaml" ]; do
-  DIR="$(dirname "$DIR")"
-done
-[ -f "$DIR/workspace.yaml" ] || { echo "ERROR: not inside a pbg workspace"; exit 1; }
-cd "$DIR"
-
-INFO=".pbg/server/server-info"
+INFO="$WORKSPACE_ROOT/.pbg/server/server-info"
 [ -f "$INFO" ] || { echo "ERROR: dashboard server not running. Run /viva-workbench start"; exit 1; }
 URL="$(python3 -c "import json; print(json.load(open('$INFO'))['url'])")"
 python3 -m viva_superpowers.server_preflight --url "$URL" || true  # version-skew preflight (warns; never fails)
@@ -155,10 +149,9 @@ the reviewer concrete, creative options to consider, not to restate the charts
 already present.
 
 For each proposal, surface:
-- **Title + form** — what it shows and the chart type (favor interactive Plotly;
-  reach for the richer forms in `/viva-viz`'s creativity table — phase portraits,
-  heatmaps of report-card axes, Sankey mass-balance, sunburst inventories,
-  variance-band population traces, animated multi-gen accumulation, etc.).
+- **Title + form** — what it shows and the chart type; reach past a default line
+  chart for the richer, interactive forms `/viva-viz` owns (its creativity table
+  is the catalog — don't restate it here).
 - **Which finding it sharpens** — the verdict line or study claim it supports,
   and what becomes undeniable that prose alone leaves fuzzy.
 - **Data source** — the run/observable/CSV it would draw from (so the reviewer
@@ -302,16 +295,18 @@ curl -s -X POST -H "Content-Type: application/json" -d '{"force": true}' "$URL/a
 
 The rendered tests/verdict section no longer shows one undifferentiated pass
 count. It splits four populations, so author studies with the fields that feed
-the split (see [pbg-study → Born-rigorous defaults](../viva-study/SKILL.md)):
+the split. The `gate_class` semantics — why a `regression_pin` locks behavior but
+is not acceptance evidence — live once in
+[`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)
+and the [viva-study → Born-rigorous defaults](../viva-study/SKILL.md) authoring
+surface. What the render splits them into:
 
 - **Committed pytests** — the study's `tests/` suite results (executable
   invariants).
-- **`gate_class: regression_pin`** — post-run pins that lock observed behavior
-  against drift. Rendered separately and **never counted as acceptance
-  evidence**.
-- **`gate_class: acceptance_criterion`** — pre-stated priors from the study's
-  `preregistered:` block; the only rows that count toward "the model behaves as
-  predicted".
+- **`gate_class: regression_pin`** — rendered separately and **never counted as
+  acceptance evidence**.
+- **`gate_class: acceptance_criterion`** — from the study's `preregistered:`
+  block; the only rows that count toward "the model behaves as predicted".
 - **Expected-fail controls** — adversarial / drift-null entries that PASS by
   failing.
 
@@ -340,10 +335,10 @@ The per-investigation report a reviewer downloads is built **client-side**
    `status` is `passed`.
 2. **If a correct change isn't showing**, check the install mode before
    debugging the code: a workspace `.venv` often runs **non-editable, git-pinned**
-   `vivarium-workbench` / `pbg-superpowers`. Make the source live and restart:
+   `vivarium-workbench` / `viva-superpowers`. Make the source live and restart:
    ```bash
    uv pip install -e <path-to-vivarium-workbench> --no-deps
-   uv pip install -e <path-to-pbg-superpowers> --no-deps
+   uv pip install -e <path-to-viva-superpowers> --no-deps
    vwb server-restart
    ```
 
