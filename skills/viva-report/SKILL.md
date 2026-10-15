@@ -83,7 +83,7 @@ git status --porcelain
 git log --oneline origin/main..HEAD | head -5
 ```
 
-- **blocking** if uncommitted changes touch `$STUDIES_DIR/*/study.yaml`, `$STUDIES_DIR/*/charts/`, or `$INVESTIGATIONS_DIR/*/investigation.yaml`. Either commit or stash. Print which files.
+- **blocking** if uncommitted changes touch any `study.yaml` or `charts/` under `$STUDIES_DIR` or `$INVESTIGATIONS_DIR/*/studies/` (flat or nested layout), or any `$INVESTIGATIONS_DIR/*/investigation.yaml`. Either commit or stash. Print which files.
 - **info** if branch is N commits ahead of `origin/main` and N > 0. Show head 5 commits so the user remembers what's pending.
 
 ### A2. Executive-verdict freshness
@@ -92,7 +92,7 @@ For each investigation:
 
 ```bash
 # Find newest chart svg mtime under any member study
-find "$STUDIES_DIR"/*/charts/ -name '*.svg' -print0 | xargs -0 stat -f "%m %N" 2>/dev/null | sort -rn | head -1
+find "$STUDIES_DIR" "$INVESTIGATIONS_DIR" -path '*/charts/*.svg' -print0 | xargs -0 stat -f "%m %N" 2>/dev/null | sort -rn | head -1
 stat -f "%m %N" "$INVESTIGATIONS_DIR/<slug>/investigation.yaml"
 ```
 
