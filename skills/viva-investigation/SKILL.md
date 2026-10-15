@@ -14,16 +14,12 @@ An Investigation lives at `$INVESTIGATIONS_DIR/<slug>/investigation.yaml` (resol
 
 See [`docs/concepts/vivarium-workbench-model.md`](../../docs/concepts/vivarium-workbench-model.md) for the canonical data model.
 
-## See also — viva-expert → investigation → study → run → publish
+## Where this sits in the arc
 
-This skill sits at step 2 of the showcase chain: [`/viva-expert`](../viva-expert/SKILL.md)
-(heavy mode) scaffolds a whole investigation via `investigation-from-wrapper`;
-each member study is then managed via [`/viva-study`](../viva-study/SKILL.md)
-(step 3); individual composites can be smoke-tested directly via
-[`/viva-run`](../viva-run/SKILL.md) (step 4); and the workspace is exposed as an
-interactive UI — and built into a **published read-only** snapshot
-(via `vivarium-workbench-publish` → gh-pages) — via
-[`/viva-workbench`](../viva-workbench/SKILL.md) (step 5).
+Step 2 of the generation arc (full arc in `/viva-orient`): `/viva-expert` (source the
+model) → **investigation** (group studies into a campaign) → `/viva-study` (per
+study, usually driven by `/viva-model-build`) → `/viva-run` (smoke-test) →
+`/viva-report` (publish read-only via `vivarium-workbench-publish` → gh-pages).
 
 ## Layout (investigation-centric, nested)
 
@@ -78,7 +74,7 @@ The dashboard reframes the investigation page as an **Investigation graph**: a d
 - **Confidence** — the study's `confidence:` badge (`Accepted | Investigating | Planned | Refuted`), derived from the 6-axis status when unset.
 - **Display name** — the study's `title:` (slug, prefix-stripped + humanized, when unset).
 
-These are **study-level** fields — author them per member study via `/viva-study` (see [pbg-study → Investigation-graph fields](../viva-study/SKILL.md)). At Design, set each study's `title:` and wire `parent_studies` with a `relation:` (`leads-to` default → solid edge; `regulatory` / `refutes` → dashed edge; `supports`). At Evaluate/Decide, set `claim:` and (when the derived value is wrong) `confidence:`.
+These are **study-level** fields — author them per member study via `/viva-study` (see [viva-study → Investigation-graph fields](../viva-study/SKILL.md)). At Design, set each study's `title:` and wire `parent_studies` with a `relation:` (`leads-to` default → solid edge; `regulatory` / `refutes` → dashed edge; `supports`). At Evaluate/Decide, set `claim:` and (when the derived value is wrong) `confidence:`.
 
 **Confidence rollup.** The investigation aggregates over its members: the graph badges each node with its study-level confidence, and the investigation's `executive.verdict_status` is the higher-level rollup a reviewer lands on first. Keep the two consistent — a `Refuted` study should be reflected in the investigation verdict.
 
@@ -105,7 +101,7 @@ from a finer-grained process). Both are first-class members; the finer one
 does not replace the coarser one, it **refines** it.
 
 - Declare the relationship with `parent_studies[].relation: refines` (see the
-  `relation` enum in [pbg-study → Investigation-graph fields](../viva-study/SKILL.md)),
+  `relation` enum in [viva-study → Investigation-graph fields](../viva-study/SKILL.md)),
   pointing from the finer (refining) study back to the coarser one it refines.
 - On the finer study, name the coarser realization's passing behaviors it must
   reproduce, and whether it currently does:
@@ -143,7 +139,7 @@ passes by rejecting it), so **adversarial coverage**, **falsification exposure**
 and **comparative framing** all read `ok`. Drive each member study toward 8/8 per
 the per-study checklist. Full guide:
 [`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md).
-`pbg-autopoiesis` is the reference (5/5 investigation, every study 8/8).
+`viva-autopoiesis` is the reference (5/5 investigation, every study 8/8).
 
 ### Design principles — build the investigation as a MAP OF BOTTLENECKS
 
@@ -156,7 +152,7 @@ Scientific Enrichment Plan §14):
 
 1. **Phase maps, not representative trajectories.** Every major claim identifies
    its PASS *and* its FAILURE regions. At the study level this is the Decision
-   view (see [pbg-study → Three-view standard](../viva-study/SKILL.md)); at the
+   view (see [viva-study → Three-view standard](../viva-study/SKILL.md)); at the
    investigation level, the `scientific_argument` should read the failure
    regions as findings, not footnotes.
 2. **Provenance class on every parameter** — measured vs calibrated vs
@@ -174,7 +170,7 @@ Scientific Enrichment Plan §14):
 6. **Shared modules across scenarios.** Multiple scenarios (deep/shallow vents,
    terrestrial geothermal, photochemical) reuse the same composite modules and
    are compared through the same gates (see the composites-are-reusable-modules
-   rule in [pbg-expert](../viva-expert/SKILL.md)).
+   rule in [viva-expert](../viva-expert/SKILL.md)).
 7. **Negative results are scientific output.** A broken transition is a finding,
    not a failure to hide — it identifies an experimentally targetable
    bottleneck. Frame a member study that *refutes* its hypothesis as a result
@@ -209,7 +205,7 @@ runs**, with two kinds of entry:
   that will gate it (`{study: <slug>, behavior: <name>}`). Mirror each prior into
   that study's `preregistered:` block and mark the gating test
   `gate_class: acceptance_criterion` (see
-  [pbg-study → Born-rigorous defaults](../viva-study/SKILL.md)).
+  [viva-study → Born-rigorous defaults](../viva-study/SKILL.md)).
 - **Order-of-magnitude EXTERNAL ANCHORS** — literature values that bound what a
   plausible result looks like (e.g. "sorting completes within ~10²–10³ MCS at
   Graner–Glazer scale"). Flag each explicitly as an **anchor** — a sanity bound
@@ -332,7 +328,7 @@ acceptance_criteria: []  # populate BEFORE runs — pre-stated directional prior
                          # do NOT leave empty until results exist
 ```
 
-All v2 narrative-spine fields are optional per `investigation.schema.json`, so the scaffold validates on day one. The user opts in by uncommenting + filling sections. See `template/NEXT_STEPS.md` in pbg-template for the full pattern + when to fill each.
+All v2 narrative-spine fields are optional per `investigation.schema.json`, so the scaffold validates on day one. The user opts in by uncommenting + filling sections. See `template/NEXT_STEPS.md` in viva-template for the full pattern + when to fill each.
 
 7. `git add "$INVESTIGATIONS_DIR/<slug>/investigation.yaml"` then commit: `git commit -m "feat(investigation): scaffold <slug>"`. Do NOT push — the user pushes manually when ready.
 8. Print: `Created branch '<slug>' + $INVESTIGATIONS_DIR/<slug>/investigation.yaml (committed). Use /viva-investigation open <slug> to create a worktree and start a dashboard, or /viva-investigation add-study <slug> <study-slug> to add member studies.`
@@ -609,16 +605,26 @@ In `--dry-run` mode: print the full YAML content of each file (clearly separated
 Created investigation '<name>' with N studies. Run /viva-workbench start then open the Investigations tab.
 ```
 
-#### 7. Name the execution vehicle
+#### 7. Name the execution vehicle — drive each member through the loop
 
-Scaffolding writes specs, not implementations — the member studies still need to
-be built out. Name the execution vehicle rather than leaving the user to
-improvise one: offer to build the members out via
-**`superpowers:subagent-driven-development`** (recommended when the member
-studies are independent — check the `parent_studies` DAG just written; studies
-with no dependency edge between them are parallelizable) or sequentially by
-hand, one study at a time, when the chain is linear or the studies are tightly
-coupled.
+Scaffolding writes specs, not implementations — each member is a design-stage stub
+that still needs to be built out. The default vehicle is the **agentic
+model-building loop**: run `/viva-model-build <study>` on each member to author its
+tests, source/build the model, run, grade, and iterate to the severity gate. The
+loop *generates* the study's content (findings, verdicts, metrics, report) from the
+run rather than you hand-authoring it — a stub becomes a validated study the moment
+its loop reaches DONE, and a phase's dependents wait on
+`parent_studies[].condition: tests-passed`.
+
+Fan the loop out across **independent** members concurrently (check the
+`parent_studies` DAG just written — studies with no dependency edge are
+parallelizable) via **`superpowers:subagent-driven-development`**; run linear chains
+or tightly-coupled studies one at a time.
+
+For a rich multi-phase campaign in which a phase sweeps a model-class axis or
+propagates uncertainty, those mechanics live in the **workspace's own package**
+(e.g. a model-class registry, a UQ layer) — the loop and `scaffold-from-plan`
+*drive* them per phase; they are not part of this general plugin.
 
 **Study YAML shape to emit for each phase:**
 
@@ -698,7 +704,7 @@ Run the investigation's bespoke-script studies in declaration order by calling `
 
 - `<inv-slug>` (required) — investigation slug.
 - `--studies a,b,c` (optional) — restrict to this comma-separated subset of member slugs (preserving declaration order). Default: every member of `investigation.yaml.studies`.
-- `--entry <name>` (optional) — pass `--entry <name>` through to each `pbg-study run-script` call (so all members run the same named entry, e.g. `--entry smoke`). Default: each study runs its own `default: true` entry.
+- `--entry <name>` (optional) — pass `--entry <name>` through to each `viva-study run-script` call (so all members run the same named entry, e.g. `--entry smoke`). Default: each study runs its own `default: true` entry.
 - `--dry-run` (optional) — print the planned commands; don't execute.
 - `--keep-going` (optional) — continue to the next study when one fails (`make -k`-style). Default: stop on first non-zero exit and propagate it.
 
