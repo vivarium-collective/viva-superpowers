@@ -24,17 +24,11 @@ back-ref. The investigation's publication/report lives at `investigations/<inv>/
 This block governs the paths below: where older text says `studies/<slug>/` or `$STUDIES_DIR/<slug>/`, prefer the resolver / the nested path.
 
 
-A Study is a self-contained research unit holding one-or-more baseline composites, variants (parameter perturbations), interventions (text-described conditions), runs, and visualizations. The **Build** phase between Design and Simulate doesn't have pbg-study subcommands directly — it's handled by `/viva-expert` (heavy mode → sibling repo) or `/viva-expert --lightweight` (in-workspace, single-tool or composite form), or by hand-edited code in `pbg_<workspace>/processes/`.
+A Study is a self-contained research unit holding one-or-more baseline composites, variants (parameter perturbations), interventions (text-described conditions), runs, and visualizations. The **Build** phase between Design and Simulate has no viva-study subcommands directly — it's handled by `/viva-expert` (heavy mode → sibling repo) or `/viva-expert --lightweight` (in-workspace, single-tool or composite form), or by hand-edited code in `viva_<workspace>/processes/`.
 
-## See also — viva-expert → investigation → study → run → publish
+## Where this sits in the arc
 
-This skill sits at step 3 of the showcase chain: [`/viva-expert`](../viva-expert/SKILL.md)
-scaffolds the investigation + its member studies (`investigation-from-wrapper`);
-studies are grouped by [`/viva-investigation`](../viva-investigation/SKILL.md)
-(step 2, one level up); a study's individual composites can be smoke-tested
-directly via [`/viva-run`](../viva-run/SKILL.md) (step 4, sibling to
-`run-baseline`/`run-variant` below); and the finished workspace is published
-read-only via [`/viva-workbench`](../viva-workbench/SKILL.md) (step 5).
+Step 3 of the generation arc (full arc in `/viva-orient`): `/viva-expert` (source the model) → `/viva-investigation` (group studies) → **study** → `/viva-run` (smoke-test a composite) → `/viva-report` (publish). A study is usually driven by `/viva-model-build`, not authored by hand.
 
 <!-- House rules distilled from a cross-study expert-feedback friction review. General to any investigation. -->
 ## House rules (expert-feedback guardrails)
@@ -171,78 +165,40 @@ a review round (and often a confirmatory sweep). See
 [handling-investigation-feedback.md#acceptance-criteria](../../docs/conventions/handling-investigation-feedback.md)
 for the full rationale and the signals that the aggregate is intended.
 
-## Born-rigorous defaults (review-derived) — gate_class · units_and_time · preregistered
+## Born-rigorous defaults (scaffold at Design) — gate_class · units_and_time · preregistered
 
-External peer review of finished investigations keeps finding the same avoidable
-failure modes. Scaffold the following at **Design** time so every new study is
-born compliant instead of hardened retroactively — the rigor scorecard and the
-report linter now enforce each one (see
-[`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)),
-and `/viva-harden-investigation`'s reviewer lens hunts for their absence.
+Scaffold these at **Design** time so every study is born compliant, not hardened
+retroactively. The *why* and the full dimension list live once in
+[`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)
+(the scorecard + report linter enforce them; `/viva-harden-investigation` hunts
+their absence). What viva-study emits:
 
-**1. `gate_class` on every behavior_test.** When scaffolding `behavior_tests[]`,
-prompt for and emit `gate_class: regression_pin | acceptance_criterion` on each
-entry. The classification is about WHEN the threshold was stated, not how strict
-it is: a threshold set **after** seeing the run is a **`regression_pin`** — it
-locks in observed behavior so it can't silently drift (valuable!), but it is
-not evidence the behavior is *right*; a directional prior stated **before** the
-run is an **`acceptance_criterion`** — the only kind that can confirm or refute.
-Never let a pin masquerade as acceptance: the verdict counts split the two, and
-an unclassified gate is a lint finding.
-
-**2. `units_and_time:` block.** Declare what a tick maps to and the units of
-every field/quantity — or state `dimensionless model units` explicitly. A
-physical unit label (µm, mM, minutes) that no calibration earns is decorative
-and gets linted; honest dimensionless units beat borrowed physical ones.
-
-```yaml
-units_and_time:
-  tick: "1 MCS, no physical time calibration"     # or e.g. "1 tick = 1 s (calibrated to X)"
-  quantities:
-    volume: "lattice sites (dimensionless)"
-    concentration: "model units (uncalibrated)"
-```
-
-**3. `preregistered:` block.** For every acceptance_criterion, declare the
-threshold/prior BEFORE the runs land, and record when:
-
-```yaml
-preregistered:
-  declared_before_runs: true
-  date: '<YYYY-MM-DD>'
-  criteria:
-    - test: <behavior-test-name>
-      prior: "raising J_ab above J_aa should monotonically increase the sorting index"
-```
-
-`viva_superpowers.study_verdict.preregistration_status()` reads this block; a
-threshold that first appears in the same commit as the run it grades is
-post-hoc by construction — record it as a `regression_pin` instead.
-
-**4. SEED every stochastic process.** Give every stochastic process an explicit
-seed in its config, and verify every config key actually reaches its process
-(a silently-dropped key is linted via `config_consumption`; an unseeded process
-is linted via `stochastic_unseeded`). An unseeded process makes every replicate
-claim unverifiable.
-
-**5. Plan the design for the claim class** — declare these at Design, before any
-run, not as a post-hoc patch:
-
-- **Causal/directional claim from a stochastic contrast** → plan **n ≥ 20
-  replicates per arm**, a **rank test** (e.g. Mann-Whitney) on the ensemble, and
-  a **drift-null control** (the same statistic with the mechanism removed), and
-  gate the behavior_test on the **ensemble statistic** — never on a flagship
-  seed. (The ≥3-seed `robustness:` floor is smoke-level replication; it does not
-  power a causal claim.)
-- **Substitutability / surrogate claim** ("X can stand in for Y") → plan a
-  **held-out condition**: tune on one condition, grade on another the surrogate
-  never saw, and report the surrogate's **degrees of freedom vs the constraints
-  it was fit to**. A surrogate tuned and graded on the same condition
-  demonstrates curve-fitting, not substitutability (see `/viva-tests` § Gate
-  discipline).
-- **Representation conversion** (e.g. lattice → particles) → plan a
-  **conservation ledger**: tally the conserved quantities (mass, volume, count)
-  on both sides of the conversion, with the loss bounded and reported.
+1. **`gate_class` on every behavior_test** — `regression_pin` (threshold set
+   *after* the run: locks behavior, not evidence it's right) vs `acceptance_criterion`
+   (a directional prior stated *before* the run: the only kind that confirms/refutes).
+   Unclassified is a lint finding; never let a pin masquerade as acceptance.
+2. **`units_and_time:`** — what a tick maps to + each field's units, or explicit
+   `dimensionless model units` (a physical label no calibration earns is linted):
+   ```yaml
+   units_and_time:
+     tick: "1 MCS, no physical time calibration"   # or "1 tick = 1 s (calibrated to X)"
+     quantities: {volume: "lattice sites (dimensionless)", concentration: "model units (uncalibrated)"}
+   ```
+3. **`preregistered:`** — for each acceptance_criterion, declare the prior BEFORE
+   the runs land (a threshold first appearing in the run's own commit is post-hoc →
+   record it as a `regression_pin`; `study_verdict.preregistration_status()` reads this):
+   ```yaml
+   preregistered: {declared_before_runs: true, date: '<YYYY-MM-DD>',
+     criteria: [{test: <behavior-test-name>, prior: "raising J_ab should monotonically increase sorting"}]}
+   ```
+4. **Seed every stochastic process** (unseeded → `stochastic_unseeded` lint; a
+   silently-dropped config key → `config_consumption` lint).
+5. **Plan the design for the claim class** (at Design, not a post-hoc patch):
+   causal/directional stochastic contrast → **n ≥ 20/arm** + a rank test +
+   a drift-null control, gated on the **ensemble statistic** (never a flagship seed;
+   the ≥3-seed floor is smoke-level); substitutability → a **held-out** condition
+   (tune on one, grade on another) + degrees of freedom; representation conversion →
+   a **conservation ledger**. Full criteria + thresholds: rigor-checklist.md.
 
 ## Cross-study dependencies (parent_studies)
 
@@ -289,7 +245,7 @@ status. They sit alongside the existing fields the graph already reads:
 **Enums.**
 
 - `confidence:` ∈ `Accepted | Investigating | Planned | Refuted`.
-- `parent_studies[].relation:` ∈ `leads-to` (default) `| regulatory | supports | refutes | refines`. Renders solid for `leads-to`, dashed for `regulatory` / `refutes` / `refines`. Author the relation when declaring a dependency to express the discourse relationship, not just ordering. `refines` marks the finer-grained realization of the same claim as its coarser parent — pair it with a `refinement.must_preserve` + `satisfaction` block on the finer study (see [pbg-investigation § Multi-realization claims](../viva-investigation/SKILL.md)).
+- `parent_studies[].relation:` ∈ `leads-to` (default) `| regulatory | supports | refutes | refines`. Renders solid for `leads-to`, dashed for `regulatory` / `refutes` / `refines`. Author the relation when declaring a dependency to express the discourse relationship, not just ordering. `refines` marks the finer-grained realization of the same claim as its coarser parent — pair it with a `refinement.must_preserve` + `satisfaction` block on the finer study (see [viva-investigation § Multi-realization claims](../viva-investigation/SKILL.md)).
 
 ```yaml
 # studies/<slug>/study.yaml
@@ -317,7 +273,7 @@ Studies that share a research arc can be grouped into an **Investigation** (a na
 
 ## Reference / mechanism discipline: NEVER silently add what the expert did not provide
 
-When you cite a paper (`--cite`, `--source`, `cites:`, `literature_anchors[].source`) or lean on a mechanism, that reference/mechanism must be one the **expert actually provided or explicitly approved**. If, while building or evaluating a study, you reach for a paper, parameter, or mechanism the expert did **not** give you, do **not** quietly fold it into `cites:` / `literature_anchors` / the prose as if it were sanctioned. Record it on the parent **investigation** under `proposed_inputs:` with `status: pending`, a `provenance` (which commit / why it surfaced), and a `rationale` (what you used it for), and let the expert Accept or Decline it in the report. On Accept, a `kind: reference` item is promoted into the investigation's `inputs.references` and becomes a real provided reference (then it is fair to cite); a `kind: mechanism` item is marked accepted for a human to integrate. On Decline it is left out. See the `proposed_inputs:` schema in **pbg-investigation**. This guardrail keeps outside claims from entering the record as expert-sanctioned.
+When you cite a paper (`--cite`, `--source`, `cites:`, `literature_anchors[].source`) or lean on a mechanism, it must be one the **expert actually provided or approved**. If you reach for one they did **not** give you, do **not** quietly fold it into `cites:` / `literature_anchors` / the prose as sanctioned — record it on the parent **investigation** under `proposed_inputs:` (`status: pending` + `provenance` + `rationale`) for the expert to Accept or Decline in the report. The full `proposed_inputs:` schema and its promote-on-accept mechanics live once in [`/viva-investigation`](../viva-investigation/SKILL.md) (the owner). This keeps outside claims from entering the record as expert-sanctioned.
 
 A cited/sanctioned parameter itself still needs its provenance labelled: `cites` (real literature value), `provenance: theory` with a "not fit" note (a deliberate, recorded modeling choice), or `proposed_inputs` (pending). Never let a `provenance: theory` value read as fit or data-anchored. See `/viva-tests cite-bands` § Step 3.
 
@@ -372,7 +328,7 @@ In short, ensure the study declares:
 
 At the investigation level, ensure `competing_frameworks:` is set and at least
 one member study is `kind: adversarial` (a system that should NOT qualify; the
-metric passes by rejecting it). See `pbg-autopoiesis` for the reference shape
+metric passes by rejecting it). See `viva-autopoiesis` for the reference shape
 (every study 8/8, investigation 5/5).
 
 ### Render completeness — no blank tabs or sections

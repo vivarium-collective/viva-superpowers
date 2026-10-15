@@ -11,7 +11,7 @@ argument-hint: <workspace-name> [target-dir] [--upstream <repo>] [--branch <name
 Bootstrap stage. Operates on a brand-new workspace directory.
 
 Three modes: (1) upstream-branch — clone a repo and create a workspace branch
-on top; (2) standalone — clone `pbg-template` directly; (3) in-place — promote
+on top; (2) standalone — clone `viva-template` directly; (3) in-place — promote
 an existing git checkout into a workspace branch without cloning.
 
 ## Which mode? (decision tree)
@@ -26,8 +26,8 @@ shapes.
 | **No directory yet, want to branch off existing repo** | upstream-branch | `/viva-workspace <name> --upstream owner/repo` |
 | **Already inside a git checkout you want to promote** | in-place | `/viva-workspace <name> --target . --in-place` |
 
-The in-place mode is the right answer for composite-only repos (`pbg-mem3dg`,
-`pbg-membrane-actin-composite`, etc.) that already have their own README,
+The in-place mode is the right answer for composite-only repos (`viva-mem3dg`,
+`viva-membrane-actin-composite`, etc.) that already have their own README,
 pyproject, and package — and you want to add workspace artifacts (workspace.yaml,
 investigations/, notes/, dashboard scripts) on top of them as a new branch.
 
@@ -46,7 +46,7 @@ investigations/, notes/, dashboard scripts) on top of them as a new branch.
    - Default branch name: kebab-case of the workspace name (e.g. `my-workspace`).
    - Override with `--branch <name>`.
 4. **Apply workspace scaffolding files** (the same set as standalone-mode bootstrap) on top of the branch.
-5. Commit: `git add -A && git commit -m "feat(workspace): scaffold ${NAME} workspace from pbg-template"`.
+5. Commit: `git add -A && git commit -m "feat(workspace): scaffold ${NAME} workspace from viva-template"`.
 6. The workspace is now a branch of the upstream repo ready to develop on. Push via the dashboard's
    `/api/work-link-branch` or `git push -u origin <branch>`.
 7. Register in workspace catalog same as standalone mode (see step 4 of standalone mode below).
@@ -73,13 +73,13 @@ investigations/, notes/, dashboard scripts) on top of them as a new branch.
    `pyproject.toml` deps for `pytest` and model imports.
 5. **Verify** — `python scripts/lint-workspace.py` must print `workspace lint: OK`.
 6. **Report refresh** — `/viva-report` to generate the initial `reports/index.html`.
-7. **Next steps** — print a brief summary: workspace is ready; open the dashboard with `bash scripts/serve.sh`. From the dashboard, use the **Registry** tab to install pbg-* modules, **Simulation Setup** to configure observables, and **Build Model** to start a workstream branch.
+7. **Next steps** — print a brief summary: workspace is ready; open the dashboard with `bash scripts/serve.sh`. From the dashboard, use the **Registry** tab to install viva-* modules, **Simulation Setup** to configure observables, and **Build Model** to start a workstream branch.
 
 ## Source-of-template options (standalone mode)
 
-- Default: clones `https://github.com/vivarium-collective/pbg-template.git`.
+- Default: clones `https://github.com/vivarium-collective/viva-template.git`.
 - Override via `--template-source <path-or-url>` or `$PBG_TEMPLATE` env var.
-- During development, point at `~/code/pbg-template/` to use the local copy.
+- During development, point at `~/code/viva-template/` to use the local copy.
 
 ### In-place mode (use when scaffolding an existing checkout)
 
@@ -95,12 +95,12 @@ v2ecoli yourself and want to scaffold workspace files on top), the skill:
      name like `<repo-name>-workspace`).
 3. **Apply scaffolding files** (the same set as standalone-mode bootstrap):
    `workspace.yaml`, `NEXT_STEPS.md`, `scripts/`, `references/`, `experiments/`,
-   `pbg_<package_path>/`, `.pbg/schemas/`.
+   `viva_<package_path>/`, `.pbg/schemas/`.
    SKIP files that already exist on the branch (don't overwrite, but DO add any
    missing ones). Generic scaffolding committed by PR #50 style changes may already
    be present; do not overwrite them.
 4. **Generate `workspace.yaml`** using the cwd's repo name as the default
-   workspace name and `package_path = pbg_<repo_name_normalized>`.
+   workspace name and `package_path = viva_<repo_name_normalized>`.
 5. Commit: `git add -A && git commit -m "feat(workspace): scaffold {NAME} on top of existing checkout"`.
 6. Register in the workspace catalog (`~/.pbg/workspaces.json`):
    `vwb catalog-add --path . --name <name> --package <pkg>`.

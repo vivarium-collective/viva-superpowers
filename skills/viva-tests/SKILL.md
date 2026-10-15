@@ -53,7 +53,7 @@ Each axis carries: `verdict` (`within_tol`/`drift`/`mismatch`/`ungraded`), a sig
 Scaffold a new `TestStep` and wire it into the study.
 
 1. Create the subclass in the workspace package's tests module
-   (`pbg_<pkg>/tests_cards/<name>.py` or the workspace's existing report-card
+   (`viva_<pkg>/tests_cards/<name>.py` or the workspace's existing report-card
    module — follow the workspace convention; grep for existing `TestStep`/
    `ReportCardStep` subclasses). Give it `name = "<name>"`, `applies(study) -> bool`
    (default `True`), and `build(study) -> (verdict_v2_doc, html)`.
@@ -92,29 +92,26 @@ lever for "add more detail so the model-building agent can improve its design."
 
 ## Gate discipline: gate_class + held-out grading
 
-**Every gate carries a `gate_class`.** When authoring or enriching, classify
-each gating check / behavior_test as
-`gate_class: regression_pin | acceptance_criterion`. The rule is *when the
-threshold was stated*, not how strict it is: a threshold chosen **after** seeing
-the run is a **`regression_pin`** — it locks observed behavior against silent
-drift (worth having!) but is not evidence the behavior is right; a directional
-prior declared **before** the run — in the study's `preregistered:` block — is
-an **`acceptance_criterion`**, the only kind that can confirm or refute. The
-report's verdict counts split the two, and a pin counted as acceptance is the
-classic post-hoc-gate failure the `audit` subcommand and
-`/viva-harden-investigation`'s reviewer lens both hunt. (See
-[pbg-study → Born-rigorous defaults](../viva-study/SKILL.md) for the scaffold
-shapes; the rigor scorecard's threshold-provenance dim reads the result.)
+Two general rigor dimensions govern how a Test gates; their definitions and
+rationale live once in [`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)
+(scaffold shapes in [viva-study → Born-rigorous defaults](../viva-study/SKILL.md)).
+What viva-tests does with them:
 
-**Substitutability / equivalence needs a held-out grading axis.** A claim that
-module X can stand in for Y ("swap", surrogate, equivalence) is only graded by
-a **held-out condition**: the tuning (train) condition and the grading (test)
-condition must differ, the test axis must be marked as held-out so the report
-can show train vs test, and the surrogate's **degrees of freedom vs the
-constraints it was fit to** must be recorded. A surrogate tuned and graded on
-the same condition demonstrates curve-fitting, not substitutability — the
-audit's discrimination reasoning treats it as insufficient, and the rigor
-held-out-generalization dim reads `gap` without it.
+**`gate_class` on every gating check / behavior_test.** When authoring or
+enriching, classify each as `gate_class: regression_pin | acceptance_criterion`
+(`regression_pin` = threshold set after the run; `acceptance_criterion` = a prior
+declared before the run in the study's `preregistered:` block). The report's
+verdict counts split the two, and a pin counted as acceptance is the
+post-hoc-gate failure the `audit` subcommand and `/viva-harden-investigation`'s
+reviewer lens both hunt; the rigor scorecard's threshold-provenance dim reads the
+result.
+
+**A substitutability / equivalence claim needs a held-out grading axis.** The
+tuning (train) and grading (test) conditions must differ, the test axis must be
+marked as held-out so the report can show train vs test, and the surrogate's
+**degrees of freedom vs the constraints it was fit to** must be recorded. Without
+it the audit's discrimination reasoning treats the Test as insufficient and the
+rigor held-out-generalization dim reads `gap`.
 
 ## run `<study>`
 Run the study's tests and return the structured feedback signal.
@@ -154,12 +151,12 @@ Deterministic (from `viva_superpowers.test_audit.build_audit_report`):
 - **band provenance** (soft) — numeric bands carry `cites`/`provenance`.
 
 Deterministic sourcing audit (only when the study carries a `sourcing:` decision,
-i.e. it went through the loop's SELECT phase — from
-`viva_superpowers.module_sourcing.build_sourcing_report` + `sourcing_gate`):
-- **source_fit** (hard) — the chosen module(s)' declared capabilities cover the task's `requires` tokens.
-- **reinvention** (hard) — didn't build-new where a catalogued module already fits.
-- **novelty_justified** (soft) — build-new only when nothing catalogued fits.
-- **survey_recorded** (soft) — a rationale / candidates were recorded (the catalog was surveyed).
+i.e. it went through the loop's SELECT phase) — re-grades that decision's four
+axes (`source_fit`, `reinvention` hard; `novelty_justified`, `survey_recorded`
+soft) via `viva_superpowers.module_sourcing.build_sourcing_report` +
+`sourcing_gate`. The decision and the axis semantics are owned by
+[`/viva-model-build` SELECT](../viva-model-build/SKILL.md); audit only re-checks
+them here before the pre-registration lock.
 
 AI reasoning you add on top (the deterministic scaffold can't):
 - **null-model plausibility** — for each primary Test, reason whether a scrambled/knockout/null model (mechanism removed) would ALSO satisfy the band. If yes, the Test is insufficient even if its band is narrow — say so and downgrade `discrimination`.

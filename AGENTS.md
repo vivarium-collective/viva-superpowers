@@ -41,7 +41,7 @@ announce **"Using /viva-X to …"**.
 | Workspace exists, but `.pbg/server/` is missing/stale (no dashboard) | `/viva-workbench start` |
 | "wrap X" / "use simulator X" / "add a solver" | `/viva-expert` (default bridges the REAL tool; `--lightweight` for in-workspace) |
 | "is X true?" / "compare A vs B" / any research question | `/viva-study new` (group several under `/viva-investigation`) |
-| "run this composite" / "what does it emit?" | `/viva-run` |
+| "run this composite" / "what does it emit?" | `/viva-run` (local) · `/viva-remote-run` (viva-api / GovCloud) |
 | "what's here?" / lost / just arrived | `/viva-navigate status`, then `/viva-catalog` |
 
 **First session, from nothing:** `/viva-workspace my-model` → `/viva-workbench start`

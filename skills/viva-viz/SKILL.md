@@ -53,7 +53,7 @@ re-deriving conventions ad hoc per script.
 
 Write exactly one file to `<workspace_pkg>/visualizations/<snake_name>.py`
 containing a single function decorated with `@as_visualization` (from
-pbg-superpowers >= 0.7.0). The decorator synthesizes a Visualization subclass
+viva-superpowers >= 0.7.0). The decorator synthesizes a Visualization subclass
 that `bigraph_schema.discover_packages()` picks up automatically — no
 `__init__.py` editing needed.
 
@@ -186,7 +186,7 @@ for it — or, when it's cheap, just build it too.
 
 5. Report success: print the target path so the user can verify, e.g.
    ```
-   Wrote pbg_chromosome_rep1/visualizations/dna_a_trajectory.py
+   Wrote viva_chromosome_rep1/visualizations/dna_a_trajectory.py
    Class name: DnaATrajectory. Click Accept in the dashboard.
    ```
 
@@ -204,7 +204,7 @@ this ecosystem:
 Each one expects a function named `update_<thing>` and stamps the synthesized
 class with `__pb_kind__` + `__pb_aliases__` for nicer dashboard surfacing.
 Discovery (`bigraph_schema.discover_packages`) doesn't care about the markers;
-it walks installed pbg-* distributions and registers everything that subclasses
+it walks installed viva-* distributions and registers everything that subclasses
 `Edge`. The markers are pure metadata.
 
 ## Smoke test

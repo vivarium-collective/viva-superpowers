@@ -20,17 +20,13 @@ from the workspace switcher.
 > is now the single server. For a quick offline look without the workbench,
 > open `reports/index.html` directly, or run `python -m http.server -d reports`.
 
-## See also — viva-expert → investigation → study → run → publish
+## Where this sits in the arc
 
-This skill is step 5 (final) of the showcase chain: [`/viva-expert`](../viva-expert/SKILL.md)
-scaffolds a whole showcase investigation via `investigation-from-wrapper`, whose
-member studies are managed via [`/viva-investigation`](../viva-investigation/SKILL.md)
-(step 2) and [`/viva-study`](../viva-study/SKILL.md) (step 3), with individual
-composites smoke-testable via [`/viva-run`](../viva-run/SKILL.md) (step 4). This
-skill drives the *interactive* workbench, and the same workspace also builds the
-**published read-only** flow: the publish scaffolder writes
-`scripts/publish_dashboard.sh` + `.github/workflows/publish-dashboard.yml`, then
-`vivarium-workbench-publish` renders a static snapshot deployed to gh-pages.
+Step 5 (final) of the generation arc (full arc in `/viva-orient`): this skill
+drives the *interactive* workbench, and the same workspace builds the **published
+read-only** flow — the publish scaffolder writes `scripts/publish_dashboard.sh` +
+`.github/workflows/publish-dashboard.yml`, then `vivarium-workbench-publish`
+renders a static snapshot deployed to gh-pages.
 
 ## Session-per-tab — one workspace per browser tab
 

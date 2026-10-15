@@ -11,15 +11,11 @@ argument-hint: <composite-id> [--steps N] [--emit p1,p2,...]
 Run a composite (spec or generator) for `N` steps and print a summary of
 the emitted observables. Wraps `/api/composite-test-run`.
 
-## See also — viva-expert → investigation → study → run → publish
+## Where this sits in the arc
 
-This skill is step 4 of the showcase chain: it smoke-tests one composite
-directly, ad hoc, outside any Study — the fast sibling to
-[`/viva-study`](../viva-study/SKILL.md)'s `run-baseline` / `run-variant`
-(step 3), which is itself scaffolded by [`/viva-expert`](../viva-expert/SKILL.md)
-and grouped by [`/viva-investigation`](../viva-investigation/SKILL.md) (step 2).
-Once studies have real runs, [`/viva-workbench`](../viva-workbench/SKILL.md)
-(step 5) builds the published read-only snapshot.
+Step 4 of the generation arc (full arc in `/viva-orient`): the fast, ad-hoc
+sibling to `/viva-study`'s `run-baseline` / `run-variant` — smoke-test one
+composite outside any study. `/viva-remote-run` is the viva-api (GovCloud) sibling.
 
 <!-- Cross-skill house rule from a study-feedback friction review. General. -->
 ## House rule: bias to execute
@@ -124,18 +120,18 @@ echo "Next: /viva-workbench open --composite $CID  to inspect in the dashboard"
 ## Example
 
 ```text
-/viva-run pbg_chromosome_rep1.composites.dnaa-binding --steps 10 --emit stores/dnaa
+/viva-run viva_chromosome_rep1.composites.dnaa-binding --steps 10 --emit stores/dnaa
 ```
 
 Output:
 
 ```text
-run_id: pbg_chromosome_rep1.composites.dnaa-binding__1786129177__354faf  (detached; polling status…)
+run_id: viva_chromosome_rep1.composites.dnaa-binding__1786129177__354faf  (detached; polling status…)
 status: completed
 observables (3):
   - glucose = 9.595111
   - biomass = 0.147911
   - acetate = 0.075864
 
-Next: /viva-workbench open --composite pbg_chromosome_rep1.composites.dnaa-binding  to inspect in the dashboard
+Next: /viva-workbench open --composite viva_chromosome_rep1.composites.dnaa-binding  to inspect in the dashboard
 ```

@@ -159,7 +159,7 @@ git:     branch=<name>  dirty=<N> files
 
 ##### 4. Studies
 
-Glob `<workspace_root>/studies/*/study.yaml`. For each, read `status:` field.
+Glob `<workspace_root>/studies/*/study.yaml` **and** `<workspace_root>/investigations/*/studies/*/study.yaml` (flat or nested layout). For each, read `status:` field.
 Print:
 
 ```
@@ -277,7 +277,7 @@ echo "git:     branch=$BRANCH  dirty=$DIRTY files"
 python3 -c "
 import glob, yaml
 from collections import Counter
-files = sorted(glob.glob('studies/*/study.yaml'))
+files = sorted(glob.glob('studies/*/study.yaml') + glob.glob('investigations/*/studies/*/study.yaml'))
 if not files:
     print('studies: none')
 else:
@@ -508,7 +508,7 @@ print("used by studies:", ", ".join(d["used_by_studies"]) or "(none)")
 /viva-navigate finding-by-observable bulk.ATP[c]
 /viva-navigate dag chromosome-cycle-calibration
 /viva-navigate observable bulk.ATP[c]
-/viva-navigate composite pbg_chromosome_rep1.composites.dnaa-binding
+/viva-navigate composite viva_chromosome_rep1.composites.dnaa-binding
 ```
 
 ## Notes

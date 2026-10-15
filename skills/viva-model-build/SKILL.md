@@ -166,7 +166,7 @@ serially:
 - **Fan out** independent simulator work — multiple seeds, multiple conditions, the
   points of a calibration grid, and independent member studies of an investigation.
   A calibration is a program, not a conversation: use
-  `pbg_cpm_studies.model_building.calibrate` (a sensitivity screen picks the knobs to
+  `viva_cpm_studies.model_building.calibrate` (a sensitivity screen picks the knobs to
   sweep; `refine(..., max_workers=N)` evaluates the grid concurrently) instead of an
   LLM narrating a hand grid — the hand sweep was the single biggest token cost observed.
 - **Wait event-driven, never poll.** Dispatch background work and act on its completion
