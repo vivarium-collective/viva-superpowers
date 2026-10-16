@@ -637,11 +637,16 @@ def scaffold_workspace_in_place(
                 added_cli_script = _inplace_merge_pyproject_scripts(
                     existing_pyproject, workspace_name, pkg_slug)
             else:
-                # No pyproject at all — write the rendered template's wholesale
-                # (viva-template's own pyproject.toml.j2 already declares the
-                # cli extra + [project.scripts] entry).
+                # No pyproject at all — write the rendered template wholesale,
+                # then add the cli extra + [project.scripts] entry through the
+                # same helpers as the merge path. The template's own
+                # pyproject.toml.j2 does not declare them, so relying on the
+                # wholesale copy left the in-place path without cli wiring.
                 existing_pyproject.write_text(tpl_text)
                 added_deps = list(tpl_deps)
+                added_cli_extra = _inplace_merge_pyproject_cli_extra(existing_pyproject)
+                added_cli_script = _inplace_merge_pyproject_scripts(
+                    existing_pyproject, workspace_name, pkg_slug)
 
         # Merge .gitignore lines.
         template_gitignore = staging / ".gitignore"
