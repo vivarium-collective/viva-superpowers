@@ -200,12 +200,55 @@ their absence). What viva-study emits:
    (tune on one, grade on another) + degrees of freedom; representation conversion →
    a **conservation ledger**. Full criteria + thresholds: rigor-checklist.md.
 
-## Cross-study dependencies (parent_studies)
+## Run the readiness linter as a build step (not just at report time)
 
-A study can declare ordering against other studies in the workspace via
-the optional `parent_studies:` field. Each entry is either a bare slug
-or an object `{study, condition}` where `condition` is one of
-`tests-passed` | `ran` | `complete` (default `tests-passed` when omitted).
+The readiness linter (`viva_superpowers.report_linter.lint_workspace_report`) is
+the same gate that `/viva-report --lint` and `/viva-harden-investigation` run. It
+is cheap, needs no server, and catches the gaps this skill is responsible for —
+`gate_class_missing`, `missing_provenance`, `visualization_address_unresolved` /
+`visualization_class_misplaced`, `dag_edges_*`, `authored_confidence_diverges`,
+`band_test_missing_cites`, and more. **Run it as part of building a study, before
+you call the study done — not only when rendering a report.**
+
+```bash
+# whole workspace, or scope to the study you just edited
+python -c "from pathlib import Path; from viva_superpowers.report_linter import \
+lint_workspace_report, format_findings; \
+print(format_findings([f for f in lint_workspace_report(Path('.')) if f.level!='info']))"
+# or, with the dashboard conventions:  /viva-report --lint
+```
+
+Treat an `error`- or `warning`-level finding for the study you authored as a
+build task, not a cosmetic nit: clear it (or, where a gap genuinely does not
+apply, record an explicit override) before moving the study to Decide. Fixing
+gaps at build time is an order of magnitude cheaper than a retroactive
+`/viva-harden-investigation` sweep across a finished investigation.
+
+## Cross-study dependencies (pipeline_gate.prerequisites)
+
+Declare ordering against other studies via **`pipeline_gate.prerequisites`**
+(canonical, Section 2 of the 8-section structure) — the field the dashboard
+actually reads. Each entry is an object `{study, condition}` where `condition` is
+one of `tests-passed` | `ran` | `complete` (default `tests-passed`).
+
+```yaml
+pipeline_gate:
+  prerequisites:
+    - {study: dnaa-01-expression-dynamics, condition: tests-passed}
+    - {study: dnaa-03-box-binding, condition: ran}
+```
+
+The legacy top-level **`parent_studies:`** field still works as a back-compat
+fallback but is deprecated: setting it *and* `pipeline_gate.prerequisites` drifts
+(the dashboard ignores the legacy one), which the linter flags as `dag_edges_*`.
+New studies should use `pipeline_gate.prerequisites` only. The legacy shape, for
+reading old studies:
+
+```yaml
+parent_studies:
+  - dnaa-01-expression-dynamics                       # legacy: tests-passed
+  - {study: dnaa-03-box-binding, condition: ran}      # object: parent must have ≥1 run
+```
 
 ```yaml
 # studies/dnaa-02-atp-hydrolysis/study.yaml
