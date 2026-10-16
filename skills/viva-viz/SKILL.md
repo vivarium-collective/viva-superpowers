@@ -57,6 +57,15 @@ viva-superpowers >= 0.7.0). The decorator synthesizes a Visualization subclass
 that `bigraph_schema.discover_packages()` picks up automatically — no
 `__init__.py` editing needed.
 
+**The `<workspace_pkg>/visualizations/` location is REQUIRED, not cosmetic.**
+The dashboard's `local:<ClassName>` resolver and the readiness linter only
+discover viz classes under that directory. A Visualization defined anywhere
+else (a package-root `viz_*.py`, a `sims/` script) imports fine but is
+**invisible** — the study's `address: local:<Name>` reads as unresolved and the
+chart renders as empty text. The linter flags this as
+`visualization_class_misplaced`. See `docs/conventions/visualizations.md`
+("Where the class file lives").
+
 Required template:
 
 ```python

@@ -279,6 +279,27 @@ def test_visualization_address_unresolved_skips_dotted_and_empty(tmp_path):
     assert "bare-name" not in flagged_viz_names    # no local: prefix skipped
 
 
+def test_visualization_class_misplaced_fires_when_class_exists_outside_visualizations(tmp_path):
+    """A Visualization subclass defined at the package ROOT (pkg/viz_misplaced.py)
+    rather than under pkg/visualizations/ is the common authoring mistake. The
+    linter distinguishes it from 'no such class': it fires
+    `visualization_class_misplaced` (not the generic unresolved) and names both
+    the offending file and the fix."""
+    ws = _copy_fixture("viz-class-misplaced", tmp_path / "ws")
+    findings = lint_workspace_report(ws)
+    by_check = _findings_by_check(findings)
+    misplaced = by_check.get("visualization_class_misplaced", [])
+    assert len(misplaced) == 1
+    f = misplaced[0]
+    assert f.level == "error"
+    assert "MisplacedViz" in f.message
+    assert "pkg/viz_misplaced.py" in f.message            # names the offending file
+    assert "visualizations/" in f.message                 # names the fix location
+    assert f.field_path.startswith("visualizations[")
+    # It did NOT also fire the generic 'no such class' unresolved finding.
+    assert by_check.get("visualization_address_unresolved", []) == []
+
+
 def test_visualization_address_resolved_produces_no_findings(tmp_path):
     """Classes declared via subclassing OR via @as_visualization update_*
     factories resolve cleanly. Both PascalCase and snake_case forms work."""
