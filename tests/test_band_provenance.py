@@ -64,6 +64,26 @@ def test_band_test_missing_cites_fires_for_behavior_tests(tmp_path):
     assert "add cites" in warns[0].message.lower() or "cites" in warns[0].message.lower()
 
 
+def test_band_test_missing_cites_silent_for_regression_pin(tmp_path):
+    """A numeric-band behavior_test declared `gate_class: regression_pin` is a
+    threshold set after the run (never acceptance evidence), so it has no
+    pre-stated external prior to cite — no band_test_missing_cites warning."""
+    ws = _copy_fixture("band-test-missing-cites", tmp_path / "ws")
+    findings = lint_workspace_report(ws)
+    flagged = {
+        f.field_path
+        for f in findings
+        if f.check == "band_test_missing_cites" and f.study_slug == "study-band-no-cites"
+    }
+    # The pin band carries a numeric low/high but must NOT be flagged; the
+    # acceptance bands in the fixture still are.
+    pin_msgs = [
+        f for f in findings
+        if f.check == "band_test_missing_cites" and "charge-conservation-pin" in (f.message or "")
+    ]
+    assert pin_msgs == [], "regression_pin band must not be flagged for a missing cite"
+
+
 def test_band_test_missing_cites_silent_for_tests_with_cites(tmp_path):
     """behavior_tests/tests[] items WITH resolvable cites → no warning."""
     ws = _copy_fixture("band-test-missing-cites", tmp_path / "ws")
