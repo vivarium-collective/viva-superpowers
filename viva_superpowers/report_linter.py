@@ -157,14 +157,39 @@ def _phase_index(spec: dict) -> int | None:
     return _PHASE_ORDER.get(phase.strip().capitalize())
 
 
+def _inferred_phase_index(spec: dict) -> int | None:
+    """Best-effort phase index from status signals when `phase:` is absent.
+
+    A seeded / planned study often carries `status` / `simulation_status` /
+    `design_status` but no explicit `phase:`. Treating that as "phase unknown ->
+    warning" flags an unbuilt design for missing runs / variants / visualizations
+    it legitimately cannot have yet. Infer the stage instead:
+
+    - status planned/draft, or design not yet approved, or simulation not run
+      -> Design (0): correctly sparse, completeness checks stay info.
+    - simulation ran/running -> Evaluate: built content is genuinely expected.
+    """
+    status = str(spec.get("status") or "").strip().lower()
+    sim = str(spec.get("simulation_status") or "").strip().lower()
+    design = str(spec.get("design_status") or "").strip().lower()
+    if status in {"planned", "draft", "proposed"} or sim in {"not_run", "planned", "not run"} \
+       or design in {"drafted", "draft", "proposed"}:
+        return _PHASE_ORDER["Design"]
+    if sim in {"ran", "running", "complete", "completed"}:
+        return _PHASE_ORDER["Evaluate"]
+    return None
+
+
 def _completeness_level(spec: dict, *, warn_at: str) -> str:
     """Level for a completeness check, gated on the study's phase.
 
-    - phase unknown          -> ``"warning"`` (no phase signal; keep old behavior)
-    - phase >= ``warn_at``    -> ``"warning"`` (genuinely overdue)
-    - phase <  ``warn_at``    -> ``"info"``    (correctly sparse for its stage)
+    - phase (or inferred stage) >= ``warn_at`` -> ``"warning"`` (genuinely overdue)
+    - phase (or inferred stage) <  ``warn_at`` -> ``"info"``    (correctly sparse)
+    - no phase and no status signal at all      -> ``"warning"`` (keep old behavior)
     """
     idx = _phase_index(spec)
+    if idx is None:
+        idx = _inferred_phase_index(spec)
     if idx is None:
         return "warning"
     return "warning" if idx >= _PHASE_ORDER[warn_at] else "info"
@@ -2549,7 +2574,7 @@ def _check_missing_conditions_block(ctx: _LintContext) -> None:
     if has_baseline or has_variants or has_settings or has_legacy:
         return
     ctx.add(
-        level="warning",
+        level=_completeness_level(ctx.spec, warn_at="Build"),
         field_path="conditions",
         message=(
             "Study has no `conditions:` block (or legacy `model_change` / "
