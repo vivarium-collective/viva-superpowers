@@ -1616,6 +1616,45 @@ def _viz_classes_in_workspace(ws_root: Path) -> set[str]:
     return out
 
 
+_VIZ_SCAN_SKIP = frozenset({
+    "__pycache__", "node_modules", "out", "outputs", "reports",
+    "datasets", "references", "tests", "visualizations",
+})
+
+
+def _pkg_class_locations(ws_root: Path) -> dict[str, str]:
+    """``{ClassName: workspace-relative file}`` for every ``class`` defined under
+    a workspace package BUT NOT under a ``visualizations/`` directory.
+
+    Lets the unresolved-address check tell the difference between "no such viz
+    class exists" and "the class exists, just in the wrong place" — the common
+    authoring mistake of defining a ``Visualization`` subclass in a package-root
+    module (e.g. ``<pkg>/viz_foo.py``) instead of ``<pkg>/visualizations/``,
+    where the dashboard's ``local:`` resolver and :func:`_viz_classes_in_workspace`
+    both look. First definition wins. Pure text scan — no import.
+    """
+    out: dict[str, str] = {}
+    try:
+        children = [c for c in ws_root.iterdir()
+                    if c.is_dir() and not c.name.startswith(".")]
+    except OSError:
+        return out
+    pkg_dirs = [c for c in children
+                if (c / "__init__.py").is_file() and c.name not in _VIZ_SCAN_SKIP]
+    for pkg in pkg_dirs:
+        for py in sorted(pkg.rglob("*.py")):
+            rel_parts = py.relative_to(pkg).parts
+            if any(p in _VIZ_SCAN_SKIP or p.startswith(".") for p in rel_parts):
+                continue
+            try:
+                src = py.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for m in _VIZ_CLASS_RE.finditer(src):
+                out.setdefault(m.group(1), py.relative_to(ws_root).as_posix())
+    return out
+
+
 # Figure-file suffixes a bare file-pointer field may name. The workbench's
 # tolerant discovery renders + downloads such a figure, but the canonical
 # declaration is ``address: <scheme>:<file>``. HTML → ``html:``; images →
@@ -1733,6 +1772,30 @@ def _check_visualization_addresses(ctx: _LintContext) -> None:
         if cls in known:
             continue
         viz_name = v.get("name", f"<index-{idx}>")
+        # Distinguish "no such class" from "class exists, wrong place" — the
+        # common authoring mistake of defining a Visualization subclass in a
+        # package-root module instead of <pkg>/visualizations/. When the class
+        # IS defined elsewhere in the package, name the file and the fix so the
+        # author moves it rather than re-writing a class that already exists.
+        misplaced = _cached(ctx, "pkg_class_locations",
+                            lambda: _pkg_class_locations(ctx.ws_root))
+        if cls in misplaced:
+            ctx.add(
+                level="error",
+                field_path=f"visualizations[{idx}].address",
+                message=(
+                    f"Visualization {viz_name!r} address {addr!r} is not "
+                    f"discoverable: class {cls!r} is defined at "
+                    f"{misplaced[cls]!r}, but the dashboard's local: resolver and "
+                    f"the linter only find viz classes under a workspace "
+                    f"<package>/visualizations/ directory. Move the class into "
+                    f"<package>/visualizations/<snake_name>.py (a shim re-export at "
+                    f"the old path keeps existing imports working). See "
+                    f"docs/conventions/visualizations.md."
+                ),
+                check="visualization_class_misplaced",
+            )
+            continue
         ctx.add(
             level="error",
             field_path=f"visualizations[{idx}].address",

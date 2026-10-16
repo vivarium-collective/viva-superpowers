@@ -101,6 +101,27 @@ importing arbitrary workspace code. Prefer `local:` for everything you
 declare in `study.yaml`; reserve dotted paths for cross-package
 references where the canonical-form discovery wouldn't reach.
 
+## Where the class file lives (REQUIRED)
+
+Define each Visualization subclass in a module **under
+`<package>/visualizations/`** — e.g. `viva_genesis/visualizations/carbon_fixation.py`.
+This is not a style preference; it is where discovery happens:
+
+- The dashboard resolves `local:<ClassName>` by importing the
+  `<package>.visualizations` package and registering every
+  `Visualization` subclass it finds (`vivarium_workbench.env_worker`).
+- The readiness linter scans `<package>/visualizations/` for the class.
+
+A `Visualization` subclass defined **anywhere else** — a package-root
+module like `<package>/viz_foo.py`, a `sims/` script, a composite module —
+is **invisible to both**, even though the class plainly exists and imports
+fine. The study's `local:<Name>` address then reads as "unresolved" and the
+dashboard renders the entry as text with no chart. The linter catches this
+specific mistake as `visualization_class_misplaced` and names the file to
+move. If you must keep the old import path working, move the class into
+`<package>/visualizations/<snake_name>.py` and leave a one-line re-export
+shim at the old path.
+
 ## The three render paths
 
 The dashboard exposes **three disjoint ways** to drive a Visualization
