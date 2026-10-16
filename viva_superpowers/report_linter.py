@@ -1489,6 +1489,12 @@ def _check_band_test_missing_cites(ctx: _LintContext) -> None:
     linked rather than buried in prose notes.  This is a *warning* (not an
     error) because it nudges rather than blocks — back-compat with all
     existing uncited studies.
+
+    Only ``acceptance_criterion`` bands are nudged. A ``regression_pin`` band is
+    a threshold set *after* seeing the run (it locks current behavior, and is
+    never counted as acceptance evidence), so it has no pre-stated external prior
+    to cite — asking it for a source contradicts what a pin is. Conservation /
+    sanity / sign gates are authored this way for exactly this reason.
     """
     for section in ("behavior_tests", "tests"):
         items = ctx.spec.get(section) or []
@@ -1499,6 +1505,8 @@ def _check_band_test_missing_cites(ctx: _LintContext) -> None:
                 continue
             if not _is_numeric_band(test):
                 continue
+            if str(test.get("gate_class") or "").strip() == "regression_pin":
+                continue  # a pin has no external prior to cite
             cites = test.get("cites") or []
             if cites:  # has at least one cite — silent
                 continue

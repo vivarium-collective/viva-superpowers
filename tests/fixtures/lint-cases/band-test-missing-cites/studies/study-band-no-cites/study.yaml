@@ -49,3 +49,16 @@ tests:
       high: 0.5
     status: passed
     # no cites — should warn
+
+  - name: charge-conservation-pin
+    classification: diagnostic
+    gate_class: regression_pin
+    measure:
+      kind: generation_average
+      path: listeners.charge.imbalance
+    pass_if:
+      op: generation_average_in_range
+      low: 0.0
+      high: 0.000001
+    # numeric band BUT a regression_pin (a conservation pin, set after the run) —
+    # has no external prior to cite, so NO band_test_missing_cites warning.
