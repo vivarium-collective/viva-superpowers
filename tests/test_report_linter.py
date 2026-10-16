@@ -1213,6 +1213,24 @@ def test_completeness_level_gates_on_phase():
     assert _completeness_level({"phase": "bogus"}, warn_at="Build") == "warning"
 
 
+def test_completeness_level_infers_stage_from_status_when_phase_absent():
+    """A seeded/planned study often has status signals but no `phase:`. Infer the
+    stage from them rather than defaulting to warn, so an unbuilt design isn't
+    flagged for missing runs/variants/conditions it legitimately can't have yet."""
+    # planned / not-run / drafted -> Design-stage -> completeness checks stay info.
+    planned = {"status": "planned", "simulation_status": "not_run", "design_status": "drafted"}
+    assert _completeness_level(planned, warn_at="Build") == "info"
+    assert _completeness_level(planned, warn_at="Simulate") == "info"
+    # Any one signal is enough.
+    assert _completeness_level({"simulation_status": "not_run"}, warn_at="Build") == "info"
+    assert _completeness_level({"status": "draft"}, warn_at="Build") == "info"
+    # A ran study with no phase -> Evaluate -> built content is genuinely expected.
+    assert _completeness_level({"simulation_status": "ran"}, warn_at="Build") == "warning"
+    assert _completeness_level({"status": "ran"}, warn_at="Simulate") == "warning"
+    # No phase AND no status signal at all -> preserve back-compat warn.
+    assert _completeness_level({}, warn_at="Build") == "warning"
+
+
 @pytest.mark.parametrize(
     "phase, expected_level",
     [(None, "warning"), ("Design", "info"), ("Build", "info"), ("Simulate", "warning")],
