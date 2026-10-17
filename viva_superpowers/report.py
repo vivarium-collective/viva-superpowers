@@ -157,8 +157,14 @@ def _harvest_findings(ws_root: Path) -> list[dict]:
     Rows with malformed findings (missing required keys, non-canonical
     enum values) are skipped — the linter is the right place to surface
     those, not the rendering pipeline.
+
+    ``planned`` findings are kept (not dropped): they are design-phase
+    target findings authored before a study runs. The renderer groups them
+    into a separate "Planned / targets" section so they are never mingled
+    with realized results.
     """
-    valid_status = {"confirms", "partial", "contradicts", "novel"}
+    realized_status = {"confirms", "partial", "contradicts", "novel"}
+    valid_status = realized_status | {"planned"}
     valid_kind = {"biological", "computational", "methodological"}
     out: list[dict] = []
     for sd in WorkspacePaths.load(ws_root).iter_study_dirs():
@@ -233,6 +239,11 @@ def render_workspace_findings_index(
     Filter chips at the top let the reader toggle individual status /
     kind values on or off; the in-page JS is a few lines, no framework.
 
+    ``planned`` findings (design-phase targets) are rendered below the
+    realized views in their own "Planned / targets" section, clearly
+    labelled as not-yet-realized and excluded from the realized grouping
+    and filter chips.
+
     Empty workspaces (no findings at all) render a friendly empty-state
     panel pointing at ``/viva-study findings <slug>``.
 
@@ -242,10 +253,18 @@ def render_workspace_findings_index(
     ws = yaml.safe_load((ws_root / "workspace.yaml").read_text(encoding="utf-8"))
     findings = _harvest_findings(ws_root)
 
+    # Split realized results from design-phase targets. Realized findings keep
+    # the existing group-by-status / group-by-kind views; planned findings are
+    # rendered in a separate "Planned / targets" section so a not-yet-realized
+    # target is never shown as a result.
+    realized = [f for f in findings if f["status"] != "planned"]
+    planned_findings = [f for f in findings if f["status"] == "planned"]
+    planned_findings.sort(key=lambda r: (r["study_slug"], r["kind"], r["id"]))
+
     by_status: dict[str, list[dict]] = defaultdict(list)
     by_kind: dict[str, list[dict]] = defaultdict(list)
     # Sort each group: secondary by kind (or status), tertiary by id.
-    for f in findings:
+    for f in realized:
         by_status[f["status"]].append(f)
         by_kind[f["kind"]].append(f)
     for rows in by_status.values():
@@ -263,6 +282,8 @@ def render_workspace_findings_index(
         workspace_name=ws.get("name", ws_root.name),
         generated_at=today,
         findings=findings,
+        realized=realized,
+        planned_findings=planned_findings,
         by_status=dict(by_status),
         by_kind=dict(by_kind),
     ))
