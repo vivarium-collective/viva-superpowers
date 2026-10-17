@@ -281,14 +281,14 @@ status. They sit alongside the existing fields the graph already reads:
 | Field | What it is | Dashboard shows | Derive-when-absent | Authored in |
 |---|---|---|---|---|
 | `title:` | human display name (the slug stays the technical id) | graph node label, study heading, nav | slug with the `<inv>-NN-` ordering prefix stripped + humanized | **Design** |
-| `parent_studies[].relation:` | edge semantics on a dependency | solid edge (`leads-to`) or dashed edge (`regulatory` / `refutes` / `refines`); `supports` reinforces | `leads-to` | **Design** |
+| `parent_studies[].relation:` | edge semantics on a dependency | solid edge (`builds-on` / `tests` / `motivates`) or dashed edge (`alternative-to`) | `builds-on` | **Design** |
 | `claim:` | one-line headline of the knowledge the study produced (what we now believe) | the node's "Finds" line | top `findings[].summary` | **Evaluate / Decide** |
 | `confidence:` | the study's acceptance/confidence state | node badge | `viva_superpowers.study_verdict.derive_confidence(spec)` — the SAME value the left-rail dot reads, so the rail and the graph never disagree: the rolled-up/authored verdict wins (`report.verdict`/`gate_status`: passing→`Accepted`, failed→`Refuted`, needs_calibration→`Investigating`), else the lifecycle `status` (completed/complete/ran/evaluated→`Accepted`, running→`Investigating`, else `Planned`) | **Decide** (when the derived value is wrong) |
 
 **Enums.**
 
 - `confidence:` ∈ `Accepted | Investigating | Planned | Refuted`.
-- `parent_studies[].relation:` ∈ `leads-to` (default) `| regulatory | supports | refutes | refines`. Renders solid for `leads-to`, dashed for `regulatory` / `refutes` / `refines`. Author the relation when declaring a dependency to express the discourse relationship, not just ordering. `refines` marks the finer-grained realization of the same claim as its coarser parent — pair it with a `refinement.must_preserve` + `satisfaction` block on the finer study (see [viva-investigation § Multi-realization claims](../viva-investigation/SKILL.md)).
+- `parent_studies[].relation:` ∈ `builds-on` (default) `| tests | motivates | alternative-to` (ontology redesign, viva-template #70). Renders solid for `builds-on` / `tests` / `motivates`, dashed for `alternative-to`. The legacy values `leads-to`, `model-input`, `refutes`, and `precedes` are deprecated aliases that still parse (normalized to `builds-on` unless noted). Author the relation when declaring a dependency to express the discourse relationship, not just ordering. The specialized `refines` marker (finer-grained realization of the same claim as its coarser parent) still works — pair it with a `refinement.must_preserve` + `satisfaction` block on the finer study (see [viva-investigation § Multi-realization claims](../viva-investigation/SKILL.md)).
 
 ```yaml
 # studies/<slug>/study.yaml
@@ -297,8 +297,8 @@ claim: |                            # Evaluate/Decide — what we now believe
   Intrinsic DnaA-ATP hydrolysis alone holds the ATP fraction near 30% at steady growth.
 confidence: Accepted                # Decide — only when the status-derived value is wrong
 parent_studies:
-  - {study: dnaa-01-expression-dynamics, condition: tests-passed, relation: leads-to}
-  - {study: dnaa-03-box-binding,         condition: ran,          relation: regulatory}
+  - {study: dnaa-01-expression-dynamics, condition: tests-passed, relation: builds-on}
+  - {study: dnaa-03-box-binding,         condition: ran,          relation: tests}
 ```
 
 **Which subcommand sets each field.** `title:` and `parent_studies` (with

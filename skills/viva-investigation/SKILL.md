@@ -74,7 +74,7 @@ The dashboard reframes the investigation page as an **Investigation graph**: a d
 - **Confidence** — the study's `confidence:` badge (`Accepted | Investigating | Planned | Refuted`), derived from the 6-axis status when unset.
 - **Display name** — the study's `title:` (slug, prefix-stripped + humanized, when unset).
 
-These are **study-level** fields — author them per member study via `/viva-study` (see [viva-study → Investigation-graph fields](../viva-study/SKILL.md)). At Design, set each study's `title:` and wire `parent_studies` with a `relation:` (`leads-to` default → solid edge; `regulatory` / `refutes` → dashed edge; `supports`). At Evaluate/Decide, set `claim:` and (when the derived value is wrong) `confidence:`.
+These are **study-level** fields — author them per member study via `/viva-study` (see [viva-study → Investigation-graph fields](../viva-study/SKILL.md)). At Design, set each study's `title:` and wire `parent_studies` with a `relation:` (`builds-on` default / `tests` / `motivates` → solid edge; `alternative-to` → dashed edge). At Evaluate/Decide, set `claim:` and (when the derived value is wrong) `confidence:`.
 
 **Confidence rollup.** The investigation aggregates over its members: the graph badges each node with its study-level confidence, and the investigation's `executive.verdict_status` is the higher-level rollup a reviewer lands on first. Keep the two consistent — a `Refuted` study should be reflected in the investigation verdict.
 
