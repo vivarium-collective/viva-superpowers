@@ -322,3 +322,65 @@ def test_render_workspace_report_empty_workspace_still_writes_findings_html(tmp_
     assert (ws / "reports" / "findings.html").is_file()
     html = (ws / "reports" / "findings.html").read_text()
     assert "No findings recorded" in html
+
+
+# ---------------------------------------------------------------------------
+# Planned / targets (design-phase findings)
+# ---------------------------------------------------------------------------
+
+
+def test_harvest_findings_keeps_planned_targets(tmp_path):
+    """Design-phase `planned` findings are harvested, not silently dropped."""
+    ws = _make_workspace(tmp_path, with_findings=False)
+    _write_study(ws, "design-study", findings=[
+        {"id": "T-01", "kind": "computational", "status": "planned",
+         "statement": "Target: network amplification beats a matched null."},
+        {"id": "F-01", "kind": "biological", "status": "confirms",
+         "statement": "Realized result."},
+    ])
+    rows = _harvest_findings(ws)
+    assert {r["id"] for r in rows} == {"T-01", "F-01"}
+    assert {r["status"] for r in rows} == {"planned", "confirms"}
+
+
+def test_render_findings_index_planned_in_distinct_group(tmp_path):
+    """Planned findings render in their own labelled section, with a planned
+    badge, and are NOT mingled into the realized status grouping."""
+    ws = _make_workspace(tmp_path, with_findings=False)
+    _write_study(ws, "design-study", findings=[
+        {"id": "T-01", "kind": "computational", "status": "planned",
+         "statement": "Target stated before the study runs."},
+        {"id": "F-99", "kind": "biological", "status": "confirms",
+         "statement": "Realized result."},
+    ])
+    out = render_workspace_findings_index(ws, today="2026-05-17")
+    html = out.read_text()
+    # Distinct, clearly-labelled planned section.
+    assert "Planned / targets" in html
+    assert "not results" in html  # the "these are not results" label
+    assert "status-planned" in html
+    assert ">T-01<" in html
+    # No realized status group is created for planned (not mingled).
+    assert 'data-group-status="planned"' not in html
+    # Realized finding still grouped by status as before.
+    assert 'data-group-status="confirms"' in html
+    assert ">F-99<" in html
+    # The planned row sits outside the filterable realized views.
+    assert 'id="realized-views"' in html
+    assert 'class="panel planned-panel"' in html
+
+
+def test_render_findings_index_planned_only_workspace(tmp_path):
+    """A workspace whose only findings are planned shows the planned section
+    and neither the realized filter bar nor the empty-state."""
+    ws = _make_workspace(tmp_path, with_findings=False)
+    _write_study(ws, "all-design", findings=[
+        {"id": "T-01", "kind": "computational", "status": "planned",
+         "statement": "Only a target so far."},
+    ])
+    out = render_workspace_findings_index(ws, today="2026-05-17")
+    html = out.read_text()
+    assert "Planned / targets" in html
+    assert ">T-01<" in html
+    assert "No findings recorded" not in html
+    assert 'id="filter-bar"' not in html
