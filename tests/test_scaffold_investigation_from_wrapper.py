@@ -74,10 +74,25 @@ def test_pipeline_gate_is_a_linear_chain(tmp_path):
     assert first["pipeline_gate"]["prerequisites"] == []
 
     # Each subsequent study's prerequisite is the previous slug, with the
-    # tests-passed condition.
+    # tests-passed condition and the default builds-on edge relation.
     for prev_slug, slug in zip(slugs, slugs[1:]):
         prereqs = studies_by_slug[slug]["pipeline_gate"]["prerequisites"]
-        assert prereqs == [{"study": prev_slug, "condition": "tests-passed"}]
+        assert prereqs == [
+            {"study": prev_slug, "condition": "tests-passed", "relation": "builds-on"}
+        ]
+
+
+def test_study_stub_emits_two_axis_ontology_fields(tmp_path):
+    """The stub carries the additive two-axis ontology fields (viva-template #70):
+    `execution_status`, `verdict` (null until Decide), and the legacy `status`."""
+    ws = _ws(tmp_path)
+    result = scaffold_investigation_from_wrapper(ws, "demo-showcase", FAKE_GENERATORS)
+
+    for entry in result["studies"]:
+        study = yaml.safe_load(Path(entry["path"]).read_text())
+        assert study["status"] == "planned"          # legacy, back-compat
+        assert study["execution_status"] == "planned"
+        assert study["verdict"] is None
 
 
 def test_acceptance_criteria_matches_study_behavior_names(tmp_path):

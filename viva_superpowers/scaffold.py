@@ -975,14 +975,21 @@ def _investigation_from_wrapper_study_stub(
     today = _dt.date.today().isoformat()
     behavior_name = f"{slug}-behaves"
     prerequisites = (
-        [{"study": prev_slug, "condition": "tests-passed"}] if prev_slug else []
+        [{"study": prev_slug, "condition": "tests-passed", "relation": "builds-on"}]
+        if prev_slug else []
     )
     return {
         "schema_version": 4,
         "name": slug,
         "title": slug.replace("-", " ").capitalize(),
         "created": today,
+        # Two-axis ontology (viva-template #70, schema stays v4, additive):
+        # `execution_status` tracks run lifecycle, `verdict` tracks the scientific
+        # conclusion. A negative result is completed + refuted, never failed.
+        # Legacy `status` is kept for back-compat.
         "status": "planned",
+        "execution_status": "planned",
+        "verdict": None,
         "phase": "Design",
         "question": "TBD — what question does this study answer?",
         "hypothesis": "TBD — what do we expect and why?",

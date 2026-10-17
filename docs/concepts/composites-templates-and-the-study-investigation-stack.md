@@ -165,7 +165,8 @@ script — still exists for bespoke runners.
 
 **The dependency DAG.** `studies: []` controls grouping/visibility and run order; the
 DAG is computed at render time from each member's `pipeline_gate.prerequisites`, with
-edge semantics `leads-to · supports · regulatory · refutes`. In the compiled form,
+edge semantics `builds-on · tests · motivates · alternative-to` (default `builds-on`;
+legacy `leads-to · model-input · refutes · precedes` still parse as aliases). In the compiled form,
 those same prerequisite edges *are* the store wiring that sequences execution.
 **Investigation ≡ branch ≡ worktree**, so parallel agents each drive one without
 colliding on runtime DBs or dashboard ports.

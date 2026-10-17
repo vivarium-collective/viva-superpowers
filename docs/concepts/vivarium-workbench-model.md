@@ -112,7 +112,9 @@ Minimal example (truncate values to placeholders; the schema accepts the loose s
 schema_version: 3
 name: <slug>
 created: '<YYYY-MM-DD>'
-status: planned
+status: planned            # legacy single-axis field, kept for back-compat
+execution_status: planned  # run lifecycle: proposed | planned | running | completed | failed
+verdict:                   # scientific conclusion: supported | qualified | inconclusive | refuted (null until Decide)
 phase: Design        # Design | Build | Simulate | Evaluate | Decide
 
 # v3 back-compat shim — mirrors simulation_set[0]
@@ -513,7 +515,7 @@ The dashboard renders the investigation page as an **Investigation graph**: a di
 | **Finds** | `claim:` | top `findings[].summary` |
 | **Confidence** (badge) | `confidence:` ∈ `Accepted \| Investigating \| Planned \| Refuted` | derived from 6-axis status (completed/ran→Accepted, in_progress/running→Investigating, planned→Planned, failed/invalid→Refuted) |
 | Display name | `title:` | slug, prefix-stripped + humanized |
-| Edge | `parent_studies[].relation:` ∈ `leads-to \| regulatory \| supports \| refutes` | `leads-to` (solid edge; `regulatory`/`refutes` dashed) |
+| Edge | `parent_studies[].relation:` ∈ `builds-on \| tests \| motivates \| alternative-to` | `builds-on` (solid edge; `alternative-to` dashed) |
 
 All five are study-level — authored via `/pbg-study` (`title:` + `relation:` at Design; `claim:` + `confidence:` at Evaluate/Decide). See [pbg-study → Investigation-graph fields](../../skills/pbg-study/SKILL.md).
 
@@ -521,13 +523,13 @@ All five are study-level — authored via `/pbg-study` (`title:` + `relation:` a
 
 ### Study dependencies (DAG)
 
-Studies can declare ordering via the optional `parent_studies:` field. Each entry is either a bare slug (legacy, normalized to `{study, condition: tests-passed}`) or an object `{study: <slug>, condition: tests-passed | ran | complete, relation?: leads-to | regulatory | supports | refutes}`. Conditions:
+Studies can declare ordering via the optional `parent_studies:` field. Each entry is either a bare slug (legacy, normalized to `{study, condition: tests-passed}`) or an object `{study: <slug>, condition: tests-passed | ran | complete, relation?: builds-on | tests | motivates | alternative-to}`. Conditions:
 
 - `tests-passed` — parent's `tests.last_results.passed > 0` AND `failed == 0`.
 - `ran` — parent's `status` is one of `{ran, complete}`.
 - `complete` — parent's `status == complete`.
 
-The optional `relation:` carries the **discourse semantics** of the edge in the [Investigation graph](#the-investigation-graph-discourse-graph), independent of the gating `condition`. Enum: `leads-to` (default) `| regulatory | supports | refutes`. The graph renders `leads-to` / `supports` as solid edges and `regulatory` / `refutes` as dashed edges. Author the relation when declaring a dependency to express *why* one study follows another, not just *that* it does.
+The optional `relation:` carries the **discourse semantics** of the edge in the [Investigation graph](#the-investigation-graph-discourse-graph), independent of the gating `condition`. Enum (ontology redesign, viva-template #70): `builds-on` (default) `| tests | motivates | alternative-to`. The graph renders `builds-on` / `tests` / `motivates` as solid edges and `alternative-to` as a dashed edge. The legacy values `leads-to` (→ `builds-on`), `model-input` (→ `builds-on`), `refutes`, and `precedes` (→ `builds-on`) are deprecated aliases that still parse. The same four-type `relation:` applies to `pipeline_gate.prerequisites[]` entries and to a top-level `parent_relations: [{study, relation, rationale?}]`. Author the relation when declaring a dependency to express *why* one study follows another, not just *that* it does.
 
 **API**: `GET /api/investigations` returns each study with computed `parent_studies` (normalized to object form), `blocked: bool`, and `blocked_by: [{study, condition, missing-diagnostic}]`. A parent that doesn't resolve to a known study slug surfaces as `parent-not-found` in `blocked_by`.
 
@@ -726,6 +728,24 @@ expert_review_status: requested
 The legacy `status:` field stays in the schema for back-compat and is the
 field the dashboard's existing `effective_status` derivation reads from. The
 new axes are additive; they do not (yet) feed the existing derivations.
+
+### Two-axis ontology (execution_status + verdict) {#two-axis-ontology}
+
+The ontology redesign (viva-template #70; schema stays v4, additive) collapses
+the run-lifecycle and scientific-conclusion dimensions onto two top-level
+fields. Both are optional, so specs that set only the legacy `status:` or the
+six axes above continue to validate and render unchanged.
+
+| Axis               | Enum values                                                | Tracks |
+|--------------------|------------------------------------------------------------|--------|
+| `execution_status` | `proposed · planned · running · completed · failed`        | where the study is in its run lifecycle |
+| `verdict`          | `supported · qualified · inconclusive · refuted` (null until Decide) | what the evidence concluded |
+
+The two axes are orthogonal: a study that ran to completion and *disproved* its
+hypothesis is `execution_status: completed` + `verdict: refuted` — a real,
+reportable negative result, **never** `failed`. Reserve `execution_status:
+failed` for a run that did not complete (crash, infra error, aborted). `verdict`
+stays `null` until the study reaches **Decide** and the evidence is in.
 
 ### finding_provenance {#finding-provenance}
 
