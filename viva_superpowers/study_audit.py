@@ -467,6 +467,9 @@ def _audit_study(audit, sdir, wp, known_slugs, known_composites, generator_param
     # --- L4 verdict-regrade (hard) -----------------------------------------
     _check_verdict_regrade(audit, sdir)
 
+    # --- L1 preregistration (hard) -----------------------------------------
+    _check_preregistration(audit, spec)
+
 
 def _status_of(audit, name) -> str | None:
     for c in audit.checks:
@@ -589,6 +592,30 @@ def _check_verdict_regrade(audit, sdir: Path) -> None:
             "stale verdict (re-grade differs): " + "; ".join(stale)))
     elif checked:
         audit.checks.append(CheckResult("L4", "verdict-regrade", PASS, HARD))
+
+
+def _check_preregistration(audit, spec: dict) -> None:
+    """L1 preregistration: every ``acceptance_criterion`` gate must have a
+    ``preregistered.thresholds`` entry equal to its ``pass_if`` (post-hoc /
+    tune-to-pass otherwise). ``regression_pin`` gates are exempt. Abstains
+    (appends nothing) when there are no acceptance gates or the alignment cannot
+    be computed. Read-only."""
+    from viva_superpowers.study_verdict import preregistration_gate_alignment
+
+    try:
+        res = preregistration_gate_alignment(spec)
+    except Exception:  # noqa: BLE001 - cannot resolve -> abstain
+        return
+    if res.get("acceptance_prestated") is None:
+        return
+    bad = res.get("unregistered_acceptance") or []
+    if bad:
+        audit.checks.append(CheckResult(
+            "L1", "preregistration", FAIL, HARD,
+            "acceptance gate(s) without an equal preregistered threshold "
+            "(post-hoc): " + ", ".join(map(str, bad))))
+    else:
+        audit.checks.append(CheckResult("L1", "preregistration", PASS, HARD))
 
 
 def _dangling_inputs(spec: dict, known_slugs: set) -> set:
