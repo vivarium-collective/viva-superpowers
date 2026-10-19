@@ -58,6 +58,39 @@ def test_canonical_verdict_runs_over_every_genesis_member():
         assert v in CANONICAL, f"{slug} -> {v!r}"
 
 
+def test_concept_store_roundtrip_on_genesis_gate(tmp_path):
+    """Author a synthesis for gate C on the real genesis spine: it persists as a
+    revision, overlays the derived overlay (keeping derived members), marks the
+    concept authored, and leaves the other gates purely derived."""
+    import yaml
+    from viva_superpowers.concept_store import write_concept, load_concepts
+
+    d = tmp_path / "investigations" / "origins-of-life-vent"
+    d.mkdir(parents=True)
+    (d / "investigation.yaml").write_text(yaml.safe_dump({
+        "name": "origins-of-life-vent", "title": "OG", "plan_gates": GENESIS_GATES,
+    }))
+
+    changed = write_concept(
+        d, "c",
+        synthesis="Compartmentation qualified; og-32 bilayer PMF-resolved.",
+        assessment={"verdict": "qualified", "basis": "og-32 bilayer"},
+        by="Eran", note="authored after C consolidation",
+    )
+    assert changed is True
+
+    spec = yaml.safe_load((d / "investigation.yaml").read_text())
+    merged = {c["id"]: c for c in load_concepts(spec, _stub_studies())}
+    c = merged["c"]
+    assert c["synthesis"].startswith("Compartmentation qualified")
+    assert c["assessment"]["verdict"] == "qualified"
+    assert c["member_studies"] == ["og-self-compartmentation"]   # derived members kept
+    assert c["derived"] is False
+    stored = next(x for x in spec["concepts"] if x["id"] == "c")
+    assert len(stored["revisions"]) == 1 and stored["revisions"][0]["note"].startswith("authored")
+    assert merged["a1"]["derived"] is True                       # other gates stay derived
+
+
 def test_live_genesis_workspace_when_current():
     """If a CURRENT genesis workspace is on disk (carries plan_gates), derive
     one Concept per gate from it. Skipped when the local checkout is stale or
