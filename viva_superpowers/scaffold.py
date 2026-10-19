@@ -992,8 +992,7 @@ def _investigation_from_wrapper_study_stub(
         "verdict": None,
         "phase": "Design",
         "question": "TBD — what question does this study answer?",
-        "hypothesis": "TBD — what do we expect and why?",
-        "objective": f"TBD — describe what {generator} is expected to demonstrate.",
+        "experiment": f"TBD — describe what {generator} is expected to demonstrate.",
         "description": f"Wraps the `{generator}` composite generator as a study. Fill in.",
         "baseline": [{
             "name": "baseline",
@@ -1001,19 +1000,10 @@ def _investigation_from_wrapper_study_stub(
             "params": {},
         }],
         "variants": [],
-        "expected_behavior": [{
-            "name": behavior_name,
-            "en": "TBD — plain-language statement of the expected behavior.",
-            "observable": "TBD",
-            "condition": "TBD",
-            "rationale": "TBD — why this condition should hold.",
-            "measure": {"kind": "derived_scalar", "field": "TBD"},
-            "expect": {"op": "<", "value": None},
-        }],
         "behavior_tests": [{
             "name": behavior_name,
             "classification": "primary",
-            "description": "TBD — fill in from expected_behavior above.",
+            "description": "TBD — plain-language statement of the expected behavior.",
             "measure": {"kind": "derived_scalar", "field": "TBD"},
             "pass_if": {"op": "<", "value": None},
             "requires_simulation": "baseline",
@@ -1072,7 +1062,7 @@ def _investigation_from_wrapper_study_stub(
         # Decide; the `authored_confidence_diverges` nudge flags a mismatch.
         "confidence": "Planned",
         "report": {"verdict": None},
-        "conclusion": None,
+        "result": None,
     }
 
 
@@ -1166,7 +1156,7 @@ def scaffold_investigation_from_wrapper(
         stub = _investigation_from_wrapper_study_stub(slug, gen, prev_slug)
         acceptance_criteria.append({
             "study": slug,
-            "behavior": stub["expected_behavior"][0]["name"],
+            "behavior": stub["behavior_tests"][0]["name"],
         })
         written = False
         if study_path.exists() and not force:

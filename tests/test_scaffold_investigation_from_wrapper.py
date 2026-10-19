@@ -108,8 +108,8 @@ def test_acceptance_criteria_matches_study_behavior_names(tmp_path):
     assert len(inv["acceptance_criteria"]) == len(result["studies"])
     for crit in inv["acceptance_criteria"]:
         study = studies_by_slug[crit["study"]]
-        assert crit["behavior"] == study["expected_behavior"][0]["name"]
-        # And the behavior_tests stub references the same name.
+        # The canonical behavior_tests stub carries the acceptance-criterion name
+        # (the deprecated expected_behavior duplicate was removed).
         assert study["behavior_tests"][0]["name"] == crit["behavior"]
 
 
