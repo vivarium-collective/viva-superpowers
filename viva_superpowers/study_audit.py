@@ -464,6 +464,9 @@ def _audit_study(audit, sdir, wp, known_slugs, known_composites, generator_param
     # --- L4 report-card-verdict (soft) -------------------------------------
     _check_report_card_verdict(audit, sdir)
 
+    # --- L4 verdict-regrade (hard) -----------------------------------------
+    _check_verdict_regrade(audit, sdir)
+
 
 def _status_of(audit, name) -> str | None:
     for c in audit.checks:
@@ -524,6 +527,66 @@ def _check_report_card_verdict(audit, sdir: Path) -> None:
             "cards without a computed verdict: " + ", ".join(missing)))
     else:
         audit.checks.append(CheckResult("L4", "report-card-verdict", PASS, SOFT))
+
+
+def _regrade_overall(data: dict) -> tuple[str, int] | None:
+    """Recompute a stored ``report_card_verdict/v1`` overall from the axes that
+    carry their own recompute inputs (``criterion`` + ``measured``). Axes without
+    them keep their stored verdict in the roll-up. Returns ``(overall, n_regraded)``
+    or ``None`` when no axis could be recomputed (abstain)."""
+    from viva_superpowers.card_grade import grade_card
+    from viva_superpowers.test_vocab import RANK
+
+    worst, n = "ungraded", 0
+    groups = data.get("groups")
+    for grp in (groups.values() if isinstance(groups, dict) else []):
+        for ax in (grp.get("axes") or []) if isinstance(grp, dict) else []:
+            if not isinstance(ax, dict):
+                continue
+            crit = ax.get("criterion")
+            if isinstance(crit, dict) and crit.get("type") and "measured" in ax:
+                try:
+                    rep = grade_card({"v": ax["measured"]},
+                                     {"axes": {"v": {"criterion": crit}}})
+                    v = rep["axes"]["v"]["verdict"]
+                except Exception:  # noqa: BLE001 - cannot resolve -> abstain on axis
+                    v = ax.get("verdict", "ungraded")
+                else:
+                    n += 1
+            else:
+                v = ax.get("verdict", "ungraded")
+            if RANK.get(v, 0) > RANK.get(worst, 0):
+                worst = v
+    return (worst, n) if n else None
+
+
+def _check_verdict_regrade(audit, sdir: Path) -> None:
+    """L4 verdict-regrade: a stored ``*.verdict.json`` must agree with a re-grade
+    of its own stored axis inputs. Abstains (appends nothing) when no verdict
+    exists or no axis carries recompute inputs; only fails on a present-but-wrong
+    artifact. Read-only — never rewrites the verdict."""
+    rc = _report_card_dir(sdir)
+    verdicts = sorted(rc.glob("*.verdict.json")) if rc.is_dir() else []
+    stale, checked = [], 0
+    for vf in verdicts:
+        try:
+            data = json.loads(vf.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        if not isinstance(data, dict) or not data.get("overall"):
+            continue
+        res = _regrade_overall(data)
+        if res is None:
+            continue
+        checked += 1
+        if res[0] != data["overall"]:
+            stale.append(f"{vf.name}: stored {data['overall']}, re-graded {res[0]}")
+    if stale:
+        audit.checks.append(CheckResult(
+            "L4", "verdict-regrade", FAIL, HARD,
+            "stale verdict (re-grade differs): " + "; ".join(stale)))
+    elif checked:
+        audit.checks.append(CheckResult("L4", "verdict-regrade", PASS, HARD))
 
 
 def _dangling_inputs(spec: dict, known_slugs: set) -> set:
