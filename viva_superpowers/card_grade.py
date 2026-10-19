@@ -73,6 +73,8 @@ def verdict_json(report: dict, *, model_ref: str = "", reference_model: str = ""
             "value": ax.get("value"),
             "meter": ax.get("meter"),
             "detail": ax.get("detail") or {},
+            "criterion": ax.get("criterion"),
+            "measured": ax.get("measured"),
         })
         if _RANK.get(v, 0) > _RANK.get(g["verdict"], 0):
             g["verdict"] = v

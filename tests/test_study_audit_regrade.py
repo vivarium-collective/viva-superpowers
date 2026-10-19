@@ -121,3 +121,28 @@ def test_stored_alias_overall_does_not_false_fail(tmp_path):
     sdir = _ws(tmp_path)
     _write_verdict(sdir, 20.0, "fail")
     assert [c.status for c in _regrade(tmp_path)] == ["pass"]
+
+
+# --- H1b: verdict_json persists the recompute inputs --------------------------
+
+_H1B_CRIT = {"type": "rel_tol", "reference": 10.0, "tol_rel": 0.05}
+_H1B_REF = {"axes": {"x": {"label": "X", "group": "G", "criterion": _H1B_CRIT}}}
+
+
+def test_verdict_json_carries_criterion_and_measured():
+    v = verdict_json(grade_card({"x": 20.0}, _H1B_REF))
+    (ax,) = _axes(v)
+    assert ax["criterion"] == _H1B_CRIT
+    assert ax["measured"] == 20.0
+    assert v["schema"] == "report_card_verdict/v1"
+
+
+def test_regrade_end_to_end_catches_mismatch(tmp_path):
+    sdir = _ws(tmp_path)
+    v = verdict_json(grade_card({"x": 20.0}, _H1B_REF))  # no manual patching
+    v["overall"] = "within_tol"  # deliberately wrong; axis recomputes to mismatch
+    rc = sdir / "viz" / "report_card"
+    rc.mkdir(parents=True)
+    (rc / "c.verdict.json").write_text(json.dumps(v), encoding="utf-8")
+    (c,) = _regrade(tmp_path)
+    assert (c.level, c.status, c.tier) == ("L4", "fail", "hard")
