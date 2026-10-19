@@ -20,15 +20,34 @@ class Expected:
     op: str = "~="
     tol: float = 0.05
     statement: str | None = None
+    units: str | None = None        # the band/target's declared unit (for reconciliation)
     def to_dict(self) -> dict:
         return asdict(self)
 
 
-def value(target, op="~=", tol=0.05) -> Expected:
-    return Expected(kind="value", value=float(target), op=op, tol=float(tol))
+def value(target, op="~=", tol=0.05, units=None) -> Expected:
+    return Expected(kind="value", value=float(target), op=op, tol=float(tol), units=units)
 
-def band(low, high) -> Expected:
-    return Expected(kind="band", low=float(low), high=float(high))
+def band(low, high, units=None) -> Expected:
+    return Expected(kind="band", low=float(low), high=float(high), units=units)
+
+
+def _reconcile_units(value, from_u, to_u):
+    """Convert ``value`` from ``from_u`` to ``to_u``. Returns ``(value, error)``:
+    error is None when nothing to do / converted cleanly, or when no unit registry
+    is available (can't check → never fabricate); error is a message when the units
+    are dimensionally incompatible (fail loudly)."""
+    if not from_u or not to_u or from_u == to_u:
+        return value, None
+    try:
+        from bigraph_schema.units import get_quantity_registry
+    except Exception:  # noqa: BLE001 — no registry: can't check, don't fabricate
+        return value, None
+    try:
+        reg = get_quantity_registry()
+        return reg.Quantity(value, from_u).to(to_u).magnitude, None
+    except Exception:  # noqa: BLE001 — incompatible/unparseable: flag it
+        return value, f"unit mismatch: cannot convert {from_u!r} to the expected {to_u!r}"
 
 def predicate(statement) -> Expected:
     return Expected(kind="predicate", statement=str(statement))
@@ -85,15 +104,21 @@ def check(id, label, observed, expected: Expected, *, severity="hard",
             margin = None
             meter = None
         else:
-            margin = _margin(obs, expected)
-            passed = _passes(margin, expected)
-            if passed:
-                v = "within_tol"
-            elif severity == "directional":
-                v = "drift"
-            else:
+            obs, unit_err = _reconcile_units(obs, units, expected.units)
+            if unit_err is not None:
+                # declared units disagree dimensionally — fail loudly, don't grade
                 v = "mismatch"
-            meter = _meter(margin, expected)
+                detail = (detail + " · " if detail else "") + unit_err
+            else:
+                margin = _margin(obs, expected)
+                passed = _passes(margin, expected)
+                if passed:
+                    v = "within_tol"
+                elif severity == "directional":
+                    v = "drift"
+                else:
+                    v = "mismatch"
+                meter = _meter(margin, expected)
     else:
         v = normalize_verdict(verdict)
     return sanitize({
