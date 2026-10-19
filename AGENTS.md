@@ -56,7 +56,7 @@ always means **workspace first**.
 | **Workspace lifecycle** | `/viva-workspace` (scaffold), `/viva-workbench` (dashboard server), `/viva-init` (machine setup) |
 | **Studies & runs** | `/viva-study` (design→build→simulate→evaluate→decide), `/viva-tests` (author/enrich/run graded tests → margin + diff feedback; also `audit` — Tests sufficiency before pre-registration lock — and `cite-bands` — acceptance-band provenance), `/viva-model-build` (autonomous loop: question → author Tests → audit → lock → build/run/evaluate → iterate model until pass), `/viva-benchmark` (run a suite through the loop → process-quality rubric → report diff-able across framework variants), `/viva-run`, `/viva-investigation`, `/viva-report`, `/viva-viz` |
 | **Navigate & status** | `/viva-catalog`, `/viva-navigate` (read-only graph queries + "decisions needed"; also `status`) |
-| **Evidence & rigor** | `/viva-harden-investigation` (also `biology-forward` — author biological interpretation of findings) |
+| **Evidence & rigor** | `/viva-harden-investigation` (also `biology-forward` — author biological interpretation of findings), `/viva-consolidate` (merge settled probe-studies → one multi-arm study; destructive, non-reversible) |
 
 Each names `skills/<name>/SKILL.md`. Vocabulary and on-disk shapes:
 `docs/concepts/vivarium-workbench-model.md`.
