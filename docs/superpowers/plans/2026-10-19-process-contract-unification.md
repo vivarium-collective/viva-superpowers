@@ -62,7 +62,7 @@ A/B land on `main` now; C is the external re-pin; D unifies once C lands; E ratc
 **Files:** `viva_superpowers/test_contract.py` (bands); wire `viva_superpowers/contract_spine.contract_face_diff` into the study lint (`report_linter.py` or `study_audit.py`); tests.
 
 - [ ] **B1 — `Expected.band` carries a unit; `check` reconciles it.** Add optional `units` to `band(low, high, units=None)`; in `check(...)`, when both the band and the observed carry units, reconcile dimensionally (via `bigraph_schema.units` pint registry) before the margin; incompatible units → a typed error finding, not a silent pass (today `units=` is display-only). Test: convertible reconciles; incompatible errors; no-units unchanged.
-- [ ] **B2 — wire `contract_face_diff` into the study lint.** When a study authors a `contract:` block, diff its `face` against the composite's resolved contract face; surface disagreements as lint findings (reuse the pure fn — already tested). Test on a study with a mismatched face.
+- [ ] **B2 — wire `contract_face_diff` into the study lint.** (MOVED to PR-D: needs the composite's *resolved* contract face, available there.) When a study authors a `contract:` block, diff its `face` against the composite's resolved contract face; surface disagreements as lint findings (reuse the pure fn — already tested). Test on a study with a mismatched face.
 - [ ] Commit per task; PR targets `main`.
 
 ## PR-C — land bigraph-schema 1.8.1 (outline, infra)
