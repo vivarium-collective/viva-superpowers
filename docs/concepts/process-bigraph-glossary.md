@@ -36,7 +36,7 @@ The framework builds on Milner's bigraphs, which combine a **place graph** (hier
 - **process-bigraph** — dynamic core; defines `Process`, `Step`, `Composite`, and event-scheduling/orchestration logic.
 - **bigraph-viz** — visualization library; parses JSON representations and renders graphs.
 - **spatio-flux** — domain example: metabolic processes, field dynamics, particle dynamics, coupled particle–field interactions.
-- **pbg-superpowers** — repository of reusable AI agent skills for scaffolding process wrappers, adapters, and composite connection patterns. (THIS REPO.)
+- **viva-superpowers** — repository of reusable AI agent skills for scaffolding process wrappers, adapters, and composite connection patterns. (THIS REPO.)
 
 ## Mathematical preliminaries
 
