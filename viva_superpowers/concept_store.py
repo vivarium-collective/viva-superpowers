@@ -70,15 +70,22 @@ def write_concept(
     synthesis: str | None = None,
     assessment: dict | None = None,
     open_questions: list | None = None,
+    member_studies: list | None = None,
+    org_state: str | None = None,
+    title: str | None = None,
     note: str | None = None,
     by: str | None = None,
     at: str | None = None,
+    extra: dict | None = None,
 ) -> bool:
     """Persist the authored half of a Concept into ``investigation.yaml``.
 
     Comment-preserving (ruamel round-trip); creates the concept if absent; sets
-    the authored fields; marks ``derived: False``; appends a revision snapshot
-    unless it duplicates the last one. Returns True if the file changed.
+    the provided authored/structural fields; marks ``derived: False``; appends a
+    revision snapshot (of the interpretation + any ``extra``) unless it
+    duplicates the last. ``member_studies``/``org_state``/``title`` are structural
+    (not interpretation) and are not required to carry a revision. Returns True if
+    the file changed.
     """
     from ruamel.yaml import YAML
 
@@ -102,12 +109,22 @@ def write_concept(
         concept = {"id": concept_id}
         concepts.append(concept)
 
+    structural = False
     if synthesis is not None:
         concept["synthesis"] = synthesis
     if assessment is not None:
         concept["assessment"] = assessment
     if open_questions is not None:
         concept["open_questions"] = open_questions
+    if member_studies is not None:
+        concept["member_studies"] = list(member_studies)
+        structural = True
+    if org_state is not None:
+        concept["org_state"] = org_state
+        structural = True
+    if title is not None:
+        concept["title"] = title
+        structural = True
     concept["derived"] = False
 
     rev: dict = {"at": at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
@@ -119,15 +136,22 @@ def write_concept(
         rev["assessment"] = assessment
     if note:
         rev["note"] = note
+    if extra:
+        rev.update(extra)
+
+    rev_has_content = bool(by or synthesis is not None or assessment is not None or note or extra)
 
     revisions = concept.get("revisions")
     if revisions is None:
         revisions = []
         concept["revisions"] = revisions
 
-    if _same_revision(revisions[-1] if revisions else None, rev):
+    appended = rev_has_content and not _same_revision(revisions[-1] if revisions else None, rev)
+    if appended:
+        revisions.append(rev)
+
+    if not (structural or appended):
         return False  # nothing new to record; leave the file untouched
-    revisions.append(rev)
 
     tmp = inv_path.with_suffix(".yaml.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
