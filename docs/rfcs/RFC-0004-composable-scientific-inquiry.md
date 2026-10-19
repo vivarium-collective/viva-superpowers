@@ -78,6 +78,23 @@ One typed contract language, one validator, one provenance trail across all four
 
 **The discipline that keeps it honest:** the altitudes share a language but never collapse. An interface contract passing ≠ a behavioral invariant holding ≠ a scientific acceptance being met. A model can be dimensionally perfect and conservation-clean and still be *refuted* on the science. Critically — **graph and contract operations may propose but must never mechanically upgrade a scientific verdict.** A test is *typed by* the process contract (structural + dimensional correctness) but *judged by* its cited band (scientific acceptance): two checks, one language, two verdicts, never merged.
 
+### 4.1 Grounding: one seam, four wires
+
+This is a **connection task, not a new mechanism** — the typed vocabulary already exists on both sides and simply isn't joined. Verified against the code:
+
+- **The seam exists and is existence-only.** `readout_validation.validate_readouts` checks each study readout against the built composite's emittable leaves → `ok | unresolved | not_in_structure | aspirational`; `available_observables` returns **leaf names only** — no type, units, or shape.
+- **The typed contract is real.** `bigraph_schema.contract.ProcessContract`: a `face` mapping port → bigraph type (machine-checked), with **units/bounds carried inside the port type** (`_units`, `_min`, `_max`), validated against a pint registry (`bigraph_schema/units.py`); plus `math`, `symbols`, and monotone `conditions` (`invariant/pre/post/validity`). It ships a CI audit gate (`process_bigraph/audit_contracts.py`) and an audit (`contract_audit.py`: `bad_units`, `bad_range`, `unknown_port`). **Caveat:** this lives on bigraph-schema's **1.8.x release branches**, not the pinned venv (1.4.5, face-only) — so unit-grounded bands depend on landing that release.
+- **A working type + unit checker already exists** — `composite_audit.py` resolves port schemas (`core.resolve_schemas` → type agreement) and dimensional units (`core._compute_unit_scale` → units agreement) for ports wired to the same store. It just checks process-port ↔ process-port, never study-test ↔ port.
+- **A study can already carry a `contract:` block** in the *same* `face`/`_units`/`conditions` shape, authored and rendered in the Design phase (`notebook_export._contract_md`, `static/study-detail.js`) — but nothing cross-checks it against the composite's `contract_of(...)`.
+
+So the contract spine is **four small wires onto existing primitives**:
+1. `available_observables` also returns each leaf's resolved **type + `_units` + bounds** (reachable via `core.access`, exactly as `composite_audit` does);
+2. `validate_readouts` compares a readout's declared units/shape against that leaf type, reusing `core._compute_unit_scale`;
+3. `test_contract` bands carry a unit and reconcile it dimensionally before computing a margin (today `units=` is a display-only label);
+4. a cross-check diffs a study's authored `contract.face` against the composite's `contract_of(...)` face — a structural diff in a shared schema.
+
+None of this is new vocabulary; it is connecting the study acceptance path to the type/unit primitives the ecosystem already ships.
+
 This is how the mapping note's "Study = Composite + scientific contract" gets teeth — the scientific contract is not a parallel prose document, it is a typed layer that grounds out in the composite's process `describe()` contracts.
 
 ## 5. Operations: declarative, transaction-boundary, invariant-bound
@@ -110,6 +127,11 @@ Validated against `origin/main` of `process-bigraph` and `vivarium-workbench`:
 | Graph-creating / mutating processes | **primitive REAL, unused at investigation layer** | `_add`/`_remove`/`_divide` sentinels + structural rebuild (cell division); nothing spawns StudySteps at investigation runtime |
 | Execution vs definition vs concept persistence | **REAL, distinct lifecycles** | run data (db/parquet/artifacts, regenerable) · git-YAML definitions · derived-ephemeral concepts |
 | `concepts[]` field / Concept overlay | **DRAFT only** | viva-template `feat/concept-verdict-schema`; viva-superpowers `feat/rfc-0003-concept-layer`; workbench `feat/concept-overlay` |
+| Typed `ProcessContract` (face + units + conditions + CI audit) | **REAL, but on bigraph-schema 1.8.x release branches — NOT the pinned venv (1.4.5, face-only)** | `bigraph_schema/contract.py`, `contract_audit.py`, `units.py`; `process_bigraph/audit_contracts.py` |
+| Study acceptance test ↔ process contract check | **existence-only** (no type/units/shape) | `lib/readout_validation.py::validate_readouts`, `available_observables` |
+| Dimensional type+unit checker | **REAL, but process-port ↔ port only** (not test ↔ port) | `lib/composite_audit.py` (`core.resolve_schemas`, `core._compute_unit_scale`) |
+| Study can author a `contract:` block (same `face` shape) | **REAL, authored + rendered, never cross-checked** | `lib/notebook_export.py::_contract_md`, `static/study-detail.js` |
+| Acceptance bands carry/reconcile units | **NO** — `units=` is a display label only | `viva_superpowers/test_contract.py` (`Expected.band`, `check`) |
 
 **Reading:** the primitives for this RFC already exist — a real investigation composite representation, typed stores that hold records, a structural-mutation primitive, distinct persistence lifecycles. What is missing is *wiring*, not *mechanism*. Because the investigation composite is **not** the production runner, "Investigation = always-executing meta-Composite" is premature; a **declarative orchestration** over Study Composites + a typed Concept knowledge Store is the right altitude now, with the composite form kept as a compatible execution substrate.
 
@@ -117,7 +139,7 @@ Validated against `origin/main` of `process-bigraph` and `vivarium-workbench`:
 
 - **Q1 — declarative vs executable Investigation.** The code points to declarative-first (the composite isn't the production runner). Decision: **declarative orchestration now; keep the compiled composite as an available substrate; revisit when pbg is the execution path.**
 - **Q2 — `scientific_contract_ref` on the composite.** Add as an additive `CompositeSpec` field pointing a composite at its study's scientific contract? (Enables the §4 grounding.) Proposed: yes, additive.
-- **Q3 — contract language.** Reuse `bigraph_schema` types + units for the interface layer; define the behavioral/acceptance layers as typed clauses over them. To be specified against the shipped process-contract program.
+- **Q3 — contract language.** Reuse `bigraph_schema.ProcessContract` (`face` + port-type `_units`/bounds + `conditions`) for the interface/behavioral layers; the study already authors the same shape. The dimensional-check primitives exist (`composite_audit`, `units.py`, `core._compute_unit_scale`). The real dependency is **landing bigraph-schema 1.8.x off the release branches onto the pinned version** (today's venv is 1.4.5, face-only) before unit-grounded bands can be enforced.
 - **Q4 — where the Concept Store lives at runtime.** Authored half in git YAML (`concepts[]`); derived half ephemeral; optional typed knowledge Store in the `investigation_execution` composite. Start with YAML + derived; lift into the composite store when needed.
 - **Q5 — verdict composition.** How arm/member verdicts at different fidelities compose into a Concept headline (current rule: the most-caveated honest member bounds it; fidelity ≠ support).
 
