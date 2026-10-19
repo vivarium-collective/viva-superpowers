@@ -470,6 +470,9 @@ def _audit_study(audit, sdir, wp, known_slugs, known_composites, generator_param
     # --- L1 preregistration (hard) -----------------------------------------
     _check_preregistration(audit, spec)
 
+    # --- L2 supporting-provenance (hard) -----------------------------------
+    _check_supporting_provenance(audit, spec)
+
 
 def _status_of(audit, name) -> str | None:
     for c in audit.checks:
@@ -616,6 +619,68 @@ def _check_preregistration(audit, spec: dict) -> None:
             "(post-hoc): " + ", ".join(map(str, bad))))
     else:
         audit.checks.append(CheckResult("L1", "preregistration", PASS, HARD))
+
+
+# Findings that do NOT back an Accepted conclusion: Pass-10A ``status`` values
+# that qualify or oppose it (partial = caveat-like, contradicts = refuting), plus
+# the literal caveat/refuted/exploratory labels some authors put in status/kind.
+_NON_SUPPORTING_FINDING = frozenset({
+    "partial", "contradicts", "caveat", "refuted", "exploratory"})
+
+
+def _is_supporting_finding(f: dict) -> bool:
+    if f.get("obsoleted_by"):
+        return False
+    for key in ("status", "kind"):
+        v = f.get(key)
+        if isinstance(v, str) and v.strip().lower() in _NON_SUPPORTING_FINDING:
+            return False
+    return True
+
+
+def _check_supporting_provenance(audit, spec: dict) -> None:
+    """L2 supporting-provenance: when the study's confidence is Accepted, every
+    finding that backs it (status confirms/novel/unset; not caveat, partial,
+    contradicts, refuted, exploratory, or obsoleted) must carry a resolvable
+    ``evidence.from_test`` (names a behavior_tests/tests entry) AND a non-empty
+    ``provenance.run_ids``. Abstains (appends nothing) on non-Accepted studies,
+    no findings, or any error. Read-only; never raises or writes a verdict."""
+    from viva_superpowers.finding_observations import _build_test_index
+    from viva_superpowers.study_verdict import derive_confidence
+
+    try:
+        if derive_confidence(spec) != "Accepted":
+            return
+        findings = spec.get("findings")
+        if not isinstance(findings, list):
+            return
+        tests = _build_test_index(spec)
+        supporting = [f for f in findings
+                      if isinstance(f, dict) and _is_supporting_finding(f)]
+    except Exception:  # noqa: BLE001 - cannot resolve -> abstain
+        return
+    if not supporting:
+        return
+    bad = []
+    for i, f in enumerate(supporting):
+        ev = f.get("evidence") if isinstance(f.get("evidence"), dict) else {}
+        prov = f.get("provenance") if isinstance(f.get("provenance"), dict) else {}
+        ft = ev.get("from_test")
+        run_ids = prov.get("run_ids")
+        miss = []
+        if not (isinstance(ft, str) and ft in tests):
+            miss.append("resolvable evidence.from_test")
+        if not (isinstance(run_ids, list) and any(run_ids)):
+            miss.append("provenance.run_ids")
+        if miss:
+            bad.append(f"{f.get('id') or f'#{i}'} (missing {' + '.join(miss)})")
+    if bad:
+        audit.checks.append(CheckResult(
+            "L2", "supporting-provenance", FAIL, HARD,
+            "Accepted study has supporting finding(s) without provenance: "
+            + "; ".join(bad)))
+    else:
+        audit.checks.append(CheckResult("L2", "supporting-provenance", PASS, HARD))
 
 
 def _dangling_inputs(spec: dict, known_slugs: set) -> set:
