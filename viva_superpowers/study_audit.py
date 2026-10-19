@@ -628,6 +628,10 @@ _NON_SUPPORTING_FINDING = frozenset({
     "partial", "contradicts", "caveat", "refuted", "exploratory"})
 
 
+_ACCEPTED_VERDICTS = frozenset({
+    "passed", "pass", "passing", "passing-with-caveats", "accepted"})
+
+
 def _is_supporting_finding(f: dict) -> bool:
     if f.get("obsoleted_by"):
         return False
@@ -646,10 +650,18 @@ def _check_supporting_provenance(audit, spec: dict) -> None:
     ``provenance.run_ids``. Abstains (appends nothing) on non-Accepted studies,
     no findings, or any error. Read-only; never raises or writes a verdict."""
     from viva_superpowers.finding_observations import _build_test_index
-    from viva_superpowers.study_verdict import derive_confidence
+    from viva_superpowers.study_verdict import derive_confidence, roll_up_verdict
 
     try:
         if derive_confidence(spec) != "Accepted":
+            return
+        # Accepted must rest on a real verdict signal (computed passed, or an
+        # authored accepted report.verdict). Accepted purely from lifecycle
+        # ``status`` (no run / no verdict) -> abstain.
+        authored = ((spec.get("report") or {}).get("verdict")
+                    or spec.get("gate_status") or "")
+        authored_ok = str(authored).strip().lower() in _ACCEPTED_VERDICTS
+        if (roll_up_verdict(spec) or {}).get("result") != "passed" and not authored_ok:
             return
         findings = spec.get("findings")
         if not isinstance(findings, list):
@@ -670,7 +682,7 @@ def _check_supporting_provenance(audit, spec: dict) -> None:
         miss = []
         if not (isinstance(ft, str) and ft in tests):
             miss.append("resolvable evidence.from_test")
-        if not (isinstance(run_ids, list) and any(run_ids)):
+        if not (isinstance(run_ids, list) and len(run_ids) > 0 and all(run_ids)):
             miss.append("provenance.run_ids")
         if miss:
             bad.append(f"{f.get('id') or f'#{i}'} (missing {' + '.join(miss)})")

@@ -48,7 +48,7 @@ def test_caveat_without_evidence_abstains(tmp_path):
     bare = {"id": "F-02", "kind": "biological", "status": "contradicts", "statement": "y"}
     caveat = {"id": "F-03", "kind": "caveat", "statement": "z"}
     _ws(tmp_path, _spec([bare, caveat]))
-    assert [c for c in _checks(tmp_path) if c.status == "fail"] == []
+    assert _checks(tmp_path) == []
 
 
 def test_non_supporting_study_abstains(tmp_path):
@@ -59,3 +59,14 @@ def test_non_supporting_study_abstains(tmp_path):
 def test_fully_provenanced_passes(tmp_path):
     _ws(tmp_path, _spec([_finding()]))
     assert [c.status for c in _checks(tmp_path)] == ["pass"]
+
+
+def test_status_completed_without_run_or_verdict_abstains(tmp_path):
+    _ws(tmp_path, {"status": "completed", "behavior_tests": [_TEST],
+                   "findings": [_finding(run_ids=())]})
+    assert _checks(tmp_path) == []
+
+
+def test_null_alongside_real_run_id_fails(tmp_path):
+    _ws(tmp_path, _spec([_finding(run_ids=(None, "r1"))]))
+    assert [c.status for c in _checks(tmp_path)] == ["fail"]
