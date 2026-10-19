@@ -44,6 +44,7 @@ question → /viva-model-build <study>          (creates the study if needed)
   DECIDE  pass → findings · verdicts · report GENERATED from the run
                  else → iterate, or GIVE_UP honestly
 then  /viva-investigation (group studies) · /viva-harden-investigation (rigor)
+      · /viva-consolidate (merge settled probes → one multi-arm study)
       · /viva-report (publish) · /viva-benchmark (score the loop)
 ```
 

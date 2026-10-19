@@ -35,7 +35,8 @@ _VIVA_CORE = {
     "viva-remote-run", "viva-report", "viva-run", "viva-study", "viva-tests",
     "viva-viz", "viva-workbench", "viva-workspace",
 }
-_VIVA_EXTRA = {"viva-harden-investigation", "viva-model-build", "viva-benchmark"}
+_VIVA_EXTRA = {"viva-harden-investigation", "viva-model-build", "viva-benchmark",
+               "viva-consolidate"}
 _VIVA_INVOCABLE = _VIVA_CORE | _VIVA_EXTRA
 USER_INVOCABLE_SKILLS = _VIVA_INVOCABLE
 
