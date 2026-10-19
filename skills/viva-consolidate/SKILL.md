@@ -1,6 +1,6 @@
 ---
 name: viva-consolidate
-description: Use when an investigation's exploratory Studies have proliferated and a group of them probes one coherent concept whose verdict has stabilized — time to GROUP them under a Concept (a knowledge Store) with an authored synthesis, NON-destructively (member Studies, runs, findings, and matched-nulls all survive; the grouping is recorded with a revision history and is reversible via split/reopen). Also triggers on "consolidate", "group these studies", "make a concept", "synthesize these probes", or a study list that has grown unwieldy.
+description: Use when an investigation's exploratory Studies have proliferated and a group of them probes one coherent concept whose verdict has stabilized — time to GROUP them under a Concept (a knowledge Store) with an authored synthesis, NON-destructively (member Studies and their evidence all survive; reversible via split/reopen). Also triggers on "consolidate", "group these studies", "make a concept", or a study list that has grown unwieldy.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit Glob Grep
 argument-hint: "<concept-id> --studies a,b,c | <investigation-slug>"
