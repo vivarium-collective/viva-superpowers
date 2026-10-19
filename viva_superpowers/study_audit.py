@@ -565,6 +565,8 @@ def _check_verdict_regrade(audit, sdir: Path) -> None:
     of its own stored axis inputs. Abstains (appends nothing) when no verdict
     exists or no axis carries recompute inputs; only fails on a present-but-wrong
     artifact. Read-only — never rewrites the verdict."""
+    from viva_superpowers.test_vocab import normalize_verdict
+
     rc = _report_card_dir(sdir)
     verdicts = sorted(rc.glob("*.verdict.json")) if rc.is_dir() else []
     stale, checked = [], 0
@@ -579,7 +581,7 @@ def _check_verdict_regrade(audit, sdir: Path) -> None:
         if res is None:
             continue
         checked += 1
-        if res[0] != data["overall"]:
+        if normalize_verdict(res[0]) != normalize_verdict(data["overall"]):
             stale.append(f"{vf.name}: stored {data['overall']}, re-graded {res[0]}")
     if stale:
         audit.checks.append(CheckResult(
