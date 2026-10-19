@@ -1,8 +1,8 @@
 # vivarium-workbench Data Model
 
-The canonical concepts pbg-superpowers reads, writes, and orchestrates in a vivarium-workbench workspace. This document is the source of truth for vocabulary, on-disk shape, and the API surface that maps each concept to skill commands.
+The canonical concepts viva-superpowers reads, writes, and orchestrates in a vivarium-workbench workspace. This document is the source of truth for vocabulary, on-disk shape, and the API surface that maps each concept to skill commands.
 
-> **Companion repo:** [vivarium-workbench](https://github.com/vivarium-collective/vivarium-workbench). pbg-superpowers requires its server to be running for any skill that mutates dashboard state.
+> **Companion repo:** [vivarium-workbench](https://github.com/vivarium-collective/vivarium-workbench). viva-superpowers requires its server to be running for any skill that mutates dashboard state.
 >
 > **Companion doc:** [`composites-templates-and-the-study-investigation-stack.md`](composites-templates-and-the-study-investigation-stack.md) — the conceptual bridge from these YAML shapes *down* to the process-bigraph substrate: what a composite is, what a **template** (a composite document with open **sites**/holes) looks like, and how studies and investigations use it (including investigation-as-composite).
 
@@ -10,7 +10,7 @@ The canonical concepts pbg-superpowers reads, writes, and orchestrates in a viva
 
 ```
 Workspace
-  ├── Composites (in pbg_<pkg>/composites/, discovered by the catalog)
+  ├── Composites (in viva_<pkg>/composites/, discovered by the catalog)
   ├── Studies (in studies/<name>/study.yaml — v4 with 14-section narrative spine)
   │     ├── Executive      (runtime, report, study_card)
   │     ├── Framing        (question, assumptions, conditions{baseline, variants,
@@ -32,15 +32,15 @@ Workspace
 
 ### Workspace
 
-A directory containing `workspace.yaml`, a `pbg_<package>/` Python package, and the dashboard's runtime state under `.pbg/server/`.
+A directory containing `workspace.yaml`, a `viva_<package>/` Python package, and the dashboard's runtime state under `.pbg/server/`.
 
-- **On disk:** `<workspace>/workspace.yaml` + `pbg_<pkg>/`.
+- **On disk:** `<workspace>/workspace.yaml` + `viva_<pkg>/`.
 - **In the dashboard:** the root container; everything else lives inside it.
-- **Created by:** `/pbg-init`.
+- **Created by:** `/viva-init`.
 - **`runtime:` block (optional).** Workspace-wide settings consumed by skills and runners:
   - `default_emitter: parquet | sqlite` — picked up by bespoke runners via `--emitter` default (see [`runner_scripts.md`](../conventions/runner_scripts.md)).
   - `subprocess_timeout_s: <int>` — overrides the dashboard's default per-tick subprocess timeout (used by long cell-cycle sims).
-  - `shared_artifacts: [<path>, ...]` — workspace-root-relative paths expensive to rebuild (caches, precomputed indexes). `/pbg-investigation open <slug>` detects when these are absent in a new worktree but populated in a sibling, and (with `--share-artifacts`) symlinks them across. Default if absent: `["out/cache"]` (v2ecoli ParCa-cache convention).
+  - `shared_artifacts: [<path>, ...]` — workspace-root-relative paths expensive to rebuild (caches, precomputed indexes). `/viva-investigation open <slug>` detects when these are absent in a new worktree but populated in a sibling, and (with `--share-artifacts`) symlinks them across. Default if absent: `["out/cache"]` (v2ecoli ParCa-cache convention).
 
 ### Study
 
@@ -50,7 +50,7 @@ A self-contained research unit: question + baseline composite(s) + variants + in
 - **Identity:** the directory name (a slug like `dnaa-02-atp-hydrolysis`). Use kebab-case lowercase slugs; v2-era random-hash names (`study-monod_kinetics-096184`) are legacy.
 - **v3 shape (minimal):** `{schema_version: 3, name, objective, status, baseline: [...], variants: [...], interventions: [...], visualizations: [...], conclusion}`.
 - **v4 shape (current):** v3 + the 14-section narrative spine: `runtime, report, study_card, question, assumptions, conditions, enforced_params, behavior_tests, readouts, biological_summary, literature_anchors, model_change, implementation_requirements, design_pivot_required, conclusion_verdicts`. All v4 fields optional. New scaffolds emit v4 (see [v4 narrative spine](#v4-narrative-spine)).
-- **Created by:** `/pbg-study new <study-name> <composite-id>`. **Managed by:** `/pbg-study`. **Listed by:** `/pbg-catalog list`.
+- **Created by:** `/viva-study new <study-name> <composite-id>`. **Managed by:** `/viva-study`. **Listed by:** `/viva-catalog list`.
 
 > "Study" is the canonical per-experiment term. "Investigation" now refers specifically to the higher-level collection container (`investigations/<slug>/investigation.yaml`). The v2 legacy use of "investigation" as a synonym for "study" is retired in the UI; backend aliases (`investigation:` body key, `/api/investigation-*`) remain for backwards compatibility but should not be used in new code.
 
@@ -60,11 +60,11 @@ Studies move through five phases. Each phase has a distinct deliverable, distinc
 
 | Phase | Produces | Skills / tools |
 |---|---|---|
-| **Design** | The spec: purpose, pipeline_gate, simulation_set, model_change, key_assumptions, readouts, behavior_tests, conclusion_logic, limitations, implementation_requirements, bibliography | `/pbg-study new`, `/pbg-study fill-overview`, `/pbg-study set-objective`, baseline/variant/intervention `*-add` subcommands, `/pbg-investigation new`, `/pbg-investigation scaffold-from-plan` |
-| **Build** | The executable code: Process classes, listeners, composites that make the spec runnable against the workspace's simulator | `/pbg-expert` (sibling repo) or `/pbg-expert --lightweight` (in-workspace, single-tool or composite form), plus manual code in `pbg_<workspace>/processes/`. Gap-listed listeners + sim_data calibration also happen here. |
-| **Simulate** | The runs: `runs.db` populated with trajectories | `/pbg-study run-baseline`, `/pbg-study run-variant`, `/pbg-study run-script` (bespoke runners declared in `canonical_runs:`) |
-| **Evaluate** | The verdict: behavioral test results, rendered visualizations, observations against `behavior_tests` | `POST /api/study-tests-run` (Assurance › Tests tab), `/pbg-viz` (Evidence › Visualizations tab, with generated artifacts also under Evidence › Analyses) |
-| **Decide** | The conclusion: what we learned + next steps | `/pbg-study set-conclusion` |
+| **Design** | The spec: purpose, pipeline_gate, simulation_set, model_change, key_assumptions, readouts, behavior_tests, conclusion_logic, limitations, implementation_requirements, bibliography | `/viva-study new`, `/viva-study fill-overview`, `/viva-study set-objective`, baseline/variant/intervention `*-add` subcommands, `/viva-investigation new`, `/viva-investigation scaffold-from-plan` |
+| **Build** | The executable code: Process classes, listeners, composites that make the spec runnable against the workspace's simulator | `/viva-expert` (sibling repo) or `/viva-expert --lightweight` (in-workspace, single-tool or composite form), plus manual code in `viva_<workspace>/processes/`. Gap-listed listeners + sim_data calibration also happen here. |
+| **Simulate** | The runs: `runs.db` populated with trajectories | `/viva-study run-baseline`, `/viva-study run-variant`, `/viva-study run-script` (bespoke runners declared in `canonical_runs:`) |
+| **Evaluate** | The verdict: behavioral test results, rendered visualizations, observations against `behavior_tests` | `POST /api/study-tests-run` (Assurance › Tests tab), `/viva-viz` (Evidence › Visualizations tab, with generated artifacts also under Evidence › Analyses) |
+| **Decide** | The conclusion: what we learned + next steps | `/viva-study set-conclusion` |
 
 The phases are sequential at a coarse level but **iterative in practice**: Evaluate often surfaces a Build issue → return to Build → Simulate again → re-Evaluate. The `phase:` field reflects the study's *current* phase, not its history.
 
@@ -78,7 +78,7 @@ A recurring reviewer complaint is "I can't tell which studies ran, whether the t
 - **The test markers mirror the renderer exactly.** A study's per-test pill is derived from the **latest run's `outcomes[test_name].result`** (PASS/FAIL/SKIP), **not** from the test's own `status:` field. A test with `status: passed` but no recorded run-outcome renders **⏳ pending**. So to make a passing test *show* as passing, record `runs[].outcomes: {<test_name>: {result: PASS}}` on the latest run — see [handling investigation feedback](../conventions/handling-investigation-feedback.md).
 - **`simulation_status` / `evaluation_status` are derived from `runs`**, never trusted from the stored field; a study that declares `status: completed` but records no `runs:` derives `not_run` and renders as "pending" despite the headline.
 - **The downloadable report** (`walkthrough.js` `_buildInvestigationReportHtml`) renders a per-study **"Ran · Tests · Verdict" strip** from `study_clarity_summary` (server-injected as `spec.clarity_summary`, with an equivalent client-side fallback).
-- **The report-linter guards this**: `status_claims_done_no_runs_recorded` (declares done but no run provenance) and `reviewer_clarity_ambiguity` (ran-but-every-test-pending, gate↔test divergence) both run in `pbg-report` Pass B, single-sourced from the same summary.
+- **The report-linter guards this**: `status_claims_done_no_runs_recorded` (declares done but no run provenance) and `reviewer_clarity_ambiguity` (ran-but-every-test-pending, gate↔test divergence) both run in `viva-report` Pass B, single-sourced from the same summary.
 
 ### 8-section canonical Study structure
 
@@ -106,7 +106,7 @@ Back-compat shims kept at the top level so v3-era dashboards still render:
 - `baseline:` — mirrors one entry of `simulation_set:`; the v4 renderer should consume `simulation_set:` directly.
 - `parent_studies:` — superseded by `pipeline_gate.prerequisites`; kept for the v3 dashboard's DAG layout.
 
-Minimal example (truncate values to placeholders; the schema accepts the loose shapes below — see [`study.schema.json`](https://github.com/vivarium-collective/pbg-template/blob/main/template/.pbg/schemas/study.schema.json)):
+Minimal example (truncate values to placeholders; the schema accepts the loose shapes below — see [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json)):
 
 ```yaml
 schema_version: 3
@@ -232,14 +232,14 @@ tests:
   pytest_args: []
   last_results: null
 # DEPRECATED: runs[] in study.yaml — runs.db is canonical since F2.
-# /pbg-study run-baseline writes to runs_meta + history in the per-study DB.
+# /viva-study run-baseline writes to runs_meta + history in the per-study DB.
 # The list below is kept only for v3 back-compat reads; do not write to it.
 runs: []
 
 # CANONICAL RUNS — declarative recipe for invoking the study's bespoke
 # runner scripts (the `sims/run_*.py` pattern used by v2ecoli-style
 # workspaces whose runners predate the dashboard-managed baseline /
-# variant flow). Optional. /pbg-study run-script <study> [--entry <n>]
+# variant flow). Optional. /viva-study run-script <study> [--entry <n>]
 # reads this list, picks the default (or named) entry, and shells
 # `python <script> <args...>` from the workspace root.
 #
@@ -332,7 +332,7 @@ skills fill it).
 
 ### v4 narrative spine (canonical-optional extensions) {#v4-narrative-spine}
 
-The 8 sections above are the design backbone. The v4 schema (`schema_version: 4`) adds a **second layer of narrative-spine fields** that the v2ecoli dnaa-replication investigation evolved through use, now promoted from "workspace-specific extensions" to canonical-optional. All fields are optional — a v3 spec validates unchanged against the v4 schema — but every new study scaffolded via `/pbg-study new` lands with these fields commented in as TODO placeholders so the user sees the target shape without reading docs.
+The 8 sections above are the design backbone. The v4 schema (`schema_version: 4`) adds a **second layer of narrative-spine fields** that the v2ecoli dnaa-replication investigation evolved through use, now promoted from "workspace-specific extensions" to canonical-optional. All fields are optional — a v3 spec validates unchanged against the v4 schema — but every new study scaffolded via `/viva-study new` lands with these fields commented in as TODO placeholders so the user sees the target shape without reading docs.
 
 The narrative spine is grouped into 4 layers. The 6 fields marked ★ are the ones to author first; they render at the top of the report and let a reviewer land on the study without reading the YAML.
 
@@ -361,11 +361,11 @@ The narrative spine is grouped into 4 layers. The 6 fields marked ★ are the on
 - `design_pivot_required:` — named open decision points: `[{id, status, question, alternatives: [...], requested_response, notes}]`. `status` is free-form (`open | accepted | rejected | superseded-by-<slug> | obsolete | resolved`). Surfaces the choices an expert can weigh in on.
 - **★ `conclusion_verdicts:`** — three-track verdict block: `{regression_compatibility: {result: PASS|FAIL|MIXED|PENDING, basis}, biological_validation: {result, basis}, explanatory_gain: {result: POSITIVE|NEUTRAL|NEGATIVE|PENDING, basis}}`. Distinct from `conclusion_logic` (the if-pass/if-fail decision tree). Lets a study be "PASS on regression but MIXED on biology" instead of being forced into one boolean.
 
-**Sibling marker.** `follow_up_of: <slug>` marks a study as a parallel/cleanup follow-up of another (e.g., `dnaa-02f` follow_up_of `dnaa-02`). Distinct from `seeded_from:` (set automatically by `/pbg-study seed-from-followup`) and from `parent_studies:` (which is a DAG dependency).
+**Sibling marker.** `follow_up_of: <slug>` marks a study as a parallel/cleanup follow-up of another (e.g., `dnaa-02f` follow_up_of `dnaa-02`). Distinct from `seeded_from:` (set automatically by `/viva-study seed-from-followup`) and from `parent_studies:` (which is a DAG dependency).
 
 ### v2 narrative spine for Investigations (canonical-optional extensions) {#v2-narrative-spine-investigation}
 
-The investigation schema (`schema_version: 2`) adds a parallel narrative spine that mirrors the per-study spine at a level up. All fields are optional — a v1 spec validates unchanged — but every new investigation scaffolded via `/pbg-investigation new` (or POST `/api/investigation-create`) lands with them commented in as TODOs.
+The investigation schema (`schema_version: 2`) adds a parallel narrative spine that mirrors the per-study spine at a level up. All fields are optional — a v1 spec validates unchanged — but every new investigation scaffolded via `/viva-investigation new` (or POST `/api/investigation-create`) lands with them commented in as TODOs.
 
 - `executive: {what_is_this, verdict, verdict_status, verdict_detail, decisions_needed: [{question, context}]}` — the **state-first opening** AND the report's Executive summary (single source — keep them in sync). `verdict_status` ∈ `in-progress | passed | complete | blocked | failed | planning`. See [The Investigation graph](#the-investigation-graph-discourse-graph).
 - `scientific_argument: {main_claim, evidence_for: [...], evidence_against: [...], key_figures: [...], caveats: [...], interpretation_ref}` — the chain of reasoning, distinct from the bottom-line verdict.
@@ -381,7 +381,7 @@ The `studies:` list still controls dashboard grouping/visibility; the DAG topolo
 
 ### Decide-phase follow-up proposals
 
-The Decide phase often surfaces gaps the current study can't close. Those gaps belong as **first-class proposals** on the study itself, then graduate into new sibling studies. Two optional top-level fields make the loop explicit (see [`study.schema.json`](https://github.com/vivarium-collective/pbg-template/blob/main/template/.pbg/schemas/study.schema.json)):
+The Decide phase often surfaces gaps the current study can't close. Those gaps belong as **first-class proposals** on the study itself, then graduate into new sibling studies. Two optional top-level fields make the loop explicit (see [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json)):
 
 - `followup_proposals:` — list of proposed follow-up studies attached to *this* study.
 - `seeded_from:` — provenance stamp on a child study, set automatically when the child is created from a parent's proposal.
@@ -408,7 +408,7 @@ followup_proposals:
       simulation_set: []
 ```
 
-**Seed flow** — `/pbg-study seed-from-followup <parent> <proposal-id>`:
+**Seed flow** — `/viva-study seed-from-followup <parent> <proposal-id>`:
 
 1. Reads `studies/<parent>/study.yaml` and locates `followup_proposals[id == <proposal-id>]` (must be `proposed` or `accepted`).
 2. Creates `studies/<new-slug>/study.yaml` with `schema_version: 3`, `phase: Design`, `purpose:` / `key_assumptions:` / `model_change:` / `simulation_set:` populated from `proposal.seed.*` (falling back to `hypothesized_mechanism` for `model_change:` if absent).
@@ -426,7 +426,7 @@ git grep -n "study: <parent-slug>" -- 'studies/*/study.yaml' | grep seeded_from 
 
 #### `discovery_implications` — the richer Decide-phase synthesis
 
-`followup_proposals` (above) is the minimal hook. The **richer, rendered** Decide-phase block is the optional top-level `discovery_implications:` mapping — *"where this study's results leave the mechanism model, and what to investigate next."* The dashboard renders it (the study-detail **Discovery implications** section + the investigation report), and `/pbg-study seed-from-followup` seeds children from its `followup_study_proposals`. All sub-fields optional:
+`followup_proposals` (above) is the minimal hook. The **richer, rendered** Decide-phase block is the optional top-level `discovery_implications:` mapping — *"where this study's results leave the mechanism model, and what to investigate next."* The dashboard renders it (the study-detail **Discovery implications** section + the investigation report), and `/viva-study seed-from-followup` seeds children from its `followup_study_proposals`. All sub-fields optional:
 
 ```yaml
 discovery_implications:
@@ -452,7 +452,7 @@ A study's set of runnable composites — **one or more**. Each entry is a runnab
 - **Shape:** `[{name: <unique-in-study>, composite: <pkg.composites.x>, params: {...}}]` — a **non-empty list**.
 - **Why a list:** a study can compare growth across multiple baseline composites side-by-side, not just variants of one.
 - **API:** `POST /api/study-baseline-add`, `POST /api/study-baseline-remove`, `POST /api/study-run-baseline {study, composite?}`.
-- **Skill:** `/pbg-study baseline-add`, `/pbg-study baseline-remove`, `/pbg-study run-baseline`.
+- **Skill:** `/viva-study baseline-add`, `/viva-study baseline-remove`, `/viva-study run-baseline`.
 
 ### Variant
 
@@ -462,7 +462,7 @@ A single baseline composite + parameter overrides. Each variant names which comp
 - **`base_composite` must reference an existing name in `baseline[]`** — validated server-side; removing a baseline entry that variants depend on returns 409.
 - **Scope:** parameter overrides only. Initial-state editing and process/module swaps are deferred.
 - **API:** `POST /api/study-variant-add`, `POST /api/study-variant-set-params`, `POST /api/study-variant-delete`, `POST /api/study-run-variant`.
-- **Skill:** `/pbg-study variant-add`, `/pbg-study variant-set-params`, `/pbg-study variant-delete`, `/pbg-study run-variant`.
+- **Skill:** `/viva-study variant-add`, `/viva-study variant-set-params`, `/viva-study variant-delete`, `/viva-study run-variant`.
 
 ### Intervention
 
@@ -470,7 +470,7 @@ A standalone, text-described experimental condition. Fully separate from variant
 
 - **Shape:** `{name, description}` — `name` is a short slug; `description` is freeform text.
 - **API:** `POST /api/study-intervention-add`, `POST /api/study-intervention-update`, `POST /api/study-intervention-delete`.
-- **Skill:** `/pbg-study intervention-add`, `/pbg-study intervention-update`, `/pbg-study intervention-delete`.
+- **Skill:** `/viva-study intervention-add`, `/viva-study intervention-update`, `/viva-study intervention-delete`.
 
 ### Investigation
 
@@ -487,7 +487,7 @@ An Investigation is a **named collection of studies** with an explicit cross-stu
   - `POST /api/iset-clone {source, target, ...}` — shells out to the workspace's `scripts/clone_investigation.py` (workspace-owned because clone rules are workspace-specific).
   - For update operations (acceptance criteria, narrative-spine field edits) the skills still write YAML directly with atomic tmp-file + rename — `/api/iset-update` is not yet wired.
 - **Dashboard render**: Investigations tab cards → DAG canvas on click; rail sidebar groups studies under their investigation header; "Ungrouped" bucket for studies not in any investigation; topological order within each group.
-- **Skill**: `/pbg-investigation` for CRUD + scaffold-from-plan + worktree open + cross-study run orchestration (`run <inv-slug>` walks `studies:` and calls `/pbg-study run-script` on each member that has a `canonical_runs:` block; spec-only members are skipped).
+- **Skill**: `/viva-investigation` for CRUD + scaffold-from-plan + worktree open + cross-study run orchestration (`run <inv-slug>` walks `studies:` and calls `/viva-study run-script` on each member that has a `canonical_runs:` block; spec-only members are skipped).
 
 > Note: the DAG topology is computed from each member study's `parent_studies:` field at render time. The `studies:` list on the investigation controls visibility/grouping (and the `run` subcommand's execution order) — but per-study `parent_studies` is the authoritative ordering for dependent execution. The orchestrator currently iterates in declared order; a topological-sort mode is a future extension.
 
@@ -495,13 +495,13 @@ An Investigation is a **named collection of studies** with an explicit cross-stu
 
 An Investigation slug is also a **git branch name** and a **worktree directory name**. The three are kept in 1:1 correspondence so that parallel agents can each work on a different Investigation without trampling each other's files, runtime DBs (`.pbg/composite-runs.db`), or dashboard ports.
 
-- **`/pbg-investigation new <slug>`** creates `investigations/<slug>/investigation.yaml` AND a git branch `<slug>`, then commits the YAML on that branch. It does NOT push.
-- **`/pbg-investigation open <slug>`** creates (or reuses) a worktree at the standard location `<workspace>/.pbg/worktrees/<slug>/` checked out to branch `<slug>`. By default it also boots a per-worktree dashboard server. (`--no-server` skips that.) The standard location keeps worktrees discoverable next to the parent checkout and inside `.pbg/`, which is conventionally git-ignored.
+- **`/viva-investigation new <slug>`** creates `investigations/<slug>/investigation.yaml` AND a git branch `<slug>`, then commits the YAML on that branch. It does NOT push.
+- **`/viva-investigation open <slug>`** creates (or reuses) a worktree at the standard location `<workspace>/.pbg/worktrees/<slug>/` checked out to branch `<slug>`. By default it also boots a per-worktree dashboard server. (`--no-server` skips that.) The standard location keeps worktrees discoverable next to the parent checkout and inside `.pbg/`, which is conventionally git-ignored.
 - **One dashboard server per worktree** — intentional. Each worktree has its own runtime state (`.pbg/composite-runs.db`, server log, ports). The server self-registers in `~/.pbg/servers/<name>.<hash>.json` on boot, with `path` set to the worktree (not the parent checkout).
 - **Sidebar = cross-worktree switcher.** The left-rail Investigation dropdown queries `/api/investigation-registry`, which fans out across every record under `~/.pbg/servers/*.json` (except its own) to surface their `current` Investigation. Rows for OTHER worktrees are clickable → opens that server's URL in a new tab.
 - **Dedup is per-worktree path.** Starting the workbench (`/viva-workbench start`) removes only records that point at the SAME worktree path (after prompting if the PID is still alive). Records at different worktree paths coexist — that's how parallel agents work. `python -m viva_superpowers.workspace_catalog cleanup-servers` removes orphaned records (PID dead OR worktree path missing).
 
-**Known migration note (v2ecoli).** The `dnaa-replication` investigation in v2ecoli was created before this convention, on a branch named `dnaa-replication-studies` (slug-vs-branch mismatch). To bring it into compliance, run `git branch -m dnaa-replication-studies dnaa-replication` on the relevant worktree's checkout, then `/pbg-investigation open dnaa-replication` to materialize it at the standard worktree location.
+**Known migration note (v2ecoli).** The `dnaa-replication` investigation in v2ecoli was created before this convention, on a branch named `dnaa-replication-studies` (slug-vs-branch mismatch). To bring it into compliance, run `git branch -m dnaa-replication-studies dnaa-replication` on the relevant worktree's checkout, then `/viva-investigation open dnaa-replication` to materialize it at the standard worktree location.
 
 ### The Investigation graph (discourse graph) {#the-investigation-graph-discourse-graph}
 
@@ -517,7 +517,7 @@ The dashboard renders the investigation page as an **Investigation graph**: a di
 | Display name | `title:` | slug, prefix-stripped + humanized |
 | Edge | `parent_studies[].relation:` ∈ `builds-on \| tests \| motivates \| alternative-to` | `builds-on` (solid edge; `alternative-to` dashed) |
 
-All five are study-level — authored via `/pbg-study` (`title:` + `relation:` at Design; `claim:` + `confidence:` at Evaluate/Decide). See [pbg-study → Investigation-graph fields](../../skills/pbg-study/SKILL.md).
+All five are study-level — authored via `/viva-study` (`title:` + `relation:` at Design; `claim:` + `confidence:` at Evaluate/Decide). See [viva-study → Investigation-graph fields](../../skills/viva-study/SKILL.md).
 
 **State-first opening.** The investigation opening is rendered from the investigation's `executive:` block (`{what_is_this, verdict, verdict_status, verdict_detail, decisions_needed:[{question, context}]}`) — and that **same block** is the single source for the report's Executive summary (do not maintain a second copy). `verdict_status` ∈ `in-progress | passed | complete | blocked | failed | planning`. The per-study `confidence:` badges roll up into the investigation `verdict` / `verdict_status`; keep the two consistent.
 
@@ -529,7 +529,7 @@ Studies can declare ordering via the optional `parent_studies:` field. Each entr
 - `ran` — parent's `status` is one of `{ran, complete}`.
 - `complete` — parent's `status == complete`.
 
-The optional `relation:` carries the **discourse semantics** of the edge in the [Investigation graph](#the-investigation-graph-discourse-graph), independent of the gating `condition`. Enum (ontology redesign, viva-template #70): `builds-on` (default) `| tests | motivates | alternative-to`. The graph renders `builds-on` / `tests` / `motivates` as solid edges and `alternative-to` as a dashed edge. The legacy values `leads-to` (→ `builds-on`), `model-input` (→ `builds-on`), `refutes`, and `precedes` (→ `builds-on`) are deprecated aliases that still parse. The same four-type `relation:` applies to `pipeline_gate.prerequisites[]` entries and to a top-level `parent_relations: [{study, relation, rationale?}]`. Author the relation when declaring a dependency to express *why* one study follows another, not just *that* it does.
+The optional `relation:` carries the **discourse semantics** of the edge in the [Investigation graph](#the-investigation-graph-discourse-graph), independent of the gating `condition`. Enum (ontology redesign, viva-template #70): `builds-on` (default) `| tests | motivates | alternative-to`. The graph renders `builds-on` as a solid directed edge, `tests` and `motivates` as dashed directed edges (distinct dash patterns), and `alternative-to` as a dotted, undirected edge. Deprecated values still parse as aliases: `leads-to` · `model-input` · `evidence` · `regulatory` → `builds-on`; `refutes` · `refutes-alternative` → `tests`; `precedes` → `motivates`; `alternative` → `alternative-to`. An unrecognized relation falls back to `builds-on`. The same four-type `relation:` applies to `pipeline_gate.prerequisites[]` entries and to a top-level `parent_relations: [{study, relation, rationale?}]`. Author the relation when declaring a dependency to express *why* one study follows another, not just *that* it does.
 
 **API**: `GET /api/investigations` returns each study with computed `parent_studies` (normalized to object form), `blocked: bool`, and `blocked_by: [{study, condition, missing-diagnostic}]`. A parent that doesn't resolve to a known study slug surfaces as `parent-not-found` in `blocked_by`.
 
@@ -545,7 +545,7 @@ A completed execution of a baseline composite or variant. The dashboard records 
 
 - **Shape:** `{run_id, variant: <name|null>, composite: <baseline-entry-name>, label, status, n_steps}`. `variant: null` indicates a baseline run.
 - **API:** `POST /api/study-run-baseline {study, composite?}`, `POST /api/study-run-variant {study, variant}`, `POST /api/study-run-delete`, `POST /api/study-runs-clear`, `POST /api/study-comparison-add {study, run_ids}`.
-- **Skill:** `/pbg-study run-baseline`, `/pbg-study run-variant`.
+- **Skill:** `/viva-study run-baseline`, `/viva-study run-variant`.
 - **SimulationsDB tagging convention.** For a run to surface in SimulationsDB tagged to its study + investigation, its emitter output must live under the per-study path `studies/<slug>/parquet-runs/<run>/` (ParquetEmitter hive) or `studies/<slug>/runs.db` (SQLite, with `emitter_path` recorded). The dashboard-managed baseline/variant flow already writes there; **bespoke `canonical_runs:` runners must write there too** or their runs won't be tagged.
 
 #### Canonical run recipe (bespoke scripts)
@@ -569,7 +569,7 @@ canonical_runs:
 
 - **Shape:** list of `{name, script, args?, label?, default?}`. `script` is a path relative to the workspace root; `args` are positional, stringified (no shell interpolation). Exactly one entry should be `default: true`; if none is, the first wins.
 - **No dashboard API.** This is a pure shell-out flow; the skill reads the YAML and execs `python <script> <args...>` from the workspace root.
-- **Skill:** `/pbg-study run-script <study> [--entry <name>] [--list]`.
+- **Skill:** `/viva-study run-script <study> [--entry <name>] [--list]`.
 - **When to use it:** the runner is a hand-written script that owns its own composite construction and emitter wiring. When the runner can be expressed as a composite + `parameter_overrides`, prefer `run-baseline` / `run-variant` instead — the dashboard then surfaces the run in `runs.db` automatically.
 
 ### Visualization
@@ -578,11 +578,11 @@ A named visualization config attached to a study. Renders run output to HTML.
 
 - **Shape:** `{name, address, config}`. `address` is a dotted reference to a `Visualization` (a `Step` subclass — see `docs/conventions/visualizations.md`).
 - **API:** `POST /api/investigation-add-viz`, `POST /api/investigation-render-viz` (the workbench's canonical viz routes; the `study-viz-*` aliases were retired).
-- **Skill:** `/pbg-viz`.
+- **Skill:** `/viva-viz`.
 
 #### Provenance & freshness {#viz-provenance-freshness}
 
-Every `visualizations[]` entry may declare an optional `render:` command string. When present, `/pbg-study refresh-viz` (and the auto-refresh that fires after a successful `run-baseline` / `run-variant` / `run-script`) uses it to regenerate the chart against the latest run.
+Every `visualizations[]` entry may declare an optional `render:` command string. When present, `/viva-study refresh-viz` (and the auto-refresh that fires after a successful `run-baseline` / `run-variant` / `run-script`) uses it to regenerate the chart against the latest run.
 
 **`runs.db` as the authoritative run↔study record.** Each study's `runs.db` (SQLite) holds a `runs_meta` table that is the single source of truth for run provenance: `run_id`, `started_at`, `completed_at`, `composite`, `variant`, `emitter_path`, and `generation_id`. `viva_superpowers.run_registry.latest_run(runs_db_path)` returns the most-recently-completed row; `refresh-viz` queries it before every invocation.
 
@@ -621,7 +621,7 @@ visualizations:
 | `untracked` | On-disk chart file exists but has no matching `visualizations[]` entry |
 | `unrendered` | `visualizations[]` entry exists but no chart file on disk yet |
 
-**`refresh-viz` behavior.** `/pbg-study refresh-viz <slug>` (and `/pbg-investigation refresh-viz <inv-slug>`) re-runs each entry's `render:` command and updates the sidecar. Entries without a `render:` command report `needs_manual_refresh` and are left in place. The `run-baseline`, `run-variant`, and `run-script` subcommands invoke `refresh-viz` automatically after a successful run; pass `--no-refresh-viz` to suppress.
+**`refresh-viz` behavior.** `/viva-study refresh-viz <slug>` (and `/viva-investigation refresh-viz <inv-slug>`) re-runs each entry's `render:` command and updates the sidecar. Entries without a `render:` command report `needs_manual_refresh` and are left in place. The `run-baseline`, `run-variant`, and `run-script` subcommands invoke `refresh-viz` automatically after a successful run; pass `--no-refresh-viz` to suppress.
 
 ## The dashboard server (read surface)
 
@@ -629,56 +629,56 @@ Skills that read dashboard state do so via these HTTP endpoints:
 
 | Endpoint | Returns | Used by |
 |---|---|---|
-| `GET /api/investigations` | All studies with summary fields (`name, status, baseline_names, n_baseline, n_variants, n_interventions, n_runs, baseline_source, conclusions_excerpt`) | `/pbg-catalog list` |
-| `GET /api/workspace-manifest` | Composites, studies, registry, health | `/pbg-status`, `/pbg-catalog list` |
-| `GET /api/investigation-composites?investigation=<n>` | A study's baseline list as `[{name, source, params}]` | `/pbg-study`, UI |
-| `GET /api/composite-resolve?id=<id>&overrides=<json>` | A composite's `{parameters, state, svg, kind, ...}` for param-form pre-fill | `/pbg-explore`, UI |
-| `GET /api/composites` | Workspace catalog of discoverable composites | `/pbg-catalog list` |
+| `GET /api/investigations` | All studies with summary fields (`name, status, baseline_names, n_baseline, n_variants, n_interventions, n_runs, baseline_source, conclusions_excerpt`) | `/viva-catalog list` |
+| `GET /api/workspace-manifest` | Composites, studies, registry, health | `/viva-status`, `/viva-catalog list` |
+| `GET /api/investigation-composites?investigation=<n>` | A study's baseline list as `[{name, source, params}]` | `/viva-study`, UI |
+| `GET /api/composite-resolve?id=<id>&overrides=<json>` | A composite's `{parameters, state, svg, kind, ...}` for param-form pre-fill | `/viva-explore`, UI |
+| `GET /api/composites` | Workspace catalog of discoverable composites | `/viva-catalog list` |
 
 ## The dashboard server (write surface)
 
 | Endpoint | Body | Skill subcommand |
 |---|---|---|
-| `PATCH /api/study/<slug>` | `{objective}` | `/pbg-study set-objective` |
-| `PATCH /api/study/<slug>` | `{conclusions}` | `/pbg-study set-conclusion` |
-| `POST /api/study-baseline-add` | `{study, name, composite, params?}` | `/pbg-study baseline-add` |
-| `POST /api/study-baseline-remove` | `{study, name}` | `/pbg-study baseline-remove` |
-| `POST /api/study-run-baseline` | `{study, composite?, steps?}` | `/pbg-study run-baseline` |
-| `POST /api/study-variant-add` | `{study, name, base_composite, parameter_overrides?}` | `/pbg-study variant-add` |
-| `POST /api/study-variant-set-params` | `{study, variant, parameter_overrides}` | `/pbg-study variant-set-params` |
-| `POST /api/study-variant-delete` | `{study, variant}` | `/pbg-study variant-delete` |
-| `POST /api/study-run-variant` | `{study, variant, steps?}` | `/pbg-study run-variant` |
-| `POST /api/study-intervention-add` | `{study, name, description?}` | `/pbg-study intervention-add` |
-| `POST /api/study-intervention-update` | `{study, name, description}` | `/pbg-study intervention-update` |
-| `POST /api/study-intervention-delete` | `{study, name}` | `/pbg-study intervention-delete` |
-| `POST /api/investigation-add-viz` | `{study, name, address, config}` | `/pbg-viz` |
-| `POST /api/composite-test-run` | `{id, steps, emit_paths?}` | `/pbg-run` |
+| `PATCH /api/study/<slug>` | `{objective}` | `/viva-study set-objective` |
+| `PATCH /api/study/<slug>` | `{conclusions}` | `/viva-study set-conclusion` |
+| `POST /api/study-baseline-add` | `{study, name, composite, params?}` | `/viva-study baseline-add` |
+| `POST /api/study-baseline-remove` | `{study, name}` | `/viva-study baseline-remove` |
+| `POST /api/study-run-baseline` | `{study, composite?, steps?}` | `/viva-study run-baseline` |
+| `POST /api/study-variant-add` | `{study, name, base_composite, parameter_overrides?}` | `/viva-study variant-add` |
+| `POST /api/study-variant-set-params` | `{study, variant, parameter_overrides}` | `/viva-study variant-set-params` |
+| `POST /api/study-variant-delete` | `{study, variant}` | `/viva-study variant-delete` |
+| `POST /api/study-run-variant` | `{study, variant, steps?}` | `/viva-study run-variant` |
+| `POST /api/study-intervention-add` | `{study, name, description?}` | `/viva-study intervention-add` |
+| `POST /api/study-intervention-update` | `{study, name, description}` | `/viva-study intervention-update` |
+| `POST /api/study-intervention-delete` | `{study, name}` | `/viva-study intervention-delete` |
+| `POST /api/investigation-add-viz` | `{study, name, address, config}` | `/viva-viz` |
+| `POST /api/composite-test-run` | `{id, steps, emit_paths?}` | `/viva-run` |
 
 ## Skill ↔ concept map
 
 | Skill | Reads | Writes | Notes |
 |---|---|---|---|
-| `/pbg-init` | — | Workspace | Scaffolds new workspace. |
+| `/viva-init` | — | Workspace | Scaffolds new workspace. |
 | `/viva-workbench` | `.pbg/server/server-info` | Starts/stops the dashboard (workbench) server. | Required precondition for every other dashboard-touching skill; also serves reports. |
-| `/pbg-catalog [list]` | Workspace, Composites, Studies | — | Read-only catalog. |
-| `/pbg-catalog install <pkg>` / `/pbg-catalog uninstall <pkg>` | Workspace | Workspace deps | Wraps `pip install` + workspace catalog. |
-| `/pbg-status` | Workspace state | — | Server up? recent activity? Probes the running workbench server directly. |
-| `/pbg-expert <tool>` | External Process | Sibling `pbg-<tool>/` repo | Wraps a simulator as a Process. Default mode creates a sibling repo + tests + README + report; `--lightweight` writes a single file into the current workspace package instead. |
-| `/pbg-expert <name> <tools…>` | Composite catalog | Sibling `pbg-<name>-composite/` repo | Composes installed wrappers. `--lightweight` writes a single composite file into the workspace package instead. |
-| (internal) `/pbg-suggest <id>` | `.pbg/agent-requests/<id>.json` | `.pbg/agent-responses/<id>.json` | Dashboard "Suggest" callback. Not user-facing. |
-| (maintainer) `scripts/audit-pbg-repo.py <repo>` | External pbg-* repo | — | Audits packaging/discovery conventions. Replaces v0.8 `/pbg-package`. |
-| `/pbg-explore` | Composite | Dashboard view | Opens composite in dashboard. |
-| `/pbg-run` | Composite | Run record | Runs a composite directly (no Study). |
-| `/pbg-study` | Study | Study | **All Study CRUD + runs.** See subcommand table above. `check-observables`/run-* record the emitter + emit paths that render in the study-detail Design › Readouts panel and the values that render in Evidence › Results — see [Study-detail dashboard spine](#study-detail-dashboard-spine). |
-| `/pbg-investigation` | Investigation | Investigation YAML | **All Investigation CRUD + scaffold-from-plan.** Writes YAML directly (no write endpoints yet). |
-| `/pbg-viz` | Visualization | Visualization | Adds a viz to a study; renders in Evidence › Visualizations, with generated artifacts also listed under Evidence › Analyses. |
-| `/pbg-report` | Study | Report file | Renders study summary to markdown. |
-| `/pbg-workspace` | Workspace | Workspace state | Workspace-level commands. |
+| `/viva-catalog [list]` | Workspace, Composites, Studies | — | Read-only catalog. |
+| `/viva-catalog install <pkg>` / `/viva-catalog uninstall <pkg>` | Workspace | Workspace deps | Wraps `pip install` + workspace catalog. |
+| `/viva-status` | Workspace state | — | Server up? recent activity? Probes the running workbench server directly. |
+| `/viva-expert <tool>` | External Process | Sibling `viva-<tool>/` repo | Wraps a simulator as a Process. Default mode creates a sibling repo + tests + README + report; `--lightweight` writes a single file into the current workspace package instead. |
+| `/viva-expert <name> <tools…>` | Composite catalog | Sibling `viva-<name>-composite/` repo | Composes installed wrappers. `--lightweight` writes a single composite file into the workspace package instead. |
+| (internal) `/viva-suggest <id>` | `.pbg/agent-requests/<id>.json` | `.pbg/agent-responses/<id>.json` | Dashboard "Suggest" callback. Not user-facing. |
+| (maintainer) `scripts/audit-pbg-repo.py <repo>` | External viva-* repo | — | Audits packaging/discovery conventions. Replaces the retired v0.8 `package` audit skill. |
+| `/viva-explore` | Composite | Dashboard view | Opens composite in dashboard. |
+| `/viva-run` | Composite | Run record | Runs a composite directly (no Study). |
+| `/viva-study` | Study | Study | **All Study CRUD + runs.** See subcommand table above. `check-observables`/run-* record the emitter + emit paths that render in the study-detail Design › Readouts panel and the values that render in Evidence › Results — see [Study-detail dashboard spine](#study-detail-dashboard-spine). |
+| `/viva-investigation` | Investigation | Investigation YAML | **All Investigation CRUD + scaffold-from-plan.** Writes YAML directly (no write endpoints yet). |
+| `/viva-viz` | Visualization | Visualization | Adds a viz to a study; renders in Evidence › Visualizations, with generated artifacts also listed under Evidence › Analyses. |
+| `/viva-report` | Study | Report file | Renders study summary to markdown. |
+| `/viva-workspace` | Workspace | Workspace state | Workspace-level commands. |
 
 ## Pass A — multi-axis status, finding provenance, dependency hashes {#pass-a}
 
 > **Status:** Pass A of the infrastructure-feedback roadmap. Schema lives in
-> [`study.schema.json`](https://github.com/vivarium-collective/pbg-template/blob/main/template/.pbg/schemas/study.schema.json);
+> [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json);
 > dashboard surface in [vivarium-workbench](https://github.com/vivarium-collective/vivarium-workbench).
 > Sweep tables · linting · scaffold tracking · failure modes · expert questions ·
 > dashboard filters · claim-traceability view · JSON bundle export come in later passes.
@@ -828,11 +828,11 @@ Pass 10A and D, E in Pass 10B.
 
 | Component | Status | Where |
 |---|---|---|
-| A. `/pbg-study findings` interactive walk | shipped (10A) | `skills/pbg-study/SKILL.md` → `viva_superpowers/study_findings.py` |
+| A. `/viva-study findings` interactive walk | shipped (10A) | `skills/viva-study/SKILL.md` → `viva_superpowers/study_findings.py` |
 | B. `search_expert_docs()` helper | shipped (10A) | `viva_superpowers/expert_search.py` |
 | C. Findings linter | shipped (10A) | `viva_superpowers/report_linter.py` (4 new checks) |
-| D. Cross-study findings index on `/pbg-report` | shipped (10B) | `viva_superpowers/report.py:render_workspace_findings_index` → `reports/findings.html` |
-| E. Findings-aware `seed-from-followup` | shipped (10B) | `skills/pbg-study/SKILL.md` `--from-finding <id>` → `viva_superpowers/seed_from_followup.py` |
+| D. Cross-study findings index on `/viva-report` | shipped (10B) | `viva_superpowers/report.py:render_workspace_findings_index` → `reports/findings.html` |
+| E. Findings-aware `seed-from-followup` | shipped (10B) | `skills/viva-study/SKILL.md` `--from-finding <id>` → `viva_superpowers/seed_from_followup.py` |
 
 The four new linter checks (C):
 
@@ -841,11 +841,11 @@ The four new linter checks (C):
   - `finding_cites_unknown_bib_key` (error) — `expected.cites[]` entry not in `references/papers.bib`.
   - `finding_references_unknown_expert_doc` (error) — `expert_reference.doc` not in `workspace.yaml.expert_docs[]`.
 
-All four plug into the existing `/pbg-report --lint` override mechanism.
+All four plug into the existing `/viva-report --lint` override mechanism.
 
 #### Pass 10B additions
 
-**D. Cross-study findings index.** `/pbg-report` now writes a second
+**D. Cross-study findings index.** `/viva-report` now writes a second
 workspace-level page at `reports/findings.html` alongside
 `reports/index.html`. It harvests every `findings[]` entry across every
 `studies/*/study.yaml` and renders them grouped by `status` (default
@@ -857,20 +857,20 @@ parent study slug (linked to the per-study report when one exists), a
 one-liner cut of the statement (full text in a `<details>` disclosure),
 status + kind badges, plus small chips for any `expected.cites` bib_keys
 and the `expert_reference.doc`. Empty workspaces render a friendly
-"No findings recorded — run `/pbg-study findings <slug>` to start"
+"No findings recorded — run `/viva-study findings <slug>` to start"
 panel so the link from the dashboard never 404s. The workspace
 dashboard (`reports/index.html`) gains a "Findings index" panel that
 links to the page and badges the total count.
 
 **E. Findings-aware `seed-from-followup`.** The Pass 8
-`/pbg-study seed-from-followup <parent> <proposal-id>` subcommand takes
+`/viva-study seed-from-followup <parent> <proposal-id>` subcommand takes
 an optional `--from-finding <finding-id>` flag. When passed, the helper
 at `viva_superpowers/seed_from_followup.py` reads the finding off the
 parent and pre-populates the child's `purpose:` + `key_assumptions:`
 from `next_action` / `explanation` / `evidence.smoking_gun` (mapping
-documented in `skills/pbg-study/SKILL.md` and the helper's docstring).
+documented in `skills/viva-study/SKILL.md` and the helper's docstring).
 The child gets `seeded_from.finding: <id>` (Pass 10B schema extension,
-see [`study.schema.json`](https://github.com/vivarium-collective/pbg-template/blob/main/template/.pbg/schemas/study.schema.json))
+see [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json))
 and the parent's proposal entry gets `linked_finding: <id>`, so the
 finding → proposal → child-study lineage is queryable from both
 directions:
@@ -943,13 +943,13 @@ When a collision occurs, the validation error message now includes a `Note:`
 suffix naming the reserved field, so you know to rename your custom field
 rather than guessing at a shape mismatch.
 
-## Study lint checks (`/pbg-report`) {#study-lint-checks}
+## Study lint checks (`/viva-report`) {#study-lint-checks}
 
-`/pbg-report`'s structural lint (Pass B) warns on common empty-field gaps in
+`/viva-report`'s structural lint (Pass B) warns on common empty-field gaps in
 `studies/<slug>/study.yaml` so a study card isn't half-blank. The check ids
 below are the literal `check=` values emitted by
 `viva_superpowers.report_linter`; the field set + enum values themselves are
-defined by [`study.schema.json`](https://github.com/vivarium-collective/pbg-template/blob/main/template/.pbg/schemas/study.schema.json)
+defined by [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json)
 (see the [multi-axis status](#multi-axis-status) table for the status enums).
 **All of these are non-blocking except `missing_visualizations`** — the rest
 mark the gap for the next scaffolding pass, but every study must DECLARE at least
@@ -973,7 +973,7 @@ one visualization or lint fails (blocking; override-able per study via
 To scaffold a complete study, fill (in rough order): multi-axis status +
 `pipeline_gate`, `conditions.baseline.composite`, a `simulation_set` entry per
 planned variant, `readouts`, `behavior_tests`, and at least one
-`visualizations` entry — re-running `/pbg-report` until the warnings clear.
+`visualizations` entry — re-running `/viva-report` until the warnings clear.
 
 ## Migration notes
 
