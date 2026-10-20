@@ -38,7 +38,7 @@ def test_axis_has_all_v2_keys_and_expected_roundtrips():
     a = check("k", "K", 1.0, band(0.0, 2.0), knob=["kcat"], detail="obs")
     for key in ("id","label","verdict","value","meter","detail","expected","margin","severity","units","knob","citation"):
         assert key in a
-    assert a["expected"] == {"kind":"band","value":None,"low":0.0,"high":2.0,"op":"~=","tol":0.05,"statement":None}
+    assert a["expected"] == {"kind":"band","value":None,"low":0.0,"high":2.0,"op":"~=","tol":0.05,"statement":None,"units":None}
     assert a["knob"] == ["kcat"]
 
 def test_sanitize_nonfinite():
