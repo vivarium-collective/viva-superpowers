@@ -95,7 +95,7 @@ def audit_repo(repo_path: Path, run_install: bool = True) -> AuditReport:
         report.add(
             "bigraph-schema dep", "FAIL",
             "not declared — package will not be picked up by allocate_core() auto-discovery",
-            fix='Add "bigraph-schema>=0.0.60" to [project].dependencies',
+            fix='Add "bigraph-schema>=1.8.1" to [project].dependencies',
         )
 
     # 3. process-bigraph dep
