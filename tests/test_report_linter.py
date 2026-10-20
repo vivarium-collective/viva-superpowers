@@ -1514,3 +1514,33 @@ def test_placeholder_patterns_ignore_hyphenated_compounds():
     assert hits("TODO: fill this in") and hits("value is TBD") and hits("XXX")
     # bracketed markers unaffected
     assert hits("see [fill in] and <insert>")
+
+
+# verdict_divergence (H4)
+
+def _verdict_div(tmp_path, spec):
+    from viva_superpowers.report_linter import _LintContext, _check_verdict_divergence
+    ctx = _LintContext(ws_root=tmp_path, slug="s1", spec=spec)
+    _check_verdict_divergence(ctx)
+    return [f for f in ctx.findings if f.check == "verdict_divergence"]
+
+
+def test_verdict_divergence_study_level(tmp_path):
+    out = _verdict_div(tmp_path, {"pipeline_gate": {"gate_evaluator": {"diverges_from_authored": True}}})
+    assert len(out) == 1 and out[0].level == "error"
+    assert out[0].field_path == "pipeline_gate.gate_evaluator.diverges_from_authored"
+
+
+def test_verdict_divergence_per_test(tmp_path):
+    spec = {"runs": [{"computed_outcomes": {"t_growth": {"reconcile": "divergent"},
+                                            "t_ok": {"reconcile": "agree"}}}]}
+    out = _verdict_div(tmp_path, spec)
+    assert len(out) == 1 and out[0].level == "error"
+    assert "t_growth" in out[0].message and "t_growth" in out[0].field_path
+
+
+def test_verdict_divergence_clean_and_malformed(tmp_path):
+    assert _verdict_div(tmp_path, {"pipeline_gate": {"gate_evaluator": {"diverges_from_authored": False}},
+                                   "runs": [{"computed_outcomes": {"t": {"reconcile": "agree"}}}]}) == []
+    assert _verdict_div(tmp_path, {"pipeline_gate": "x", "runs": [None, {"computed_outcomes": []}]}) == []
+    assert _verdict_div(tmp_path, {}) == []

@@ -611,6 +611,9 @@ CHECKS = (
     "incomplete_summaries",
     "status_contradictions",
     "missing_provenance",
+    # Computed verdict contradicts the authored one (H4): blocks publication,
+    # overridable by an author who intends the divergence.
+    "verdict_divergence",
     "unresolved_placeholders",
     "duplicate_modal_phrases",
     "truncated_takeaways",
@@ -848,6 +851,51 @@ def _check_missing_provenance(ctx: _LintContext) -> None:
                 ),
                 check="missing_provenance",
             )
+
+
+def _check_verdict_divergence(ctx: _LintContext) -> None:
+    """Error when the computed verdict contradicts the authored verdict.
+
+    Mirrors needs_attention._verdict_divergence_items: a study-level signal
+    (pipeline_gate.gate_evaluator.diverges_from_authored) and a per-test
+    signal (runs[].computed_outcomes[test].reconcile == "divergent").
+    """
+    spec = ctx.spec
+    gate = spec.get("pipeline_gate")
+    ev = gate.get("gate_evaluator") if isinstance(gate, dict) else None
+    if isinstance(ev, dict) and ev.get("diverges_from_authored"):
+        ctx.add(
+            level="error",
+            field_path="pipeline_gate.gate_evaluator.diverges_from_authored",
+            message=(
+                "The study's computed verdict diverges from the authored "
+                "gate. Reconcile the authored verdict with the computed "
+                "one, or override this check if the divergence is intended."
+            ),
+            check="verdict_divergence",
+        )
+    runs = spec.get("runs") or []
+    if not isinstance(runs, list):
+        return
+    for i, run in enumerate(runs):
+        if not isinstance(run, dict):
+            continue
+        outcomes = run.get("computed_outcomes")
+        if not isinstance(outcomes, dict):
+            continue
+        for test, entry in outcomes.items():
+            if isinstance(entry, dict) and entry.get("reconcile") == "divergent":
+                ctx.add(
+                    level="error",
+                    field_path=f"runs[{i}].computed_outcomes.{test}.reconcile",
+                    message=(
+                        f"Test {test!r} in run index {i} has a computed "
+                        "outcome that is divergent from the authored "
+                        "outcome. Reconcile them, or override this check "
+                        "if the divergence is intended."
+                    ),
+                    check="verdict_divergence",
+                )
 
 
 # --- 4. unresolved_placeholders --------------------------------------------
@@ -3948,6 +3996,7 @@ _CHECK_FUNCTIONS = (
     _check_incomplete_summaries,
     _check_status_contradictions,
     _check_missing_provenance,
+    _check_verdict_divergence,
     _check_unresolved_placeholders,
     _check_duplicate_modal_phrases,
     _check_truncated_takeaways,
