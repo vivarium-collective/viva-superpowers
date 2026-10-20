@@ -1,87 +1,91 @@
-# Study↔Composite Contract-Face Reconciliation (P3) — Plan
+# Study Contract-Face ↔ Run-Observables Reconciliation (P3) — Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (Native) to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans (Native). Steps use checkbox (`- [ ]`).
 
-**Goal:** Light up the dormant study↔composite contract-face reconciliation as a best-effort, report-time check: resolve the real composite's `ProcessContract` and diff the study's declared `contract.face` against it.
+**Goal:** Best-effort, report-time check that every port a study declares in `contract.face` is actually emitted by the study's latest run.
 
-**Architecture:** viva-superpowers only, additive, best-effort. A new resolver builds the study's baseline composite (`build_core` + `CompositeSpec.to_composite`) and reads its contract (`resolve_contract`); a thin reconciler feeds it to the existing `unified_contract_findings`; a `report_linter` check surfaces disagreements. Nothing is wired into the simulator-free `study_audit --gate`.
+**Architecture:** viva-superpowers only, additive, best-effort. Resolve the latest run's emitted observables (`run_registry.latest_run` → `emitter_path` → `viva_emitters.RunReader.observables()`), presence-diff the declared face against them, surface gaps in `report_linter`. Not wired into the simulator-free `study_audit --gate`.
 
-**Tech Stack:** Python 3.12; viva-superpowers on `origin/main` (`4462492`); process-bigraph 1.9.1 / bigraph-schema 1.8.1 (viva-genesis venv); pytest.
+**Tech Stack:** Python 3.12; viva-superpowers on `origin/main` (`4462492`); viva_emitters RunReader; viva-genesis venv; pytest.
 
 **Spec:** `docs/superpowers/specs/2026-10-20-study-contract-face-wire-design.md`
 
 ## Global Constraints
 
-- **No AI attribution** in commits or PR.
-- **viva-superpowers only**; reuse `contract_face_diff` / `lint_study_contract` / `unified_contract_findings` — don't reimplement them.
-- **Best-effort everywhere:** a missing/unbuildable composite or absent `contract.face` → zero findings, never a crash.
+- **No AI attribution** in commits/PR.
+- **viva-superpowers only.** Best-effort everywhere: no `contract.face`, no run, or an unreadable run → zero findings, never a crash, never a fabricated mismatch.
+- **Presence-only:** run observables are untyped; check that a declared port is emitted, do not check type/units.
 - **Worktree:** `~/code/viva-superpowers--contract-face-wire` (branch `feat/study-contract-face-wire`, off `origin/main`). Validate with `~/code/viva-genesis/.venv/bin/python` + `PYTHONPATH=<worktree>`; confirm `import viva_superpowers` resolves into the worktree.
 - Tests in `tests/`.
 
 ## Review Focus
 
-- No `contract.face` declared → abstain (0 findings). → Task 2/3.
-- Composite unbuildable (bad id/params/missing dep) → abstain, no crash. → Task 1/2.
-- Declared face matches → 0 findings. → Task 2.
-- Declared face disagrees (missing port / type / units) → one error finding each. → Task 2/3.
-- bigraph-schema typed audit absent → face diff still runs (version-tolerant via `unified_contract_findings`). → Task 2.
+- No `contract.face` → abstain. → Task 2/3.
+- No run / unreadable run → abstain, no crash. → Task 1/2.
+- Declared port present in observables → no finding; absent → one warning finding. → Task 2.
+- Both inputs and outputs checked against the one observable set. → Task 2.
+- `latest_run`/`RunReader.open` failure never raises into the linter. → Task 1/3.
 
 ---
 
-### Task 1: Composite→contract resolver
+### Task 1: Latest-run observables resolver
 
 **Files:**
-- Create: `viva_superpowers/composite_contract_resolver.py`
-- Test: `tests/test_composite_contract_resolver.py`
+- Create: `viva_superpowers/run_observables.py`
+- Test: `tests/test_run_observables.py`
 
 **Interfaces:**
-- Produces: `contract_of_composite(composite) -> ProcessContract | None` (best-effort `resolve_contract`); `study_composite_contract(study_spec, ws_root, core=None) -> tuple[ProcessContract | None, object | None]` — resolve the workspace package's `build_core()`, `discover_specs(ws_root)`, find the study's baseline composite id, `spec.to_composite(overrides=params, core=core, emit=False)`, then `contract_of_composite`. Returns `(None, core_or_None)` on any failure.
-- Consumes: `bigraph_schema.resolve_contract`; `process_bigraph.composite_spec.discover_specs`; the workspace-package resolution pattern in `study_evaluator._workspace_package`.
+- Produces: `study_run_observables(study_spec, ws_root) -> set[str] | None` — resolve the study dir (`WorkspacePaths(ws_root).study_dir(slug)`; slug from `study_spec["slug"]`/`["name"]`), `run_registry.latest_run(study_dir/"runs.db")`, take `emitter_path` (resolve relative to study_dir), `RunReader.open(emitter_path)`, return `set(reader.observables())`. `None` on any failure (no runs.db, no run row, no emitter_path, open/read error).
+- Consumes: `viva_superpowers.run_registry.latest_run`; `viva_superpowers.workspace_paths.WorkspacePaths`; `viva_emitters.RunReader`.
 
-- [ ] **Step 1: Write failing tests.**
+- [ ] **Step 1: Write failing tests** (use the real og-00 run under viva-genesis — a committed canonical run — for the happy path; a tmp_path for the empty path):
 ```python
-def test_contract_of_composite_reads_face():
-    # build a tiny composite (one registered process, ca_sense→pth_out) via core.access+Composite;
-    # contract_of_composite(composite).face has the composite's inputs/outputs.
-def test_contract_of_composite_none_on_junk():
-    assert contract_of_composite(object()) is None   # best-effort, never raises
-def test_study_composite_contract_none_on_bad_ws(tmp_path):
-    # a study spec whose composite can't be resolved → (None, <core-or-None>), no raise
-    c, core = study_composite_contract({"conditions": {"baseline": {"composite": "nope"}}}, tmp_path)
-    assert c is None
+def test_observables_from_real_run():
+    # ws_root = ~/code/viva-genesis; study slug og-00-vent-reactor-baseline
+    obs = study_run_observables({"slug": "og-00-vent-reactor-baseline"}, "/Users/eranagmon/code/viva-genesis")
+    assert obs and "temperature" in obs and "pressure" not in obs   # pressure declared but not emitted
+def test_observables_none_when_no_run(tmp_path):
+    assert study_run_observables({"slug": "nope"}, tmp_path) is None
 ```
-- [ ] **Step 2: Run tests, verify fail.** `pytest tests/test_composite_contract_resolver.py -v`
-- [ ] **Step 3: Implement.** `contract_of_composite` = `resolve_contract(composite)` in try/except → None. `study_composite_contract`: best-effort build_core (import the ws package per `_workspace_package`), `discover_specs(ws_root)`, read baseline composite id from `spec["conditions"]["baseline"]["composite"]` (+ params), `to_composite(emit=False)`, resolve. Every failure path → `(None, core?)`.
+- [ ] **Step 2: Run tests, verify fail.** `pytest tests/test_run_observables.py -v`
+- [ ] **Step 3: Implement** `study_run_observables` per the Interfaces note; wrap the whole body so any failure → `None`.
 - [ ] **Step 4: Run tests, verify pass.**
-- [ ] **Step 5: Commit.** `feat(contract): best-effort composite→ProcessContract resolver`
+- [ ] **Step 5: Commit.** `feat(contract): latest-run observables resolver`
+
+*Note:* if the committed og-00 run isn't present/readable in CI, downgrade the happy-path test to skip-when-absent and keep the None-path test as the gate; record a ruling.
 
 ---
 
-### Task 2: `reconcile_study_contract`
+### Task 2: `reconcile_study_observables`
 
 **Files:**
-- Modify: `viva_superpowers/study_contract_lint.py` (add the resolver-backed entry alongside the pure `lint_study_contract`)
-- Test: `tests/test_study_contract_lint.py` (add cases)
+- Create: `viva_superpowers/study_observable_lint.py`
+- Test: `tests/test_study_observable_lint.py`
 
 **Interfaces:**
-- Produces: `reconcile_study_contract(study_spec, ws_root) -> list[dict]` — resolve via `study_composite_contract`, then `unified_contract_findings(process_contract, study_face, core)`; `[]` when the study declares no `contract.face` or the composite is unresolvable.
-- Consumes: `composite_contract_resolver.study_composite_contract`; `unified_contract_audit.unified_contract_findings`.
+- Produces: `observable_gaps(study_face: dict, observables) -> list[str]` (pure: a message per declared inputs/outputs port absent from `observables`); `reconcile_study_observables(study_spec, ws_root) -> list[dict]` — `[]` if no `contract.face`; else resolve observables (`study_run_observables`); `[]` if `None`; else `[{severity:"warning", check:"contract-observable", message} for m in observable_gaps(face, obs)]`.
+- Consumes: `run_observables.study_run_observables`.
 
-- [ ] **Step 1: Write failing tests** (monkeypatch the resolver to inject a known `ProcessContract`, so these are deterministic and need no workspace):
+- [ ] **Step 1: Write failing tests** (monkeypatch `study_run_observables` for determinism — no real run needed):
 ```python
-def test_reconcile_flags_declared_mismatch(monkeypatch):
-    # study declares outputs.pth_out: float; injected composite contract lacks it → 1 error finding.
-def test_reconcile_silent_when_faces_agree(monkeypatch):
-    # injected composite face == declared face → [].
-def test_reconcile_abstains_without_declared_face(monkeypatch):
-    # study has no contract.face → [] (resolver not even required).
-def test_reconcile_abstains_when_composite_unresolvable(monkeypatch):
-    # resolver returns (None, None) → [].
+def test_gaps_flags_declared_but_unemitted():
+    face = {"inputs": {"temperature": {}, "pressure": {}}, "outputs": {"formate": {}}}
+    gaps = observable_gaps(face, {"temperature", "formate"})
+    assert any("pressure" in g for g in gaps) and not any("temperature" in g for g in gaps)
+def test_reconcile_silent_without_face(monkeypatch):
+    assert reconcile_study_observables({"name": "x"}, "/ws") == []
+def test_reconcile_silent_without_run(monkeypatch):
+    monkeypatch.setattr(..., "study_run_observables", lambda *a, **k: None)
+    assert reconcile_study_observables({"contract": {"face": {"outputs": {"m": {}}}}}, "/ws") == []
+def test_reconcile_warns_on_gap(monkeypatch):
+    monkeypatch.setattr(..., "study_run_observables", lambda *a, **k: {"temperature"})
+    out = reconcile_study_observables({"contract": {"face": {"outputs": {"heat_flux": {}}}}}, "/ws")
+    assert out and out[0]["check"] == "contract-observable" and out[0]["severity"] == "warning"
 ```
 - [ ] **Step 2: Run tests, verify fail.**
-- [ ] **Step 3: Implement** `reconcile_study_contract`: early-return `[]` if `study_spec["contract"]["face"]` absent; `(contract, core) = study_composite_contract(...)`; if `contract is None` return `[]`; else `unified_contract_findings(contract, study_face, core)`.
+- [ ] **Step 3: Implement** `observable_gaps` + `reconcile_study_observables`.
 - [ ] **Step 4: Run tests, verify pass.**
-- [ ] **Step 5: Commit.** `feat(contract): reconcile study contract.face against composite (report-time)`
+- [ ] **Step 5: Commit.** `feat(contract): reconcile study contract.face against run observables`
 
 ---
 
@@ -89,21 +93,21 @@ def test_reconcile_abstains_when_composite_unresolvable(monkeypatch):
 
 **Files:**
 - Modify: `viva_superpowers/report_linter.py`
-- Test: `tests/test_report_linter.py` (or the report-linter test module) — add cases
+- Test: the report-linter test module — add cases
 
 **Interfaces:**
-- Consumes: `study_contract_lint.reconcile_study_contract`; `_LintContext.ws_root`; the study spec on the context.
-- Produces: a check `_check_contract_face_reconciliation(ctx)` registered in the file's check registry, emitting one error-level `LintFinding` per reconcile finding (reuse the file's finding constructor + `check`/`override_key` conventions).
+- Consumes: `study_observable_lint.reconcile_study_observables`; `_LintContext.ws_root` + the study spec on the context.
+- Produces: `_check_contract_observables(ctx)` registered in the file's check registry, emitting one **warning** `LintFinding` (check slug `contract-observable`) per gap; abstains otherwise; best-effort (a resolver error never breaks the lint run).
 
-- [ ] **Step 1: Recon the registry.** Read how `report_linter` registers checks (`_CHECK_FUNCTIONS` / `CHECKS`), the `LintFinding` constructor, and how a check reads the study spec + `ctx.ws_root`. Mirror an existing error-level check.
-- [ ] **Step 2: Write failing tests.** A study (fixture/dict) declaring a `contract.face` that disagrees with a monkeypatched `reconcile_study_contract` → the lint surfaces an error finding with the expected `check` slug; a study with no face / agreeing face → none. (Monkeypatch `reconcile_study_contract` to avoid building a real composite in the linter test.)
+- [ ] **Step 1: Recon** the check registry (`_CHECK_FUNCTIONS`/`CHECKS`), the `LintFinding` constructor + `override_key`, and how a check reads the study spec + `ctx.ws_root`. Mirror an existing warning-level check.
+- [ ] **Step 2: Write failing tests** (monkeypatch `reconcile_study_observables`): a study declaring a face with a gap → one warning finding with slug `contract-observable`; no face / no gap → none.
 - [ ] **Step 3: Run tests, verify fail.**
-- [ ] **Step 4: Implement** `_check_contract_face_reconciliation(ctx)`: call `reconcile_study_contract(ctx.spec, ctx.ws_root)`; map each finding to a `LintFinding(severity error, check "contract-face", ...)`; register in the check registry. Best-effort (wrap so a resolver error never breaks the lint run).
-- [ ] **Step 5: Run tests + the existing report_linter suite, verify pass.** `pytest tests/ -k "report_linter or contract" -q`
-- [ ] **Step 6: Commit.** `feat(report-linter): surface study↔composite contract-face disagreements`
+- [ ] **Step 4: Implement** `_check_contract_observables(ctx)`; register it; wrap best-effort.
+- [ ] **Step 5: Run tests + the existing report_linter suite, verify pass.** `pytest tests/ -k "report_linter or observable or contract" -q`
+- [ ] **Step 6: Commit.** `feat(report-linter): surface declared-but-unemitted contract.face ports`
 
 ---
 
 ## Final whole-branch review
 
-Run `pytest -q` (full viva-superpowers suite); confirm no regression. Dispatch a fresh whole-branch review (most capable model) with this plan + spec + Review Focus. Fix Critical/Important in one TDD pass; ledger minors. Then `superpowers:finishing-a-development-branch` (push + PR, no auto-merge).
+`pytest -q` (full suite; note any pre-existing failures by name). Dispatch a fresh whole-branch review (most capable model) with this plan + spec + Review Focus. Fix Critical/Important in one TDD pass; ledger minors. Then `superpowers:finishing-a-development-branch` (push + PR, no auto-merge).
