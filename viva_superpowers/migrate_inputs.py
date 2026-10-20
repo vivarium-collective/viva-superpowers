@@ -24,8 +24,9 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import subprocess
 from pathlib import Path
+
+from viva_superpowers.migrate_fs import git_mv as _git_mv
 
 import yaml
 
@@ -101,12 +102,6 @@ def plan_inputs_migration(ws_root: Path) -> dict:
             "global": global_items, "ambiguous": ambiguous}
 
 
-def _git_mv(src: Path, dest: Path, ws: Path) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(["git", "-C", str(ws), "mv", str(src), str(dest)],
-                       capture_output=True, text=True)
-    if r.returncode != 0:  # untracked / not a git repo -> plain move
-        src.replace(dest)
 
 
 def _append_input_dataset(inv_yaml: Path, name: str) -> None:

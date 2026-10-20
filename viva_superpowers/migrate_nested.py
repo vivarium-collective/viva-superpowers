@@ -12,8 +12,9 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import subprocess
 from pathlib import Path
+
+from viva_superpowers.migrate_fs import git_mv as _git_mv
 
 import yaml
 
@@ -77,12 +78,6 @@ def plan_migration(workspace: Path) -> dict:
     return {"workspace": str(workspace), "moves": moves, "orphans": orphans}
 
 
-def _git_mv(src: Path, dest: Path, ws: Path) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(["git", "mv", str(src), str(dest)], cwd=ws,
-                       capture_output=True, text=True)
-    if r.returncode != 0:  # untracked / not a git repo -> plain move
-        src.replace(dest)
 
 
 def _rewrite_layout(ws: Path) -> None:
