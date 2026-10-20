@@ -2913,6 +2913,101 @@ def _check_readout_migration_status(ctx: _LintContext) -> None:
         )
 
 
+def fetch_study_observable_check(
+    ws_root: Path, slug: str, *, timeout: float = 2.0
+) -> dict | None:
+    """Fetch a study's readout↔contract verdict from a *running* workbench.
+
+    The workbench validates every readout against its baseline composites'
+    real structure at ``GET /api/study-observable-check?study=<slug>`` (it runs
+    ``available_observables`` + ``validate_readouts`` in an env worker, reusing
+    the server's already-built composites — so this never builds anything here).
+
+    Returns the parsed payload, or ``None`` when no workbench is running / it is
+    unreachable / the response isn't usable. ``None`` makes
+    ``_check_readout_contract`` a graceful no-op, keeping the offline linter
+    deterministic (a check that only fires against a live server). The call is
+    a short-timeout GET; any failure is swallowed into ``None``.
+    """
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    from viva_superpowers import server_preflight
+
+    url = server_preflight.read_server_url(ws_root)
+    if not url:
+        return None
+    endpoint = f"{url.rstrip('/')}/api/study-observable-check?" + urllib.parse.urlencode(
+        {"study": slug}
+    )
+    try:
+        with urllib.request.urlopen(endpoint, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+# Readout-contract statuses this check acts on. ``ok`` is clean; ``aspirational``
+# is runtime-only (bulk ids — not statically checkable); ``unresolved`` is owned
+# by _check_readout_migration_status. Only the two below are defects this gate
+# should surface. ``not_in_structure`` is the never-fabricate flag (a selector
+# pointing at an observable NO baseline composite exposes) → blocking error;
+# ``unit_mismatch`` is #1396's typed check (a declared unit dimensionally
+# incompatible with the port contract) → warning (version-tolerant, so not a
+# hard block on its own).
+_READOUT_CONTRACT_LEVEL = {"not_in_structure": "error", "unit_mismatch": "warning"}
+
+
+def _check_readout_contract(ctx: _LintContext) -> None:
+    """Surface the #1396 readout↔contract audit in the lint gate.
+
+    Wires ``GET /api/study-observable-check`` (which runs ``validate_readouts``
+    against the baseline composites' real structure) into report linting so a
+    never-fabricate ``not_in_structure`` blocks a reviewer-facing render, and a
+    ``unit_mismatch`` warns. Reaches a *running* workbench and skips gracefully
+    when none is up (see ``fetch_study_observable_check``) — this keeps the
+    offline/CI linter deterministic while adding the typed-contract gate
+    whenever a server is available.
+    """
+    payload = fetch_study_observable_check(ctx.ws_root, ctx.slug)
+    if not payload:
+        return  # no running workbench / unreachable — graceful skip
+    results = payload.get("readouts")
+    if not isinstance(results, list):
+        return  # error-shaped (e.g. no baseline) — nothing to surface
+    for res in results:
+        if not isinstance(res, dict):
+            continue
+        level = _READOUT_CONTRACT_LEVEL.get(res.get("status"))
+        if level is None:
+            continue
+        name = res.get("name", "<unnamed>")
+        detail = (res.get("detail") or "").strip()
+        if res.get("status") == "not_in_structure":
+            body = (
+                f"readout {name!r}: selector points at an observable no baseline "
+                "composite exposes (never-fabricate). Fix the selector or add the "
+                "observable to the composite — a readout that can't resolve against "
+                "the real contract must not ship in a reviewer-facing report."
+            )
+        else:  # unit_mismatch
+            body = (
+                f"readout {name!r}: declared unit is dimensionally incompatible "
+                "with the port contract. Reconcile the readout's units with the "
+                "composite's typed port."
+            )
+        if detail:
+            body = f"{body} ({detail})"
+        ctx.add(
+            level=level,
+            field_path=f"readouts[{name}]",
+            message=body,
+            check="readout_contract",
+        )
+
+
 def _check_speculative_readout_paths(ctx: _LintContext) -> None:
     """Warning when a readout claims `path:` that doesn't resolve on disk.
 
@@ -4063,6 +4158,7 @@ _CHECK_FUNCTIONS = (
     _check_speculative_readout_paths,
     # SP2b-ii: readout migration status (migratable + needs_human)
     _check_readout_migration_status,
+    _check_readout_contract,
     # Wave 3a: workflow-typing enums (next_action_type / study_type)
     _check_workflow_typing,
     # Wave 3b: claim_scope / generality / lifecycle_state enums + floor

@@ -139,6 +139,38 @@ def test_golden_middle_dot_group_needs_human():
     assert "DnaA-form counts" not in report["migrated"]
 
 
+def test_bare_string_readout_is_needs_human_not_a_crash():
+    """A readout authored as a bare prose string (the pre-canonical dialect,
+    e.g. the mcs-11 study) must be flagged needs_human with a clear reason —
+    never crash migrate_readouts with ``'str' object has no attribute 'get'``.
+
+    migrate_readouts(resolve_readout) assumed every readout is a dict; a bare
+    string leaked an uncaught AttributeError up through readout_migration_status
+    into the report linter, silently voiding that study's readout check. Mirror
+    the string guard resolve_study_readouts already has."""
+    prose = "acetate secretion vs growth rate with the ETC fix on (held-out curve)"
+    spec = {"readouts": [prose]}
+    new, report = migrate_readouts(spec)  # must not raise
+    # kept byte-for-byte (nothing guessed)
+    assert new == [prose]
+    # flagged, parallel-length preserved, not counted as migrated
+    assert report["migrated"] == []
+    names = [h["name"] for h in report["needs_human"]]
+    assert prose in names
+    h = _by_name(report["needs_human"], prose)
+    assert "string" in (h["reason"] or "").lower()
+
+
+def test_mixed_string_and_dict_readouts_migrate_independently():
+    """A list mixing a bare-string prose readout with a resolvable dict keeps
+    them parallel: the dict migrates, the string is needs_human."""
+    spec = {"readouts": ["prose only, no selector", RO_LITERAL_INDEX]}
+    new, report = migrate_readouts(spec)
+    assert len(new) == 2
+    assert report["migrated"] == ["DnaA monomer total"]
+    assert [h["name"] for h in report["needs_human"]] == ["prose only, no selector"]
+
+
 def test_golden_scalar_qualifier_folds_into_description():
     """A scalar with a trailing prose qualifier migrates to store_path; the
     stripped qualifier is preserved in the description (nothing lost)."""

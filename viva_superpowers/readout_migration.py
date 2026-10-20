@@ -122,6 +122,29 @@ def migrate_readouts(spec: dict) -> tuple[list[dict], dict]:
     needs_human: list[dict] = []
 
     for i, ro in enumerate(readouts):
+        # Studies may author readouts as bare prose strings rather than
+        # structured dicts (the pre-canonical dialect). Mirror the guard in
+        # resolve_study_readouts: treat a string as unresolvable prose and flag
+        # it needs_human instead of crashing on ``str.get`` (which otherwise
+        # leaks an uncaught AttributeError up into the report linter and
+        # silently voids that study's readout check).
+        if isinstance(ro, str):
+            new_readouts.append(ro)
+            needs_human.append({
+                "name": ro,
+                "reason": (
+                    "prose readout authored as a string, not a structured "
+                    "readout dict — re-author against the composite's real "
+                    "observables (/viva-study check-observables)"
+                ),
+            })
+            entries.append({
+                "name": ro,
+                "status": "needs_human",
+                "reason": "prose readout authored as a string",
+            })
+            continue
+
         name = ro.get("name", f"readout_{i}")
         resolved = resolve_readout(ro)
 
