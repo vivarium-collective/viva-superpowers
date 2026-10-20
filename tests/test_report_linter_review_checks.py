@@ -32,6 +32,7 @@ from viva_superpowers.report_linter import (
     _check_gate_class_declared,
     _check_stochastic_unseeded,
     _check_unearned_unit_labels,
+    _check_verdict_divergence,
     lint_workspace_report,
 )
 
@@ -54,10 +55,11 @@ def _by_check(findings, name):
 def test_new_checks_registered_in_checks_and_functions():
     for name in ("gate_class_missing", "gate_class_unknown",
                  "config_consumption", "stochastic_unseeded",
-                 "unearned_unit_labels"):
+                 "unearned_unit_labels", "verdict_divergence"):
         assert name in CHECKS, f"{name} missing from CHECKS registry"
     for fn in (_check_gate_class_declared, _check_config_consumption,
-               _check_stochastic_unseeded, _check_unearned_unit_labels):
+               _check_stochastic_unseeded, _check_unearned_unit_labels,
+               _check_verdict_divergence):
         assert fn in _CHECK_FUNCTIONS, f"{fn.__name__} not in _CHECK_FUNCTIONS"
 
 
@@ -417,3 +419,39 @@ def test_checks_surface_through_lint_workspace_report(tmp_path):
     assert "config_consumption" in checks
     assert "gate_class_missing" in checks
     assert "unearned_unit_labels" in checks
+
+
+# ---------------------------------------------------------------------------
+# finding_without_evidence escalation (shared predicate with study-audit gate)
+# ---------------------------------------------------------------------------
+
+
+def _fwe_spec(verdict, status="confirms"):
+    spec = {"name": "s1", "findings": [
+        {"id": "F-01", "kind": "biological", "status": status,
+         "statement": "x", "evidence": {}}]}
+    if verdict:
+        spec["report"] = {"verdict": verdict}
+    return spec
+
+
+def test_finding_without_evidence_errors_for_supporting_of_accepted(tmp_path):
+    from viva_superpowers.report_linter import _check_finding_without_evidence
+    got = _by_check(_run(_check_finding_without_evidence, tmp_path,
+                         _fwe_spec("accepted")), "finding_without_evidence")
+    assert [f.level for f in got] == ["error"]
+
+
+def test_finding_without_evidence_warns_when_not_accepted(tmp_path):
+    from viva_superpowers.report_linter import _check_finding_without_evidence
+    got = _by_check(_run(_check_finding_without_evidence, tmp_path,
+                         _fwe_spec(None)), "finding_without_evidence")
+    assert [f.level for f in got] == ["warning"]
+
+
+def test_finding_without_evidence_warns_for_caveat_in_accepted(tmp_path):
+    from viva_superpowers.report_linter import _check_finding_without_evidence
+    got = _by_check(_run(_check_finding_without_evidence, tmp_path,
+                         _fwe_spec("accepted", status="partial")),
+                    "finding_without_evidence")
+    assert [f.level for f in got] == ["warning"]

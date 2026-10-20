@@ -740,3 +740,41 @@ def write_gate_evaluator(study_dir) -> bool:
     ryaml.dump(rt_spec, buf)
     study_io.atomic_write(study_yaml, buf.getvalue())
     return True
+
+
+# Findings that do NOT back an Accepted conclusion: Pass-10A ``status`` values
+# that qualify or oppose it (partial = caveat-like, contradicts = refuting), plus
+# the literal caveat/refuted/exploratory labels some authors put in status/kind.
+_NON_SUPPORTING_FINDING = frozenset({
+    "partial", "contradicts", "caveat", "refuted", "exploratory"})
+
+_ACCEPTED_VERDICTS = frozenset({
+    "passed", "pass", "passing", "passing-with-caveats", "accepted"})
+
+
+def is_supporting_finding(f: dict) -> bool:
+    """True when a finding backs (rather than qualifies/opposes) a conclusion."""
+    if f.get("obsoleted_by"):
+        return False
+    for key in ("status", "kind"):
+        v = f.get(key)
+        if isinstance(v, str) and v.strip().lower() in _NON_SUPPORTING_FINDING:
+            return False
+    return True
+
+
+def study_accepted_on_verdict(spec: dict) -> bool:
+    """True when confidence is Accepted AND rests on a real verdict signal
+    (computed roll-up ``passed``, or an authored accepted ``report.verdict`` /
+    ``gate_status``). Accepted purely from lifecycle status -> False. Returns
+    False on any error. Shared by the study-audit gate and the report linter."""
+    try:
+        if derive_confidence(spec) != "Accepted":
+            return False
+        authored = ((spec.get("report") or {}).get("verdict")
+                    or spec.get("gate_status") or "")
+        if str(authored).strip().lower() in _ACCEPTED_VERDICTS:
+            return True
+        return (roll_up_verdict(spec) or {}).get("result") == "passed"
+    except Exception:  # noqa: BLE001 - cannot resolve -> not accepted
+        return False
