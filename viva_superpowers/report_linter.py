@@ -55,6 +55,7 @@ from viva_superpowers.band_provenance import has_numeric_band as _is_numeric_ban
 from viva_superpowers.bibtex import bib_keys
 from viva_superpowers.rigor import run_is_emitter_backed
 from viva_superpowers.workspace_paths import WorkspacePaths
+from viva_superpowers.study_observable_lint import reconcile_study_observables
 
 
 # ---------------------------------------------------------------------------
@@ -3999,7 +4000,28 @@ def _check_authored_confidence_diverges(ctx: _LintContext) -> None:
     )
 
 
+def _check_contract_observables(ctx: _LintContext) -> None:
+    """Warn when a study declares a ``contract.face`` port its latest run never
+    emits — a declared observable the simulation does not actually produce.
+
+    Best-effort: resolving the run is wrapped so a missing/unreadable run (or any
+    resolver error) leaves the lint run untouched rather than failing it.
+    """
+    try:
+        findings = reconcile_study_observables(ctx.spec, ctx.ws_root)
+    except Exception:  # noqa: BLE001 - best-effort; never break the lint run
+        return
+    for finding in findings:
+        ctx.add(
+            level=finding.get("severity", "warning"),
+            field_path="contract.face",
+            message=finding["message"],
+            check="contract-observable",
+        )
+
+
 _CHECK_FUNCTIONS = (
+    _check_contract_observables,
     _check_renders_via_dashboard,
     _check_incomplete_summaries,
     _check_status_contradictions,
