@@ -32,6 +32,7 @@ from viva_superpowers.report_linter import (
     _check_gate_class_declared,
     _check_stochastic_unseeded,
     _check_unearned_unit_labels,
+    _check_verdict_divergence,
     lint_workspace_report,
 )
 
@@ -54,10 +55,11 @@ def _by_check(findings, name):
 def test_new_checks_registered_in_checks_and_functions():
     for name in ("gate_class_missing", "gate_class_unknown",
                  "config_consumption", "stochastic_unseeded",
-                 "unearned_unit_labels"):
+                 "unearned_unit_labels", "verdict_divergence"):
         assert name in CHECKS, f"{name} missing from CHECKS registry"
     for fn in (_check_gate_class_declared, _check_config_consumption,
-               _check_stochastic_unseeded, _check_unearned_unit_labels):
+               _check_stochastic_unseeded, _check_unearned_unit_labels,
+               _check_verdict_divergence):
         assert fn in _CHECK_FUNCTIONS, f"{fn.__name__} not in _CHECK_FUNCTIONS"
 
 
