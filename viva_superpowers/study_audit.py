@@ -378,6 +378,9 @@ def _audit_study(audit, sdir, wp, known_slugs, known_composites, generator_param
     # --- L0 canonical-model-schema -----------------------------------------
     _check_model_schema(audit, spec)
 
+    # --- L0 schema-valid (contract.face HARD, other drift SOFT) ------------
+    _check_schema_valid(audit, wp, spec)
+
     # The L1 model checks reason over the CANONICALIZED model: a variant that
     # omits `composite` legitimately inherits the baseline's, so resolvability /
     # param validation must see the effective (post-canonicalization) model, not
@@ -487,6 +490,49 @@ def _declares_outputs(spec: dict) -> bool:
         if isinstance(val, (list, dict)) and len(val) > 0:
             return True
     return False
+
+
+def _check_schema_valid(audit, wp, spec: dict) -> None:
+    """L0: validate the study spec against the workspace's study.schema.json.
+
+    Errors anchored under ``contract`` are HARD (the formalized typed port
+    contract), so a malformed ``contract.face`` blocks the gate. Any other
+    schema error is SOFT (surfaces drift without red-walling pre-existing
+    issues). Abstains -- appends nothing -- if the schema file is missing or
+    jsonschema can't run, so it never fabricates a violation."""
+    try:
+        import json as _json
+        import jsonschema as _js
+        schema_path = wp.root / ".pbg" / "schemas" / "study.schema.json"
+        if not schema_path.is_file():
+            return
+        validator = _js.Draft202012Validator(_json.loads(schema_path.read_text()))
+        errors = list(validator.iter_errors(spec))
+    except Exception:  # noqa: BLE001 - cannot resolve -> abstain
+        return
+
+    def _loc(e) -> str:
+        path = "/".join(str(p) for p in e.absolute_path) or "<root>"
+        return f"{path}: {e.message[:70]}"
+
+    contract_errs = [e for e in errors
+                     if e.absolute_path and e.absolute_path[0] == "contract"]
+    other_errs = [e for e in errors
+                  if not (e.absolute_path and e.absolute_path[0] == "contract")]
+
+    if contract_errs:
+        audit.checks.append(CheckResult(
+            "L0", "schema-contract-valid", FAIL, HARD,
+            "contract.face violates the schema: "
+            + "; ".join(_loc(e) for e in contract_errs[:5])))
+    else:
+        audit.checks.append(CheckResult("L0", "schema-contract-valid", PASS, HARD))
+
+    if other_errs:
+        audit.checks.append(CheckResult(
+            "L0", "schema-valid", WARN, SOFT,
+            f"{len(other_errs)} schema finding(s): "
+            + "; ".join(_loc(e) for e in other_errs[:3])))
 
 
 def _report_card_dir(sdir: Path) -> Path:
