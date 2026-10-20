@@ -9,7 +9,7 @@ A **bespoke runner** is a hand-written `studies/<slug>/sims/run_*.py` (or `scrip
 - External-tool wrappers (Cobaya, SLURM, IPython kernel handoffs)
 - Parquet rerun pipelines (workspaces that pre-date the parquet shim and want the same script to drive both emitter types)
 
-If the runner can be expressed as a composite + `parameter_overrides`, use `/pbg-study run-baseline` / `run-variant` instead — those go through the dashboard, surface the run in `runs.db` automatically, and integrate with the auto-renderer.
+If the runner can be expressed as a composite + `parameter_overrides`, use `/viva-study run-baseline` / `run-variant` instead — those go through the dashboard, surface the run in `runs.db` automatically, and integrate with the auto-renderer.
 
 ## The pattern
 
@@ -54,9 +54,9 @@ Every bespoke runner should:
 
 3. **`emit.bind(composite)` on the parquet path.** PR #88 (`fix(parquet): auto-flush bound composite on context exit`) added a `ParquetEmitterContext` that auto-flushes on exit when a composite is bound. Without `.bind()`, the trailing partial batch + `success/` sentinel are lost — only the `configuration/` parquet lands. The `sqlite_emitter` path doesn't need this; `SQLiteEmitter.__del__` flushes unconditionally.
 
-4. **Workspace-root paths** for `out_path`, hive `out_dir`, and the runner script itself. Runners expect CWD = workspace root (so `out/cache/`, `studies/...`, etc. resolve). The `/pbg-study run-script` skill enforces this by `cd <workspace-root> && python <script> <args...>`.
+4. **Workspace-root paths** for `out_path`, hive `out_dir`, and the runner script itself. Runners expect CWD = workspace root (so `out/cache/`, `studies/...`, etc. resolve). The `/viva-study run-script` skill enforces this by `cd <workspace-root> && python <script> <args...>`.
 
-5. **`canonical_runs:` entry on `study.yaml`** so `/pbg-study run-script <slug>` can find the runner:
+5. **`canonical_runs:` entry on `study.yaml`** so `/viva-study run-script <slug>` can find the runner:
 
     ```yaml
     canonical_runs:
@@ -81,6 +81,6 @@ The dnaa-biology session's runners (`studies/dnaa-0*/sims/run_*.py`) currently h
 
 ## What this doesn't cover
 
-- **No scaffolder yet.** This document is convention for hand-writers. A future `/pbg-study scaffold-runner <slug> <entry-name>` would emit a Jinja template with the pattern pre-filled and add the matching `canonical_runs:` entry; not built. Until then, copy from the mbp runner.
+- **No scaffolder yet.** This document is convention for hand-writers. A future `/viva-study scaffold-runner <slug> <entry-name>` would emit a Jinja template with the pattern pre-filled and add the matching `canonical_runs:` entry; not built. Until then, copy from the mbp runner.
 - **No `run_multigen_{sqlite,parquet}` helpers documented here.** The mbp runner imports them from `v2ecoli/library/{sqlite_run,parquet_run}.py` — workspace-specific wrappers for division-spanning runs. Not a general framework concern.
 - **No emitter-override at the dashboard level.** `workspace.yaml.runtime.default_emitter` is read by individual runners, not by the dashboard's `/api/study-run-baseline` (which uses its own in-process emitter wiring). If/when bespoke runners and dashboard-managed runners need to share an emitter override, lift the lookup into a shared helper.

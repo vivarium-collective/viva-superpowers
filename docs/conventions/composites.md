@@ -174,7 +174,7 @@ from viva_superpowers.composite_discovery import discover_composites
 
 # Discover from all installed packages
 specs = discover_composites()
-# {"pbg_chromosome_rep1.composites.baseline": <spec dict>, ...}
+# {"viva_chromosome_rep1.composites.baseline": <spec dict>, ...}
 
 # Also search workspace-local directories
 from pathlib import Path
@@ -182,17 +182,17 @@ specs = discover_composites(extra_search_paths=[Path("composites/")])
 ```
 
 Spec IDs follow the pattern `<pkg_name>.<subpath>.<file_stem>` — e.g.
-`pbg_chromosome_rep1.composites.baseline` for the file
-`pbg_chromosome_rep1/composites/baseline.composite.yaml`.
+`viva_chromosome_rep1.composites.baseline` for the file
+`viva_chromosome_rep1/composites/baseline.composite.yaml`.
 
 Discovery **never imports the spec's processes** — it only reads files. This
 keeps it safe to call at startup or in CI without needing every simulator
 installed.
 
-## Why this lives in pbg-superpowers (for now)
+## Why this lives in viva-superpowers (for now)
 
 The convention is intentionally framework-level, but it belongs in
-`pbg-superpowers` until it stabilizes. Once battle-tested across several pbg-*
+`viva-superpowers` until it stabilizes. Once battle-tested across several viva-*
 packages, the plan is to propose it upstream to `process-bigraph` as an optional
 discovery layer alongside the existing class-based registration.
 
@@ -221,5 +221,5 @@ association in VS Code or PyCharm).
   function-based sibling for composites that need to compute initial state
   or introspect processes at build time.
 - [Process discovery convention](discovery.md) — how processes (code) are discovered
-- `/pbg-expert --lightweight <name> <tools…>` skill — writes in-workspace composite
+- `/viva-expert --lightweight <name> <tools…>` skill — writes in-workspace composite
   generator Python files (`@composite_generator`-decorated functions).

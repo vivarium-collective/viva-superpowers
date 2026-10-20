@@ -6,10 +6,10 @@
 
 | Skill | What it does |
 |---|---|
-| [`/viva-expert <tool>`](../skills/viva-expert/SKILL.md) | Wrap a simulator as a Process — full sibling `pbg-<tool>/` repo with Process class, tests, README, HTML report, and a local commit. **Bridges the REAL tool by default** (keeps trying even when the build is hard); never silently downgrades. The canonical wrap. |
-| [`/viva-expert <name> <tools…>`](../skills/viva-expert/SKILL.md) | Compose two or more wrapped simulators into a sibling `pbg-<name>-composite/` repo with HTML report and a local commit. |
-| [`/viva-expert --lightweight <tool>`](../skills/viva-expert/SKILL.md#lightweight-mode) | Lightweight in-workspace wrap: writes `pbg_<slug>/processes/<tool>.py` + a test. Still a **real bridge** (lazy-imports + drives the genuine tool); only the repo scaffolding is dropped. No sibling repo, no report. (Alias: `--in-workspace`. Replaces v0.8 `/pbg-wrapper`.) |
-| [`/viva-expert --lightweight <name> <tools…>`](../skills/viva-expert/SKILL.md#lightweight-mode) | Lightweight in-workspace composite: writes `pbg_<slug>/composites/<name>.py` + a test. (Replaces v0.8 `/pbg-composer`.) |
+| [`/viva-expert <tool>`](../skills/viva-expert/SKILL.md) | Wrap a simulator as a Process — full sibling `viva-<tool>/` repo with Process class, tests, README, HTML report, and a local commit. **Bridges the REAL tool by default** (keeps trying even when the build is hard); never silently downgrades. The canonical wrap. |
+| [`/viva-expert <name> <tools…>`](../skills/viva-expert/SKILL.md) | Compose two or more wrapped simulators into a sibling `viva-<name>-composite/` repo with HTML report and a local commit. |
+| [`/viva-expert --lightweight <tool>`](../skills/viva-expert/SKILL.md#lightweight-mode) | Lightweight in-workspace wrap: writes `viva_<slug>/processes/<tool>.py` + a test. Still a **real bridge** (lazy-imports + drives the genuine tool); only the repo scaffolding is dropped. No sibling repo, no report. (Alias: `--in-workspace`. Replaces v0.8 `/pbg-wrapper`.) |
+| [`/viva-expert --lightweight <name> <tools…>`](../skills/viva-expert/SKILL.md#lightweight-mode) | Lightweight in-workspace composite: writes `viva_<slug>/composites/<name>.py` + a test. (Replaces v0.8 `/pbg-composer`.) |
 | [`/viva-expert --reproduce <tool>`](../skills/viva-expert/SKILL.md#reproduction-mode) | Opt-in: clean-room reimplement the tool's published algorithm as a labeled `<Tool>ReproductionProcess` (for when the real tool genuinely can't run here). Not the default. |
 | [`/viva-expert --mock <tool>`](../skills/viva-expert/SKILL.md#mock-mode) | Opt-in: emit a non-functional `<Tool>MockProcess` placeholder (real ports, inert `update()`) for scaffolding/wiring only. Never a fallback for a hard build. Alias `--stub`. |
 
@@ -17,7 +17,7 @@
 
 | Skill | What it does |
 |---|---|
-| [`/viva-workspace <name>`](../skills/viva-workspace/SKILL.md) | Scaffold a fresh workspace — three modes: upstream-branch (clone an upstream model repo and create a workspace branch), standalone (clone `pbg-template`), or in-place (promote an existing checkout). |
+| [`/viva-workspace <name>`](../skills/viva-workspace/SKILL.md) | Scaffold a fresh workspace — three modes: upstream-branch (clone an upstream model repo and create a workspace branch), standalone (clone `viva-template`), or in-place (promote an existing checkout). |
 | [`/viva-workbench [start\|stop\|status\|open\|restart]`](../skills/viva-workbench/SKILL.md) | Start/stop/open the interactive vivarium-workbench (the side-rail-tabbed UI) and use its **session-per-tab** model — one workspace per browser tab. The single server every Studies skill depends on; it also serves the study reports. (Renamed from the former `/pbg-dashboard`.) |
 
 ## Catalog & registry
@@ -25,12 +25,12 @@
 | Skill | What it does |
 |---|---|
 | [`/viva-catalog [list]`](../skills/viva-catalog/SKILL.md) | Browse the workspace catalog — composites, studies, registry. Default subcommand when no args. (Replaces v0.8 `/pbg-list`.) |
-| [`/viva-catalog install <pkg>`](../skills/viva-catalog/SKILL.md#install) | Add a curated `pbg-*` package, install it, refresh the workspace catalog. (Replaces v0.8 `/pbg-install`.) |
-| [`/viva-catalog uninstall <pkg>`](../skills/viva-catalog/SKILL.md#uninstall) | Remove an installed `pbg-*` package. (Replaces v0.8 `/pbg-uninstall`.) |
+| [`/viva-catalog install <pkg>`](../skills/viva-catalog/SKILL.md#install) | Add a curated `viva-*` package, install it, refresh the workspace catalog. (Replaces v0.8 `/pbg-install`.) |
+| [`/viva-catalog uninstall <pkg>`](../skills/viva-catalog/SKILL.md#uninstall) | Remove an installed `viva-*` package. (Replaces v0.8 `/pbg-uninstall`.) |
 
-Maintainer-only: to audit an external `pbg-*` repo for discovery- and
+Maintainer-only: to audit an external `viva-*` repo for discovery- and
 packaging-convention compliance, run `python scripts/audit-pbg-repo.py <repo>`
-from a pbg-superpowers checkout. (Replaces the v0.8 `/pbg-package` skill.)
+from a viva-superpowers checkout. (Replaces the v0.8 `/pbg-package` skill.)
 
 ## Run, explore, study
 

@@ -1,8 +1,8 @@
-# pbg-* distribution convention
+# viva-* distribution convention
 
-Every `pbg-*` wrapper package SHOULD publish to PyPI when the underlying
-simulator is installable. This makes pbg-* packages first-class Python
-dependencies that consumers can `uv pip install pbg-<tool>` from anywhere
+Every `viva-*` wrapper package SHOULD publish to PyPI when the underlying
+simulator is installable. This makes viva-* packages first-class Python
+dependencies that consumers can `uv pip install viva-<tool>` from anywhere
 — no submodule juggling, no `[tool.uv.sources]` mappings, no broken CI
 when sub-submodules have orphan gitlinks.
 
@@ -10,7 +10,7 @@ when sub-submodules have orphan gitlinks.
 
 - The underlying simulator is itself pip-installable (with or without
   compiled native deps), OR
-- The pbg-* wrapper is pure-Python and stands alone
+- The viva-* wrapper is pure-Python and stands alone
 
 ## When git-only is acceptable (with explicit justification)
 
@@ -23,8 +23,8 @@ catalog entry MUST omit `pypi_name`.
 
 ## Distribution naming
 
-- Repo name = PyPI distribution name = `pbg-<tool>` (kebab-case)
-- Python import name = `pbg_<tool>` (underscores)
+- Repo name = PyPI distribution name = `viva-<tool>` (kebab-case)
+- Python import name = `viva_<tool>` (underscores)
 - Tag releases as `v<MAJOR>.<MINOR>.<PATCH>` (semver)
 
 ## Minimum `pyproject.toml`
@@ -35,7 +35,7 @@ requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pbg-<tool>"
+name = "viva-<tool>"
 version = "0.1.0"
 description = "Process-bigraph wrapper for <Tool>"
 readme = "README.md"
@@ -54,11 +54,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/vivarium-collective/pbg-<tool>"
-Issues = "https://github.com/vivarium-collective/pbg-<tool>/issues"
+Homepage = "https://github.com/vivarium-collective/viva-<tool>"
+Issues = "https://github.com/vivarium-collective/viva-<tool>/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["pbg_<tool>"]
+packages = ["viva_<tool>"]
 ```
 
 ## Release workflow
@@ -92,10 +92,10 @@ See https://docs.pypi.org/trusted-publishers/.
 
 ## uv enforcement
 
-Workspaces created via pbg-template MUST use `uv venv` (not
+Workspaces created via viva-template MUST use `uv venv` (not
 `python -m venv`). Rationale: uv is faster, handles modern lockfiles
 better, and the catalog Install logic uses `uv pip install --python
-<venv-py>` to install pbg-* packages from PyPI or local paths.
+<venv-py>` to install viva-* packages from PyPI or local paths.
 
 Scaffolded workspaces' `NEXT_STEPS.md.j2` and `template-init.sh` use uv
 exclusively. Skills (`/viva-workspace`, `/viva-workbench`) follow suit.

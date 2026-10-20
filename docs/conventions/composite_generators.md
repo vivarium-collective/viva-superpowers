@@ -204,7 +204,7 @@ Two rules for whatever regenerates those artifacts:
   "default state for generator '<x>' is not generated yet" forever, with a
   committed artifact making the gap look filled. Fail the regeneration instead;
   a missing artifact is honest and step (3) still covers the live UI.
-  `pbg-template` ships `tests/test_composite_state_artifacts.py` to enforce this.
+  `viva-template` ships `tests/test_composite_state_artifacts.py` to enforce this.
 - **Emit the alias id too.** Discovery canonicalizes `<module>.<name>` to
   `<module>` when the module stem already is the name, but the workspace
   manifest still advertises both forms and pop-out URLs are built from whichever
