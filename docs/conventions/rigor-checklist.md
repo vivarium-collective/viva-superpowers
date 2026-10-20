@@ -7,7 +7,7 @@ reports, per study, `ok` / `warn` / `gap` on each dimension below, plus an
 investigation roll-up. **A missing field is a `gap`** — that is the feedback.
 
 Author studies so the scorecard goes green. This is the canonical list of
-required information; `/pbg-study` and `/pbg-investigation` reference it, and the
+required information; `/viva-study` and `/viva-investigation` reference it, and the
 report surfaces each dimension. None of it is a hard gate — it is standing
 feedback — but a finished study should address every dimension or say why not.
 
@@ -56,7 +56,7 @@ field is a `gap` — that is the feedback.
 
 ## Worked example
 
-`pbg-autopoiesis` is the reference: every study scores 8/8 and the investigation
+`viva-autopoiesis` is the reference: every study scores 8/8 and the investigation
 5/5. Its study-1 shows the controls pattern (an externally-maintained-membrane
 **negative control built with the Intervention process** that persists when
 starved → precariousness tracks self-production, not external upkeep, plus a

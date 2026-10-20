@@ -10,7 +10,7 @@ Feedback arrives two ways, and you must read BOTH:
 1. **Inline annotations** — a `feedback-<inv>-<date>.yaml` exported from the
    report's inline-feedback widget (`annotations:` keyed by section id, e.g.
    `study-dnaa-0-parameter-foundation-embeds`). Import with
-   `pbg-feedback-import`.
+   `viva-feedback-import`.
 2. **Prose** — the message the reviewer writes alongside (or instead of) the
    widget. It often carries the *most important* asks (e.g. "make it clear
    which studies ran / passed") that have no widget anchor. Treat prose with
@@ -78,19 +78,19 @@ wrong.
   from the **latest run's `outcomes[test_name].result`** — a test with
   `status: passed` but no recorded outcome still renders **⏳ pending**.
 - So after editing, **trace the render path and confirm the rendered output**,
-  not just the spec. Run `pbg-report` (Pass B lint surfaces the gaps), and
+  not just the spec. Run `/viva-report` (Pass B lint surfaces the gaps), and
   open the dashboard to see the actual study cards.
 
 ### 6. Account for the install / deployment gap
 
 A workspace's `.venv` usually runs **non-editable, git-pinned** installs of
-`pbg-superpowers` and `vivarium-workbench`. Editing the source repos does
+`viva-superpowers` and `vivarium-workbench`. Editing the source repos does
 **not** change what the workspace's dashboard serves until you make the source
 live:
 
 ```bash
 uv pip install -e <path-to-vivarium-workbench> --no-deps
-uv pip install -e <path-to-pbg-superpowers> --no-deps
+uv pip install -e <path-to-viva-superpowers> --no-deps
 vwb server-restart
 ```
 
@@ -102,7 +102,7 @@ the code: `python -c "import vivarium_workbench, os; print(os.path.dirname(vivar
 
 - One cohesive commit per repo; investigation content (study yamls) and tooling
   (renderer/linter) are **separate repos and separate PRs**.
-- Run `/pbg-report` (Pass A audit + Pass B lint) and **open the report** before
+- Run `/viva-report` (Pass A audit + Pass B lint) and **open the report** before
   telling anyone it's ready to send. "The data is right" ≠ "the report is
   ready."
 - Surface reviewer-specific decisions explicitly: a blocked study should carry
@@ -173,5 +173,5 @@ reading, record FAIL, and start diagnosing a non-problem.
 ## Related
 
 - [Reviewer-facing status clarity](../concepts/vivarium-workbench-model.md#reviewer-facing-status-clarity) — the `study_clarity_summary` backbone + the report-linter clarity checks.
-- `/pbg-report` skill — the pre-send audit + lint + render.
+- `/viva-report` skill — the pre-send audit + lint + render.
 - `viva_superpowers.study_status` — derive-on-read status (the single source of truth for run/test/verdict markers).

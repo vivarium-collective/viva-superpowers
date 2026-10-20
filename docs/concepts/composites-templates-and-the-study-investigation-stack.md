@@ -74,16 +74,21 @@ real node from `spatio_flux/composites/fig07-1-community-dfba.composite.json`:
 > processes**, and the **template/site** mechanism. This document summarizes only what
 > the study/investigation layer needs and builds *on top* of that substrate.
 
-**Draft processes, briefly.** A `DraftProcess` (`from process_bigraph import
-DraftProcess, draft_process`) is a Process that declares a **contract** — ports + a
-description of what it is *meant* to do — but has **no `update` dynamics**. It is a
-present-but-inert placeholder *node*: drop it where a mechanism will go so the model's
-topology is complete and reviewable (and the composite already runs — the node no-ops)
-*before* the biology is written, then replace it with a real Process later. A
-module-scope draft auto-registers and shows in the dashboard (Modules → Processes) marked
-DRAFT. It is complementary to a **site** (§3): a draft is a node that is *there but
-inert*; a site is an empty *hole* where no node exists yet. See the process-bigraph doc
-for the full treatment.
+**Stubbing a not-yet-built mechanism (holes-in-place).** When the model's topology
+needs a mechanism whose dynamics aren't written yet, leave a **hole**: an open site
+whose `_sort` names a `ProcessContract` — `{"_type": "site", "_sort": "<Contract>"}`
+(see §3). The contract declares the ports + a description of what the mechanism is
+*meant* to do, so the model stays complete and reviewable; `Composite` reports the
+unfilled hole until a real Process fills it. A stub is a *hole*, not a node.
+
+> **Deprecated — don't reach for `DraftProcess`.** The older pattern (a
+> `DraftProcess` / `@draft_process` — a present-but-inert placeholder *node* that
+> carries a contract but no `update` dynamics) is deprecated in process-bigraph and
+> emits `DraftProcessDeprecationWarning`. Use a hole instead. Migrate an existing
+> draft with `draft_to_contract(SomeDraft)` → `core.register_contract("SomeDraft",
+> contract)` → replace the `local:SomeDraft` node with `{"_type": "site", "_sort":
+> "SomeDraft"}`. Full treatment:
+> [`designing-with-holes.md`](https://github.com/vivarium-collective/process-bigraph/blob/main/docs/concepts/designing-with-holes.md).
 
 ---
 

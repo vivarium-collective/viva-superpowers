@@ -7,7 +7,7 @@ post-simulation renderers.
 
 ## Why a Step?
 
-- **Auto-discovery**: any pbg-* package containing a Visualization subclass
+- **Auto-discovery**: any viva-* package containing a Visualization subclass
   registers automatically when `allocate_core()` runs. No manual
   `register_link` calls needed.
 - **Uniform tracking**: visualizations appear in `core.link_registry`
@@ -90,7 +90,7 @@ code should not use it. Reasons:
 There is **one canonical way** to reference a Visualization from a
 Composite spec or `study.yaml.visualizations[].address`: the
 `local:<ClassName>` form. Every v2ecoli study uses this. The
-`pbg-superpowers` workspace lint validates `local:Foo` addresses by
+`viva-superpowers` workspace lint validates `local:Foo` addresses by
 scanning every `<package>/visualizations/` subtree for a matching
 `class Foo` declaration.
 
@@ -282,14 +282,14 @@ viz_classes = {
 }
 ```
 
-## When to use `/pbg-viz`
+## When to use `/viva-viz`
 
-`/pbg-viz <name>` generates a Visualization subclass from a
+`/viva-viz <name>` generates a Visualization subclass from a
 natural-language description (the lifecycle written to
 `.pbg/viz-requests/<name>.md` by the dashboard). The generated file lives
 at `.pbg/viz-responses/<name>.py` until committed to the package.
 
-See [/pbg-viz SKILL.md](../../skills/pbg-viz/SKILL.md).
+See [/viva-viz SKILL.md](../../skills/viva-viz/SKILL.md).
 
 ## When not to use a Visualization Step
 
