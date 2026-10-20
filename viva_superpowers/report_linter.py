@@ -1160,10 +1160,15 @@ def _check_decide_phase_missing_findings(ctx: _LintContext) -> None:
 
 def _check_finding_without_evidence(ctx: _LintContext) -> None:
     """A biological/computational finding with no evidence.from_run AND no
-    evidence.from_test cannot be linked back to an artifact. Warning."""
+    evidence.from_test cannot be linked back to an artifact. Warning; Error
+    for a supporting finding of an accepted-with-verdict study."""
+    from viva_superpowers.study_verdict import (
+        is_supporting_finding, study_accepted_on_verdict)
+
     findings = ctx.spec.get("findings") or []
     if not isinstance(findings, list):
         return
+    accepted = study_accepted_on_verdict(ctx.spec)
     for idx, f in enumerate(findings):
         if not isinstance(f, dict):
             continue
@@ -1177,8 +1182,11 @@ def _check_finding_without_evidence(ctx: _LintContext) -> None:
         if has_link:
             continue
         fid = f.get("id", f"<index-{idx}>")
+        # Block publication only where the study-audit gate fires: a
+        # supporting finding of an accepted-with-verdict study.
+        level = "error" if (accepted and is_supporting_finding(f)) else "warning"
         ctx.add(
-            level="warning",
+            level=level,
             field_path=f"findings[{idx}].evidence",
             message=(
                 f"Finding {fid!r} claims a {kind} status but has no "

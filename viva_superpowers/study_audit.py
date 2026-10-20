@@ -621,27 +621,6 @@ def _check_preregistration(audit, spec: dict) -> None:
         audit.checks.append(CheckResult("L1", "preregistration", PASS, HARD))
 
 
-# Findings that do NOT back an Accepted conclusion: Pass-10A ``status`` values
-# that qualify or oppose it (partial = caveat-like, contradicts = refuting), plus
-# the literal caveat/refuted/exploratory labels some authors put in status/kind.
-_NON_SUPPORTING_FINDING = frozenset({
-    "partial", "contradicts", "caveat", "refuted", "exploratory"})
-
-
-_ACCEPTED_VERDICTS = frozenset({
-    "passed", "pass", "passing", "passing-with-caveats", "accepted"})
-
-
-def _is_supporting_finding(f: dict) -> bool:
-    if f.get("obsoleted_by"):
-        return False
-    for key in ("status", "kind"):
-        v = f.get(key)
-        if isinstance(v, str) and v.strip().lower() in _NON_SUPPORTING_FINDING:
-            return False
-    return True
-
-
 def _check_supporting_provenance(audit, spec: dict) -> None:
     """L2 supporting-provenance: when the study's confidence is Accepted, every
     finding that backs it (status confirms/novel/unset; not caveat, partial,
@@ -650,25 +629,19 @@ def _check_supporting_provenance(audit, spec: dict) -> None:
     ``provenance.run_ids``. Abstains (appends nothing) on non-Accepted studies,
     no findings, or any error. Read-only; never raises or writes a verdict."""
     from viva_superpowers.finding_observations import _build_test_index
-    from viva_superpowers.study_verdict import derive_confidence, roll_up_verdict
+    from viva_superpowers.study_verdict import (
+        is_supporting_finding, study_accepted_on_verdict)
 
     try:
-        if derive_confidence(spec) != "Accepted":
-            return
-        # Accepted must rest on a real verdict signal (computed passed, or an
-        # authored accepted report.verdict). Accepted purely from lifecycle
-        # ``status`` (no run / no verdict) -> abstain.
-        authored = ((spec.get("report") or {}).get("verdict")
-                    or spec.get("gate_status") or "")
-        authored_ok = str(authored).strip().lower() in _ACCEPTED_VERDICTS
-        if (roll_up_verdict(spec) or {}).get("result") != "passed" and not authored_ok:
+        # Accepted must rest on a real verdict signal (see shared predicate).
+        if not study_accepted_on_verdict(spec):
             return
         findings = spec.get("findings")
         if not isinstance(findings, list):
             return
         tests = _build_test_index(spec)
         supporting = [f for f in findings
-                      if isinstance(f, dict) and _is_supporting_finding(f)]
+                      if isinstance(f, dict) and is_supporting_finding(f)]
     except Exception:  # noqa: BLE001 - cannot resolve -> abstain
         return
     if not supporting:
