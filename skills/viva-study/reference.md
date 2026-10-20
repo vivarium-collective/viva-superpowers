@@ -783,9 +783,7 @@ force a match).
 **AI-free split.** The *aggregation* (open-item read), the *recording*
 (`POST /api/feedback-record-action`), and the *apply*
 (`POST /api/feedback-apply-action`) are deterministic and computed server-side —
-the primitives live in
-[`viva_superpowers/feedback_actions.py`](../../viva_superpowers/feedback_actions.py)
-backing those endpoints. The **judgment** — which action `kind` best addresses a
+the primitives are computed server-side by the dashboard backing those endpoints. The **judgment** — which action `kind` best addresses a
 feedback item and what its `proposed_text` should be — is the agent's, performed
 here in the skill. The skill never silently mutates design: it proposes +
 records, and applies only the explicit target of an action.

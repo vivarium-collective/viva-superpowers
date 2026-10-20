@@ -7,8 +7,6 @@ observing the run — a rerun guard) must never be conflated with an
 - classify_gates: mixed gate_class specs bucket correctly; expected-fail
   controls (expected_result/classification/control markers) always win;
   narrated vs unclassified split; kind-carrier fallback.
-- verdict_count_split: per-class pass/fail counts, expected-fail "behaved"
-  counting, the honest render label, committed_rerunnable count.
 - preregistration_gate_alignment: a pre-stated acceptance_criterion is
   recognised as pre-registered; a post-hoc regression_pin is exempt; the
   existing preregistration_status keys pass through unchanged.
@@ -20,7 +18,6 @@ from viva_superpowers.study_verdict import (
     is_expected_fail,
     preregistration_gate_alignment,
     preregistration_status,
-    verdict_count_split,
 )
 
 
@@ -113,76 +110,6 @@ class TestClassifyGates:
         tests = [{"name": "weird", "gate_class": "whatever", "pass_if": {"low": 1}}]
         c = classify_gates(_spec(tests))
         assert c["unclassified"] == ["weird"]
-
-
-# ---------------------------------------------------------------------------
-# verdict_count_split — the honest counter
-# ---------------------------------------------------------------------------
-
-class TestVerdictCountSplit:
-    def test_counts_split_by_gate_class(self):
-        spec = _spec(MIXED_TESTS, {
-            "pin-a": {"result": "PASS"},
-            "pin-b": {"result": "PASS"},
-            "acc-a": {"result": "PASS"},
-            "acc-b": {"result": "FAIL"},
-            "telepathic-ribosome": {"result": "FAIL"},  # behaved as designed
-        })
-        s = verdict_count_split(spec)
-        assert s["regression_pins"] == {"total": 2, "pass": 2, "fail": 0}
-        assert s["acceptance_criteria"] == {"total": 2, "pass": 1, "fail": 1}
-        assert s["expected_fail"] == {"total": 1, "behaved": 1}
-        assert s["narrated"] == 1
-        assert s["unclassified"] == 1
-
-    def test_expected_fail_never_counts_as_acceptance_pass(self):
-        # The control PASSES (misbehaves) — it still must not inflate the
-        # acceptance count, and behaved stays 0.
-        tests = [{"name": "acc", "gate_class": "acceptance_criterion"},
-                 {"name": "ctrl", "gate_class": "acceptance_criterion",
-                  "expected_result": "fail"}]
-        spec = _spec(tests, {"acc": {"result": "PASS"},
-                             "ctrl": {"result": "PASS"}})
-        s = verdict_count_split(spec)
-        assert s["acceptance_criteria"] == {"total": 1, "pass": 1, "fail": 0}
-        assert s["expected_fail"] == {"total": 1, "behaved": 0}
-
-    def test_committed_rerunnable_counts_coded_checks(self):
-        # MIXED_TESTS: everything carries pass_if except k/narrated "story-only"
-        # and the kind-only entries; here: 6 of 7 carry pass_if.
-        s = verdict_count_split(_spec(MIXED_TESTS))
-        assert s["committed_rerunnable"] == 6
-
-    def test_label_renders_pins_vs_acceptance(self):
-        spec = _spec(MIXED_TESTS, {
-            "pin-a": {"result": "PASS"},
-            "pin-b": {"result": "PASS"},
-            "acc-a": {"result": "PASS"},
-            "acc-b": {"result": "FAIL"},
-            "telepathic-ribosome": {"result": "FAIL"},
-        })
-        label = verdict_count_split(spec)["label"]
-        assert label.startswith("pins: 2/2; acceptance: 1/2")
-        assert "expected-fail behaved: 1/1" in label
-        assert "narrated: 1" in label
-        assert "unclassified: 1" in label
-
-    def test_label_minimal_when_only_pins_and_acceptance(self):
-        tests = [{"name": "p", "gate_class": "regression_pin", "pass_if": {"x": 1}},
-                 {"name": "a", "gate_class": "acceptance_criterion", "pass_if": {"x": 2}}]
-        spec = _spec(tests, {"p": {"result": "PASS"}, "a": {"result": "PASS"}})
-        assert verdict_count_split(spec)["label"] == "pins: 1/1; acceptance: 1/1"
-
-    def test_no_outcomes_counts_zero_passes(self):
-        s = verdict_count_split(_spec(MIXED_TESTS))
-        assert s["regression_pins"] == {"total": 2, "pass": 0, "fail": 0}
-        assert s["acceptance_criteria"] == {"total": 2, "pass": 0, "fail": 0}
-
-    def test_tolerates_empty_spec(self):
-        s = verdict_count_split({})
-        assert s["regression_pins"]["total"] == 0
-        assert s["acceptance_criteria"]["total"] == 0
-        assert s["label"] == "pins: 0/0; acceptance: 0/0"
 
 
 # ---------------------------------------------------------------------------
