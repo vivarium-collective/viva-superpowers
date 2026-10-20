@@ -27,7 +27,7 @@ def observable_gaps(study_face: dict, observables: Iterable[str]) -> List[str]:
             if port not in emitted:
                 gaps.append(
                     f"{side} port '{port}' declared in contract.face is not "
-                    f"emitted by the latest run")
+                    f"emitted by the study's most recent run")
     return gaps
 
 

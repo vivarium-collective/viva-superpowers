@@ -57,6 +57,10 @@ findings** (abstain), never an exception, never a fabricated mismatch.
 - The composite-face / typed `unified_contract_findings` path (Option B) — left dormant for a
   future workspace whose composite exposes a typed face.
 - No type/units reconciliation (run observables are untyped).
+- Presence-diff is **exact-name** match. Observable ids that are dotted/nested
+  (e.g. `listeners.mass.cell_mass`) are not suffix/prefix-matched to a declared
+  leaf port — no current workspace emits such ids (viva-genesis is flat); revisit
+  with suffix-matching if a dotted-id workspace adopts `contract.face`.
 - No change to `study_audit`/`--gate` (stays simulator-free).
 - No T1–T3 readout-unit wires; no workbench changes.
 

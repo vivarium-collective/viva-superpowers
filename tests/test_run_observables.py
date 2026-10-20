@@ -24,3 +24,28 @@ def test_observables_from_real_run():
 
 def test_observables_none_when_no_run(tmp_path):
     assert study_run_observables({"slug": "nope"}, tmp_path) is None
+
+
+def test_latest_run_store_prefers_registry_run_id(tmp_path, monkeypatch):
+    # The registry's latest run must win over a mtime-newer-but-older run on disk.
+    import os
+    import time
+
+    import viva_superpowers.run_observables as ro
+
+    cr = tmp_path / "canonical-runs"
+    cr.mkdir()
+    matched = cr / "comp__RID123__aaa"
+    matched.mkdir()
+    (matched / "run.db").write_text("x")
+    newer = cr / "comp__OTHER__bbb"
+    newer.mkdir()
+    (newer / "run.db").write_text("x")
+    # Make 'newer' mtime-newer so a pure mtime fallback would wrongly pick it.
+    future = time.time() + 1000
+    os.utime(newer / "run.db", (future, future))
+
+    monkeypatch.setattr(
+        ro, "latest_run", lambda db: {"run_id": "RID123", "emitter_path": None}
+    )
+    assert ro._latest_run_store(tmp_path) == matched / "run.db"
