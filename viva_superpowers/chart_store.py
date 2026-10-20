@@ -108,17 +108,6 @@ def tag_chart(chart_path: Path | str, run_id: str,
     _write_manifest(cdir, manifest)
 
 
-def tag_charts(charts_dir: Path | str, run_id: str,
-               chart_paths, *, created: str | None = None) -> None:
-    """Tag many charts with one ``run_id`` in a single manifest write."""
-    cdir = Path(charts_dir)
-    manifest = load_manifest(cdir)
-    stamp = created or _now_iso()
-    for cp in chart_paths:
-        manifest[Path(cp).name] = {"run_id": str(run_id), "created": stamp}
-    _write_manifest(cdir, manifest)
-
-
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 

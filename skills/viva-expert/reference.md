@@ -253,7 +253,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "bigraph-schema>=0.0.60",
+    "bigraph-schema>=1.8.1",
     "process-bigraph>=0.0.66",
     # add the wrapped tool here, e.g.:
     # "cobra>=0.29",
