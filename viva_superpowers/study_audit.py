@@ -381,6 +381,9 @@ def _audit_study(audit, sdir, wp, known_slugs, known_composites, generator_param
     # --- L0 schema-valid (contract.face HARD, other drift SOFT) ------------
     _check_schema_valid(audit, wp, spec)
 
+    # --- L0 contract-face-wellformed (shared bigraph-schema audit kernel) ---
+    _check_contract_face_wellformed(audit, spec)
+
     # The L1 model checks reason over the CANONICALIZED model: a variant that
     # omits `composite` legitimately inherits the baseline's, so resolvability /
     # param validation must see the effective (post-canonicalization) model, not
@@ -533,6 +536,34 @@ def _check_schema_valid(audit, wp, spec: dict) -> None:
             "L0", "schema-valid", WARN, SOFT,
             f"{len(other_errs)} schema finding(s): "
             + "; ".join(_loc(e) for e in other_errs[:3])))
+
+
+def _check_contract_face_wellformed(audit, spec: dict) -> None:
+    """L0: run the study's declared ``contract.face`` through the shared
+    bigraph-schema audit kernel -- the SAME typed checks (numeric ``_min``/
+    ``_max`` bounds, ``_units`` parseability, predicate references to declared
+    ports) the composite contract audit applies. This is the typed complement
+    to the schema-shape ``schema-contract-valid`` check: JSON-Schema validates
+    the face's shape, the kernel validates its typed content.
+
+    Abstains (appends nothing) when the study declares no ``contract.face`` or
+    the kernel can't run, so it never fabricates a violation."""
+    face = (spec.get("contract") or {}).get("face") if isinstance(spec, dict) else None
+    if not face:
+        return
+    try:
+        from viva_superpowers.study_contract import study_face_findings
+        findings = study_face_findings(spec)
+    except Exception:  # noqa: BLE001 - kernel unavailable -> abstain
+        return
+    errs = [f for f in findings if f.severity == "error"]
+    if errs:
+        audit.checks.append(CheckResult(
+            "L0", "contract-face-wellformed", FAIL, HARD,
+            "contract.face has typed errors: "
+            + "; ".join(f"{f.code}@{f.where}" for f in errs[:5])))
+    else:
+        audit.checks.append(CheckResult("L0", "contract-face-wellformed", PASS, HARD))
 
 
 def _report_card_dir(sdir: Path) -> Path:
