@@ -338,10 +338,24 @@ def _composite_resolvable(name: str, known_composites: set, wp: WorkspacePaths) 
         return True
     if any(name == s or name.endswith("." + s) for s in _RESOLVABLE_SUFFIXES):
         return True
-    # file-discovered *.composite.yaml whose stem matches the composite name
-    comp_dir = wp.composites
-    if comp_dir.is_dir():
-        tail = name.rsplit(".", 1)[-1]
+    # file-discovered *.composite.yaml whose stem matches the composite name.
+    # Search BOTH the layout composites dir (``wp.composites``) and the workspace
+    # PACKAGE's composites dir (``ws_root/<pkg>/composites``) -- the latter is
+    # where the workbench's ``find_composite_path`` resolves a study's composite
+    # at run time, and the two dirs can differ (a study may reference a file
+    # composite shipped inside the package, e.g. ``pkg.composites.fig06`` ->
+    # ``pkg/composites/fig06.composite.json``). Auditing only ``wp.composites``
+    # reports a hard failure for a composite the workbench resolves fine.
+    tail = name.rsplit(".", 1)[-1]
+    search_dirs = [wp.composites]
+    if ".composites." in name:
+        pkg = name.split(".composites.", 1)[0]
+        pkg_comp_dir = wp.root / pkg / "composites"
+        if pkg_comp_dir != wp.composites:
+            search_dirs.append(pkg_comp_dir)
+    for comp_dir in search_dirs:
+        if not comp_dir.is_dir():
+            continue
         for pat in ("*.composite.yaml", "*.composite.yml", "*.composite.json"):
             for f in comp_dir.glob(pat):
                 stem = f.name
@@ -351,6 +365,19 @@ def _composite_resolvable(name: str, known_composites: set, wp: WorkspacePaths) 
                         break
                 if stem in (name, tail):
                     return True
+                # the id tail may be the doc's `name` rather than the filename stem
+                try:
+                    import json as _json
+                    text = f.read_text(encoding="utf-8")
+                    if f.suffix.lower() == ".json":
+                        doc = _json.loads(text)
+                    else:
+                        import yaml as _yaml
+                        doc = _yaml.safe_load(text)
+                    if isinstance(doc, dict) and doc.get("name") in (name, tail):
+                        return True
+                except Exception:  # noqa: BLE001 — a bad file is just not a match
+                    pass
     return False
 
 
