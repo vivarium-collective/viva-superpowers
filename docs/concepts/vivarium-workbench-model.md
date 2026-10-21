@@ -330,6 +330,48 @@ Design spec: `docs/superpowers/specs/2026-08-16-study-spine-reorg-design.md`
 (cross-repo — `vivarium-workbench` renders + persists, `viva-superpowers`
 skills fill it).
 
+### `study.contract.face` — the typed port contract {#contract-face}
+
+A study may declare an optional **`contract.face`**: a typed statement of the ports
+the study's model is *meant* to expose, under `inputs:` and `outputs:`, each port a
+small schema — `_type` (required) plus optional `_units` / `_min` / `_max`. It was
+added to [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json)
+by viva-template **PR #80**, and is surfaced in the Assurance › Audit tab as two
+**HARD** study-audit L0 checks: **`schema-contract-valid`** (JSON-Schema shape) and
+**`contract-face-wellformed`** (typed content, via the shared bigraph-schema audit
+kernel), so a *malformed* or *ill-typed* `contract.face` blocks the audit.
+
+```yaml
+contract:
+  face:
+    inputs:
+      temperature: {_type: float, _units: K, _min: 273.0, _max: 400.0}
+    outputs:
+      heat_flux:   {_type: float, _units: "W/m^2"}
+```
+
+> **What is and is not enforced — read before authoring.** A declared `contract.face`
+> is checked at two levels. **(1) Shape:** the L0 `schema-contract-valid` gate validates
+> the face against the JSON-Schema grammar (`_type`/`_units`/`_min`/`_max`). **(2) Typed
+> content:** the L0 `contract-face-wellformed` gate runs the face through the *same*
+> bigraph-schema audit kernel (`contract_audit.audit_face`) that audits composite
+> contracts, so a non-numeric `_min`/`_max`, an unparseable `_units`, or a predicate that
+> references an undeclared port is now caught. Both are HARD.
+>
+> What is **not yet wired** is the full *reconciliation against the composite's resolved
+> contract face*. The reconciler `study_contract.contract_face_diff` (declared face vs
+> resolved composite face, by port presence + base type) now **exists and is
+> unit-tested**, but the study audit does not build the composite to call it (the audit
+> stays resolve-free by design) — it runs wherever a resolved face is already in hand,
+> not at audit time. So do not yet assume a declared `_type`/`_units`/`_min`/`_max` is
+> compared against what the model *computes end-to-end*.
+>
+> A complementary cross-check ships at the *observable* level: a best-effort,
+> warning-level report lint (`contract-observable`, in `report_linter`) that
+> **presence-diffs** the declared port *names* against the names the study's latest run
+> actually emits (name-presence only, untyped; abstains with no run). The typed
+> `contract_face_diff` is its port-type counterpart.
+
 ### v4 narrative spine (canonical-optional extensions) {#v4-narrative-spine}
 
 The 8 sections above are the design backbone. The v4 schema (`schema_version: 4`) adds a **second layer of narrative-spine fields** that the v2ecoli dnaa-replication investigation evolved through use, now promoted from "workspace-specific extensions" to canonical-optional. All fields are optional — a v3 spec validates unchanged against the v4 schema — but every new study scaffolded via `/viva-study new` lands with these fields commented in as TODO placeholders so the user sees the target shape without reading docs.

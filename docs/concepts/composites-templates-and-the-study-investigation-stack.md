@@ -145,34 +145,71 @@ that *points at* one and reads back what came out. (Per-test pass/fail pills are
 **derived on read** from the latest run's `outcomes[test].result`, never from a
 hand-set `status:`.)
 
-### An investigation is compiled into a composite
+### An investigation can run as a composite — but `run_jobs` is canonical today
 
-An investigation groups member studies into one argument — and, since August 2026, is
-itself **compiled into a process-bigraph composite** (the investigation template made
-concrete).
+An investigation groups member studies into one argument. Two *separate* process-bigraph
+mechanisms sit under that grouping, and they are easy to conflate — keep them apart. For
+the single-source-of-truth on how an investigation actually runs, see
+[`how-an-investigation-runs.md`](how-an-investigation-runs.md); this section is the
+conceptual summary.
 
-The investigation-as-composite work (vivarium-workbench **PR #715, merged 2026-08-03,
-on `main`**) provides `build_investigation_composite` / `run_investigation_composite`, a
-`rebuild_investigation_composite` mutation behind
-`POST /api/investigation-composite-rebuild`, and a `run_investigation` CLI runner. It
-models the investigation itself as a Composite: each Study becomes a `StudyStep` node,
-and each `pipeline_gate.prerequisites` edge becomes **store wiring**, so the real
-process-bigraph scheduler orders execution.
+**1. The executable `StudyStep` composite** (`lib/investigation_execution.py`).
+`build_investigation_composite(ws_root, inv_slug)` — a plain build function, not a
+registered `@composite_generator` — compiles `investigation.yaml` into a runnable
+process-bigraph `Composite`: one `local:StudyStep` node per member study, ordered by
+`pipeline_gate.prerequisites` wiring (a member with no real prerequisite gets a
+*synthetic serial edge* to the preceding declared member, so a no-prereq investigation
+still runs in declared order), plus `InvestigationAnalysisStep` nodes wired to the member
+result stores. `run_investigation_composite(...)` runs it as
+`Composite({"state": …, "run_steps_on_init": True})`; process-bigraph's `determine_steps`
+reads the wires and orders execution. A `StudyStep` doesn't rebuild anything itself — it
+dispatches the `run_study` capability to the persistent env-worker pool, which runs that
+member's baseline + variants + post-sim end-to-end and writes `investigation/<slug>/result`.
+`StudyStep` / `InvestigationAnalysisStep` are defined in `lib/investigation_steps.py`
+(they are workbench `Step`s — **not** part of process-bigraph). Note this graph does
+**not** use template sites: its ports are plain `"node"` and its addresses are
+`local:<Class>`.
 
-This is the **investigation template** of §3 made concrete:
-`process_bigraph/templates.py` builds an investigation document with **one site per
-member study**; `investigation_document` fills a member's site to admit it and prunes
-the ones left open. Recursion in one line: an investigation is a composite whose nodes
-are `StudyStep`s, and each `StudyStep` in turn builds its own study's composite.
+> **This path is real and tested, but currently sidelined.** It is *not* wired to any
+> HTTP endpoint or the UI; it is reachable only through
+> `vivarium-workbench prepare-investigation` (the full-run branch) and the tests. It is
+> **serial-only**, **fail-loud**, and **refuses on the `deployment` run target**
+> (`investigation_steps.py` raises rather than dispatching a deployment-pinned study).
+> The canonical orchestrator is `run_jobs` — see the table below.
 
-The older orchestrator path — walk `studies:` and shell each member's `canonical_runs:`
-script — still exists for bespoke runners.
+**2. The pull-or-compute trigger document** (`lib/investigation_composite.py` +
+`lib/investigation_trigger.py`). A *different* mechanism, and the one that actually uses
+the §3 template/site formalism. `investigation_composite.py` builds a content-addressed
+`{member: region}` document in which each region carries `_study` metadata and the member
+sites are the template holes; `investigation_trigger.py` wraps
+`process_bigraph.templates.trigger` to open one target study — **pull** cached upstream
+prerequisites already computed, **compute** the open target, and **prune** non-ancestors
+— returning a `{pulled, computed, pruned}` report. This is the substrate under the
+pull-or-compute rerun spine, not a full investigation run. (The workbench never
+constructs a `Composite` from this document; it reads the `_study` metadata and delegates
+the actual run.)
+
+**What orchestrates an investigation run today.** There are **three** investigation
+orchestrators, and the composite path above is *not* the default:
+
+| Orchestrator | How it runs | Status |
+|---|---|---|
+| `POST /api/investigation-run-unblocked` | the `run_jobs` manager (async 202 + poll, via `study_runs`) | **canonical** |
+| `POST /api/investigation-run` | inline `textwrap` script fired as a synchronous `subprocess` | legacy / secondary |
+| `vivarium-workbench prepare-investigation` (full-run branch) | the `StudyStep` composite above, in-process | non-default, local-only |
+
+`run_jobs` is the canonical orchestrator: `docs/run-orchestration-consolidation.md`
+Decision 1 (in `vivarium-workbench`) makes it so, keeping the composite path reachable
+from `prepare-investigation` but not the default. (The `vwb run investigation` /
+`run_investigation` CLI routes to the inline-subprocess path, **not** the composite —
+despite the composite builder living next door in `investigation_execution.py`.)
 
 **The dependency DAG.** `studies: []` controls grouping/visibility and run order; the
 DAG is computed at render time from each member's `pipeline_gate.prerequisites`, with
 edge semantics `builds-on · tests · motivates · alternative-to` (default `builds-on`;
-legacy `leads-to · model-input · refutes · precedes` still parse as aliases). In the compiled form,
-those same prerequisite edges *are* the store wiring that sequences execution.
+legacy `leads-to · model-input · refutes · precedes` still parse as aliases). In the
+executable `StudyStep` composite, those same prerequisite edges *are* the store wiring
+that sequences execution (and a member with no prerequisite gets a synthetic serial edge).
 **Investigation ≡ branch ≡ worktree**, so parallel agents each drive one without
 colliding on runtime DBs or dashboard ports.
 
@@ -182,7 +219,7 @@ colliding on runtime DBs or dashboard ports.
 |---|---|---|
 | Composite | It *is* the process-bigraph document (or a generator that emits one) | — (it is the target) |
 | Study | Resolves its `baseline` id → builds that composite in-process, applies `params` | **No** — reference + param merge |
-| Investigation | Compiled to a Composite of `StudyStep`s wired by prerequisites (legacy orchestrator still available) | **Yes** — PR #715, on `main` |
+| Investigation | Canonically run by the `run_jobs` orchestrator (`/api/investigation-run-unblocked`); *can* also be compiled to a `StudyStep` composite via `build_investigation_composite`, but that path is non-default — local-run only, not UI-wired | **Optional** — composite path exists but is sidelined |
 
 ---
 
@@ -256,9 +293,11 @@ The tables below cover the two layers that own the *study/investigation* concept
 
 | File | What it is |
 |---|---|
-| `vivarium_workbench/api/app.py` | The HTTP API — `/api/study-*`, `/api/iset/*`, `/api/investigation-composite-rebuild`. |
-| `lib/investigation_steps.py` | `StudyStep` + `InvestigationAnalysisStep` (studies as nodes). |
-| `lib/investigation_execution.py` | `build_investigation_composite` / `run_investigation_composite`. |
+| `vivarium_workbench/api/app.py` | The HTTP API — `/api/study-*`, `/api/iset/*`, `/api/investigation-run-unblocked`, `/api/investigation-run`, `/api/investigation-composite-rebuild`. |
+| `lib/run_jobs.py` | The **canonical** investigation orchestrator (`/api/investigation-run-unblocked`). |
+| `lib/investigation_steps.py` | `StudyStep` + `InvestigationAnalysisStep` (studies as nodes; plain `"node"` ports, `local:<Class>` addresses). |
+| `lib/investigation_execution.py` | `build_investigation_composite` / `run_investigation_composite` — the sidelined executable composite path. |
+| `lib/investigation_composite.py` · `investigation_trigger.py` | The pull-or-compute trigger document (`_study` sites; `{pulled, computed, pruned}`). |
 | `lib/composite_mutations.py` | `rebuild_investigation_composite` + composite edits. |
 | `lib/study_runs.py` · `cli_runs.py` | Run baseline / variant / investigation. |
 | `env_worker.py` | The spawned worker — `run_study` / `run_investigation_analysis` capabilities. |
