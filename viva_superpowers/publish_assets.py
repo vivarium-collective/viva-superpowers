@@ -60,7 +60,11 @@ def emit(
     Creates parent directories as needed. Returns the list of written paths.
     """
     ws = Path(workspace_dir).resolve()
-    resolved_base_path = base_path or f"/{name}/dashboard"
+    # GitHub Pages serves project sites at a lowercased repo path
+    # (…/viva-mgen/, even for a repo named viva-Mgen), so the default base-path
+    # must be lowercase — otherwise an uppercase-named repo bakes /viva-Mgen/…
+    # asset URLs that 404 and the SPA renders unstyled.
+    resolved_base_path = base_path or f"/{name.lower()}/dashboard"
     ctx = {
         "name": name,
         "base_path": resolved_base_path,

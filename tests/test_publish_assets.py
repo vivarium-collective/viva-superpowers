@@ -50,6 +50,16 @@ def test_default_base_path_is_slash_name_slash_dashboard(tmp_path: Path) -> None
     assert "/foo-bar/dashboard" in text
 
 
+def test_default_base_path_is_lowercased(tmp_path: Path) -> None:
+    # GitHub Pages serves an uppercase-named repo (viva-Mgen) at a lowercased
+    # path (…/viva-mgen/), so the baked base-path must be lowercase or every
+    # asset 404s and the SPA renders unstyled.
+    emit(tmp_path, name="viva-Mgen")
+    text = (tmp_path / "scripts" / "publish_dashboard.sh").read_text()
+    assert "/viva-mgen/dashboard" in text
+    assert "/viva-Mgen/dashboard" not in text
+
+
 def test_custom_base_path_and_interactive_url_are_honored(tmp_path: Path) -> None:
     emit(
         tmp_path,
