@@ -18,16 +18,21 @@ def canonicalize_models(spec) -> dict:
 
     # --- classify + move top-level baseline/variants into conditions (Style B / both) ---
     if isinstance(top_baseline, list):
-        if len(top_baseline) > 1:
-            report["flags"].append("multi_baseline_needs_human")
-            return report  # leave untouched
         report["style"] = "both" if isinstance(conditions, dict) and conditions.get("baseline") else "B"
         if conditions is None or not isinstance(conditions, dict):
             spec["conditions"] = {}
             conditions = spec["conditions"]
         cond_baseline = conditions.get("baseline")
-        if isinstance(cond_baseline, dict) and cond_baseline.get("composite"):
+        cond_has_baseline = ((isinstance(cond_baseline, dict) and cond_baseline.get("composite"))
+                             or (isinstance(cond_baseline, list) and cond_baseline))
+        if cond_has_baseline:
             report["flags"].append("both_dropped_toplevel")   # conditions wins
+        elif len(top_baseline) > 1:
+            # Multi-arm study: several baseline arms, each a distinct composite.
+            # A first-class, encouraged pattern — keep them ALL as a list rather
+            # than collapsing to one baseline or refusing to migrate.
+            conditions["baseline"] = top_baseline              # move the whole list (keeps comments)
+            report["flags"].append("multi_arm")
         elif top_baseline:
             conditions["baseline"] = top_baseline[0]           # move node (keeps its comments)
         # move a top-level variants list in, if present and conditions lacks one

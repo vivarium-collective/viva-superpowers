@@ -303,6 +303,11 @@ def _iter_models(spec: dict):
     baseline = conditions.get("baseline")
     if isinstance(baseline, dict):
         yield ("baseline", baseline)
+    elif isinstance(baseline, list):
+        # Multi-arm study: each arm is a baseline model in its own right.
+        for i, arm in enumerate(baseline):
+            if isinstance(arm, dict):
+                yield (arm.get("name", f"baseline[{i}]"), arm)
     variants = conditions.get("variants")
     for v in (variants if isinstance(variants, list) else []):
         if isinstance(v, dict):
@@ -774,8 +779,7 @@ def _check_model_schema(audit, spec: dict) -> None:
     # model_settings auto-add are accepted no-op-ish normalizations — they do
     # NOT make a study non-canonical, so `inherited_composites` is deliberately
     # not a failure trigger here.
-    bad_flags = {"multi_baseline_needs_human", "both_dropped_toplevel",
-                 "both_dropped_toplevel_variants"}
+    bad_flags = {"both_dropped_toplevel", "both_dropped_toplevel_variants"}
     flags = set(report.get("flags") or [])
     if (flags & bad_flags) or ("baseline" in spec) or ("variants" in spec):
         audit.checks.append(CheckResult(
@@ -785,7 +789,15 @@ def _check_model_schema(audit, spec: dict) -> None:
 
     conditions = probe.get("conditions")
     baseline = conditions.get("baseline") if isinstance(conditions, dict) else None
-    if not isinstance(baseline, dict) or not baseline.get("composite"):
+    # A single baseline (dict) or a multi-arm study (a non-empty list of arms,
+    # each a mapping with a composite) are both canonical.
+    if isinstance(baseline, list):
+        if not baseline or not all(isinstance(a, dict) and a.get("composite") for a in baseline):
+            audit.checks.append(CheckResult(
+                "L0", "canonical-model-schema", FAIL, HARD,
+                "every baseline arm must be a mapping with a composite"))
+            return
+    elif not isinstance(baseline, dict) or not baseline.get("composite"):
         audit.checks.append(CheckResult(
             "L0", "canonical-model-schema", FAIL, HARD,
             "conditions.baseline with a composite is required"))

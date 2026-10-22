@@ -83,11 +83,27 @@ def test_both_flags_dropped_toplevel_variants():
     assert spec["conditions"]["variants"] == [{"name": "w", "composite": "c"}]  # conditions wins
     assert "variants" not in spec
 
-def test_multi_baseline_is_flagged_not_migrated():
+def test_multi_arm_baseline_migrates_as_list():
+    # A multi-arm study (several baseline arms, each a distinct composite) is a
+    # first-class, encouraged pattern: move the whole list into
+    # conditions.baseline AS A LIST — do not collapse it to one baseline and do
+    # not refuse it.
     spec = {"baseline": [{"name": "a", "composite": "c.a"}, {"name": "b", "composite": "c.b"}]}
     report = canonicalize_models(spec)
-    assert "multi_baseline_needs_human" in report["flags"]
-    assert "baseline" in spec and report["changed"] is False  # untouched
+    assert "baseline" not in spec  # top-level removed
+    assert spec["conditions"]["baseline"] == [
+        {"name": "a", "composite": "c.a"}, {"name": "b", "composite": "c.b"}]
+    assert report["changed"] is True
+    assert "multi_arm" in report["flags"]
+    assert "multi_baseline_needs_human" not in report["flags"]
+
+
+def test_multi_arm_already_in_conditions_is_idempotent():
+    spec = {"conditions": {"baseline": [
+        {"name": "a", "composite": "c.a"}, {"name": "b", "composite": "c.b"}]}}
+    report = canonicalize_models(spec)
+    assert spec["conditions"]["baseline"] == [
+        {"name": "a", "composite": "c.a"}, {"name": "b", "composite": "c.b"}]  # untouched arms
 
 def test_variant_parameter_overrides_renamed_to_params():
     spec = {"conditions": {"baseline": {"composite": "c.b"},
