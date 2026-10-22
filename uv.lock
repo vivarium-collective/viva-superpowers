@@ -55,7 +55,7 @@ wheels = [
 
 [[package]]
 name = "bigraph-schema"
-version = "1.8.1"
+version = "1.8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -65,9 +65,9 @@ dependencies = [
     { name = "pint" },
     { name = "plum-dispatch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1e/af/b98986bab188aa4a1280591bd180febbc718fa834866d9d2f76df7b269b7/bigraph_schema-1.8.1.tar.gz", hash = "sha256:8bad19838454b6468ac4db10cf06b085da192aac9ddb3de65181655347c4061b", size = 185919, upload-time = "2026-10-12T16:01:10.701Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/81/00e7e9b11f2486c39e3761fac70dc84401f3c555016d0969237729d50b16/bigraph_schema-1.8.2.tar.gz", hash = "sha256:561cedd73b03924a8272ee493afa6bcafddca2b3b4bfa237dd485e9c98702f9d", size = 186958, upload-time = "2026-10-22T01:19:14.282Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/ca/69528f16860eafee020efa0ff0a5017c60d9c13189da2f02548197336f35/bigraph_schema-1.8.1-py3-none-any.whl", hash = "sha256:826b75e5df8ab60079a0f3adc529abb51ab955daf0f0ddc9be02c2444d60b3df", size = 185499, upload-time = "2026-10-12T16:01:09.133Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/97/7cdd305196af6e14dcb692de687a098272b45d4de82db58dc89caf89bea9/bigraph_schema-1.8.2-py3-none-any.whl", hash = "sha256:128a667e1c13a598a8768858eb033f859f53314da8eeb0f2d5d01480d9f2b3be", size = 185861, upload-time = "2026-10-22T01:19:12.921Z" },
 ]
 
 [[package]]
@@ -2117,7 +2117,7 @@ parquet = [
 
 [[package]]
 name = "viva-superpowers"
-version = "0.23.0"
+version = "0.24.0"
 source = { editable = "." }
 dependencies = [
     { name = "bigraph-schema" },
@@ -2152,7 +2152,7 @@ processes = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bigraph-schema", specifier = ">=1.8.1" },
+    { name = "bigraph-schema", specifier = ">=1.8.2" },
     { name = "click", specifier = ">=8.1" },
     { name = "filelock", specifier = ">=3.12" },
     { name = "investigation-contracts", marker = "extra == 'events'", git = "https://github.com/vivarium-collective/investigation-contracts.git?branch=main" },
