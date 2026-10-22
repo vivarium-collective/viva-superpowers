@@ -102,6 +102,27 @@ def test_non_contract_drift_is_soft_only(tmp_path):
     assert chk["schema-valid"].tier == "soft"                        # widget drift surfaced, non-blocking
 
 
+def test_multi_arm_baseline_list_is_canonical(tmp_path):
+    # A conditions.baseline that is a LIST of arms (each with a composite) is a
+    # first-class multi-arm study — canonical-model-schema must pass it.
+    ws = _ws(tmp_path)
+    _study(ws, "s1", {"conditions": {"baseline": [
+        {"name": "arm-a", "composite": "pkg.comp_a"},
+        {"name": "arm-b", "composite": "pkg.comp_b"}]}})
+    c = _checks(audit_workspace(ws), "s1")["canonical-model-schema"]
+    assert c.status == "pass" and c.tier == "hard"
+
+
+def test_multi_arm_with_armless_composite_fails(tmp_path):
+    # Every arm must carry a composite; one that doesn't is a hard fail.
+    ws = _ws(tmp_path)
+    _study(ws, "s1", {"conditions": {"baseline": [
+        {"name": "arm-a", "composite": "pkg.comp_a"},
+        {"name": "arm-b"}]}})
+    c = _checks(audit_workspace(ws), "s1")["canonical-model-schema"]
+    assert c.status == "fail" and c.tier == "hard"
+
+
 def test_missing_schema_abstains(tmp_path):
     ws = _ws(tmp_path, schema=None)
     _study(ws, "s1", {"contract": {"face": {"inputs": {"t": {"_units": "kelvin"}}}}})
