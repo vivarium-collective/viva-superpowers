@@ -154,6 +154,82 @@ def test_missing_composite_fails_resolution(tmp_path):
     assert c.status == "fail" and c.tier == "hard"
 
 
+def test_package_file_composite_resolves(tmp_path):
+    # A study may reference a composite shipped as a *.composite.json FILE in the
+    # workspace package's composites dir (ws_root/<pkg>/composites) — the same
+    # place the workbench's find_composite_path resolves it at run time. The
+    # audit must discover it too, not only the layout composites dir + registry.
+    _ws(tmp_path)
+    cdir = tmp_path / "mypkg" / "composites"
+    cdir.mkdir(parents=True)
+    (cdir / "myfig.composite.json").write_text('{"name": "myfig", "state": {}}',
+                                                encoding="utf-8")
+    _study(tmp_path, "s1",
+           "name: s1\nconditions:\n  baseline:\n    composite: mypkg.composites.myfig\n"
+           "  model_settings: []\n")
+    report = _audit(tmp_path)
+    (a,) = [x for x in report.studies if x.slug == "s1"]
+    c = _find(a, "composite-resolves")
+    assert c.status == "pass", f"{c.status}: {c.detail}"
+
+
+def test_package_file_composite_name_match_resolves(tmp_path):
+    # The id tail may be the doc's `name` rather than the filename stem.
+    _ws(tmp_path)
+    cdir = tmp_path / "mypkg" / "composites"
+    cdir.mkdir(parents=True)
+    (cdir / "fig04a-interaction.composite.json").write_text(
+        '{"name": "interaction-modalities", "state": {}}', encoding="utf-8")
+    _study(tmp_path, "s1",
+           "name: s1\nconditions:\n  baseline:\n    composite: mypkg.composites.interaction-modalities\n"
+           "  model_settings: []\n")
+    report = _audit(tmp_path)
+    (a,) = [x for x in report.studies if x.slug == "s1"]
+    assert _find(a, "composite-resolves").status == "pass"
+
+
+_PLANNED_TEMPLATE = """name: s1
+contract:
+  face:
+    inputs:
+      temperature: {_type: float}
+    outputs:
+      y: {_type: float}
+conditions:
+  baseline:
+    composite: pkg.not_built_yet
+    planned: true
+  model_settings: []
+"""
+
+
+def test_planned_template_with_contract_is_soft_not_fail(tmp_path):
+    # A study that declares a contract.face and marks its composite planned:true
+    # is a template -- an interface committed before the mechanism (holes/
+    # templates). Its unresolved composite must NOT hard-fail; it is graded soft.
+    _ws(tmp_path)
+    _study(tmp_path, "s1", _PLANNED_TEMPLATE)
+    report = _audit(tmp_path)
+    (a,) = [x for x in report.studies if x.slug == "s1"]
+    c = _find(a, "composite-resolves")
+    assert c.status == "warn" and c.tier == "soft", f"{c.status}/{c.tier}: {c.detail}"
+    assert "template" in c.detail.lower()
+    assert a.slug not in [h.split(":")[0] for h in report.hard_failures()]
+
+
+def test_planned_without_contract_face_still_fails(tmp_path):
+    # planned:true but NO contract.face is an unbuilt stub, not a template:
+    # it commits to no interface, so the unresolved composite still hard-fails.
+    _ws(tmp_path)
+    _study(tmp_path, "s1",
+           "name: s1\nconditions:\n  baseline:\n    composite: pkg.not_built_yet\n"
+           "    planned: true\n  model_settings: []\n")
+    report = _audit(tmp_path)
+    (a,) = [x for x in report.studies if x.slug == "s1"]
+    c = _find(a, "composite-resolves")
+    assert c.status == "fail" and c.tier == "hard"
+
+
 def test_bogus_params_fail(tmp_path):
     _ws(tmp_path)
     _study(tmp_path, "s1",

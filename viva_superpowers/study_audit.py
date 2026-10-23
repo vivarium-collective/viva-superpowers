@@ -343,10 +343,24 @@ def _composite_resolvable(name: str, known_composites: set, wp: WorkspacePaths) 
         return True
     if any(name == s or name.endswith("." + s) for s in _RESOLVABLE_SUFFIXES):
         return True
-    # file-discovered *.composite.yaml whose stem matches the composite name
-    comp_dir = wp.composites
-    if comp_dir.is_dir():
-        tail = name.rsplit(".", 1)[-1]
+    # file-discovered *.composite.yaml whose stem matches the composite name.
+    # Search BOTH the layout composites dir (``wp.composites``) and the workspace
+    # PACKAGE's composites dir (``ws_root/<pkg>/composites``) -- the latter is
+    # where the workbench's ``find_composite_path`` resolves a study's composite
+    # at run time, and the two dirs can differ (a study may reference a file
+    # composite shipped inside the package, e.g. ``pkg.composites.fig06`` ->
+    # ``pkg/composites/fig06.composite.json``). Auditing only ``wp.composites``
+    # reports a hard failure for a composite the workbench resolves fine.
+    tail = name.rsplit(".", 1)[-1]
+    search_dirs = [wp.composites]
+    if ".composites." in name:
+        pkg = name.split(".composites.", 1)[0]
+        pkg_comp_dir = wp.root / pkg / "composites"
+        if pkg_comp_dir != wp.composites:
+            search_dirs.append(pkg_comp_dir)
+    for comp_dir in search_dirs:
+        if not comp_dir.is_dir():
+            continue
         for pat in ("*.composite.yaml", "*.composite.yml", "*.composite.json"):
             for f in comp_dir.glob(pat):
                 stem = f.name
@@ -356,6 +370,19 @@ def _composite_resolvable(name: str, known_composites: set, wp: WorkspacePaths) 
                         break
                 if stem in (name, tail):
                     return True
+                # the id tail may be the doc's `name` rather than the filename stem
+                try:
+                    import json as _json
+                    text = f.read_text(encoding="utf-8")
+                    if f.suffix.lower() == ".json":
+                        doc = _json.loads(text)
+                    else:
+                        import yaml as _yaml
+                        doc = _yaml.safe_load(text)
+                    if isinstance(doc, dict) and doc.get("name") in (name, tail):
+                        return True
+                except Exception:  # noqa: BLE001 — a bad file is just not a match
+                    pass
     return False
 
 
@@ -400,15 +427,33 @@ def _audit_study(audit, sdir, wp, known_slugs, known_composites, generator_param
         canon = spec
 
     # --- L1 composite-resolves ---------------------------------------------
+    # A model marked ``planned: true`` in a study that declares a
+    # ``contract.face`` is a TEMPLATE: an interface committed before the
+    # mechanism exists (the holes/templates discipline). Its composite is
+    # intentionally not-yet-built, so an unresolved planned composite must NOT
+    # hard-fail -- it is graded soft (template, not ground), and the separate
+    # ``contract-face-wellformed`` check grades the interface it commits to. A
+    # planned model WITHOUT a contract.face commits to no interface and is an
+    # unbuilt stub, so it still hard-fails.
+    has_face = bool((spec.get("contract") or {}).get("face")) if isinstance(spec, dict) else False
     unresolved = []
+    templates = []
     for label, model in _iter_models(canon):
         comp = model.get("composite") if isinstance(model, dict) else None
         if not _composite_resolvable(comp, known_composites, wp):
-            unresolved.append(f"{label}:{comp!r}")
+            if has_face and isinstance(model, dict) and model.get("planned") is True:
+                templates.append(f"{label}:{comp!r}")
+            else:
+                unresolved.append(f"{label}:{comp!r}")
     if unresolved:
         audit.checks.append(CheckResult(
             "L1", "composite-resolves", FAIL, HARD,
             "unresolved composite(s): " + ", ".join(unresolved)))
+    elif templates:
+        audit.checks.append(CheckResult(
+            "L1", "composite-resolves", WARN, SOFT,
+            "planned template(s) — composite declared with a contract but not yet "
+            "built (contract-first, not ground): " + ", ".join(templates)))
     else:
         audit.checks.append(CheckResult("L1", "composite-resolves", PASS, HARD))
 
