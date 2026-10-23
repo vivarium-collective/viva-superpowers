@@ -51,7 +51,7 @@
     "description": "Process-bigraph wrapper for AMICI (CVODES-based ODE/DAE simulator). Real bridge to https://github.com/AMICI-dev/AMICI.",
     "source": "https://github.com/vivarium-collective/viva-amici.git",
     "ref": "main",
-    "package": "pbg_amici",
+    "package": "viva_amici",
     "homepage": "https://github.com/vivarium-collective/viva-amici",
     "tags": [
       "ode"
@@ -60,10 +60,10 @@
   {
     "name": "viva-biomodels",
     "display_name": "viva-biomodels",
-    "description": "Process-bigraph workspace: BIOMODELS regression — installs pbg-biomodels-bundle and drives investigations against the BioModels corpus",
+    "description": "Process-bigraph workspace: BIOMODELS regression \u2014 installs pbg-biomodels-bundle and drives investigations against the BioModels corpus",
     "source": "https://github.com/vivarium-collective/viva-biomodels.git",
     "ref": "main",
-    "package": "pbg_biomodels",
+    "package": "viva_biomodels",
     "homepage": "https://github.com/vivarium-collective/viva-biomodels",
     "tags": []
   },
@@ -73,7 +73,7 @@
     "description": "Process-bigraph wrapper for BioReactorDesign (BiRD) bioreactor simulation",
     "source": "https://github.com/vivarium-collective/viva-bioreactordesign.git",
     "ref": "main",
-    "package": "pbg_bioreactordesign",
+    "package": "viva_bioreactordesign",
     "homepage": "https://github.com/vivarium-collective/viva-bioreactordesign",
     "tags": [
       "bioreactor"
@@ -94,7 +94,7 @@
       "checks": [
         {
           "name": "open-mpi-4",
-          "description": "OpenMPI 4.x runtime — the lammps PyPI wheel was built against libmpi.12 (OpenMPI 4 ABI)",
+          "description": "OpenMPI 4.x runtime \u2014 the lammps PyPI wheel was built against libmpi.12 (OpenMPI 4 ABI)",
           "import_check": "from ctypes import CDLL; CDLL('libmpi.12.dylib')",
           "install": {
             "darwin": {
@@ -170,7 +170,7 @@
     "description": "process-bigraph-compatible COPASI Steps and Processes for SBML simulation",
     "source": "https://github.com/vivarium-collective/viva-copasi.git",
     "ref": "main",
-    "package": "pbg_copasi",
+    "package": "viva_copasi",
     "homepage": "https://github.com/vivarium-collective/viva-copasi",
     "tags": [
       "sbml"
@@ -202,7 +202,7 @@
   {
     "name": "viva-martini",
     "display_name": "viva-martini",
-    "description": "Process-bigraph wrapper for the Martini coarse-grained force field — membrane systems, micelles, protein-lipid complexes, and vesicles",
+    "description": "Process-bigraph wrapper for the Martini coarse-grained force field \u2014 membrane systems, micelles, protein-lipid complexes, and vesicles",
     "source": "https://github.com/vivarium-collective/viva-martini.git",
     "ref": "main",
     "package": "pbg_martini",
@@ -276,7 +276,7 @@
   {
     "name": "viva-oxidizeme",
     "display_name": "viva-oxidizeme",
-    "description": "Process-bigraph wrapper for OxidizeME — a genome-scale ME-model of E. coli with ROS damage/repair (Yang et al. 2019 PNAS / Palsson lab)",
+    "description": "Process-bigraph wrapper for OxidizeME \u2014 a genome-scale ME-model of E. coli with ROS damage/repair (Yang et al. 2019 PNAS / Palsson lab)",
     "source": "https://github.com/vivarium-collective/viva-oxidizeme.git",
     "ref": "main",
     "package": "pbg_oxidizeme",
@@ -309,10 +309,10 @@
   {
     "name": "viva-simbio",
     "display_name": "viva-simbio",
-    "description": "Process-bigraph wrapper for simbio (Chemical Reaction Network simulation) — load models from Antimony, simulate with simbio",
+    "description": "Process-bigraph wrapper for simbio (Chemical Reaction Network simulation) \u2014 load models from Antimony, simulate with simbio",
     "source": "https://github.com/vivarium-collective/viva-simbio.git",
     "ref": "main",
-    "package": "pbg_simbio",
+    "package": "viva_simbio",
     "homepage": "https://github.com/vivarium-collective/viva-simbio",
     "tags": [
       "sbml"
@@ -324,7 +324,7 @@
     "description": "Process-bigraph wrapper for the Smoldyn particle-based spatial stochastic simulator",
     "source": "https://github.com/vivarium-collective/viva-smoldyn.git",
     "ref": "main",
-    "package": "pbg_smoldyn",
+    "package": "viva_smoldyn",
     "homepage": "https://github.com/vivarium-collective/viva-smoldyn",
     "tags": [
       "spatial",
@@ -338,7 +338,7 @@
     "description": "Process-bigraph wrapper for Tellurium / libroadrunner SBML & Antimony simulation",
     "source": "https://github.com/vivarium-collective/viva-tellurium.git",
     "ref": "main",
-    "package": "pbg_tellurium",
+    "package": "viva_tellurium",
     "homepage": "https://github.com/vivarium-collective/viva-tellurium",
     "tags": [
       "sbml"
@@ -347,7 +347,7 @@
   {
     "name": "viva-vcell-fvsolver",
     "display_name": "viva-vcell-fvsolver",
-    "description": "process-bigraph wrapper around pyvcell / pyvcell-fvsolver — VCell's finite-volume 3D reaction-diffusion PDE solver as a PBG Process",
+    "description": "process-bigraph wrapper around pyvcell / pyvcell-fvsolver \u2014 VCell's finite-volume 3D reaction-diffusion PDE solver as a PBG Process",
     "source": "https://github.com/vivarium-collective/viva-vcell-fvsolver.git",
     "ref": "main",
     "package": "pbg_vcell_fvsolver",
