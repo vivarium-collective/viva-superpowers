@@ -1,4 +1,4 @@
-"""Publish-asset templater for the read-only workbench dashboard.
+"""Publish-asset templater for the read-only workbench.
 
 `vivarium-workbench add-dashboard` is referenced in scaffold comments and
 docs but is NOT a real CLI subcommand — the "publish assets" it's supposed
@@ -13,7 +13,7 @@ dashboard publish flow) into any workspace.
     emit(workspace_dir, name="viva-fenics")
     # -> writes scripts/publish_dashboard.sh (chmod 0o755) and
     #    .github/workflows/publish-dashboard.yml, base_path defaulting to
-    #    "/viva-fenics/dashboard"
+    #    "/viva-fenics/workbench"
 """
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ def emit(
       - ``scripts/publish_dashboard.sh`` (chmod 0o755, executable)
       - ``.github/workflows/publish-dashboard.yml``
 
-    ``base_path`` defaults to ``/<name>/dashboard`` (the workbench's static
-    SPA base path once published to ``gh-pages:dashboard/``).
+    ``base_path`` defaults to ``/<name>/workbench`` (the workbench's static
+    SPA base path once published to ``gh-pages:workbench/``).
     ``interactive_url`` is optional (a link back to the source repo shown in
     the dashboard chrome); when omitted, the built script omits
     ``--interactive-url``.
@@ -64,7 +64,7 @@ def emit(
     # (…/viva-mgen/, even for a repo named viva-Mgen), so the default base-path
     # must be lowercase — otherwise an uppercase-named repo bakes /viva-Mgen/…
     # asset URLs that 404 and the SPA renders unstyled.
-    resolved_base_path = base_path or f"/{name.lower()}/dashboard"
+    resolved_base_path = base_path or f"/{name.lower()}/workbench"
     ctx = {
         "name": name,
         "base_path": resolved_base_path,
