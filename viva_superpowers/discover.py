@@ -297,6 +297,9 @@ def main(argv: list[str] | None = None) -> int:
     p_conn.add_argument("investigation", help="investigation slug")
     p_conn.add_argument("--relation", choices=EPISTEMIC_RELATIONS, default="builds-on")
 
+    p_crank = sub.add_parser("crank", help="turn the discovery crank: frontier + next action + closure")
+    p_crank.add_argument("investigation", help="investigation slug")
+
     args = parser.parse_args(argv)
     ws = Path(args.workspace).resolve()
 
@@ -331,6 +334,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"enriched {n} bare prerequisite(s) with '{args.relation}' across {len(report)} studies:")
         for s, ups in report.items():
             print(f"  {s}: {', '.join(ups)}")
+        return 0
+
+    if args.cmd == "crank":
+        from . import discovery_engine
+        _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
+        result = run_cycle(inv_spec, studies)
+        print(discovery_engine.summarize(discovery_engine.crank(result, inv_spec)))
         return 0
 
     return 1
