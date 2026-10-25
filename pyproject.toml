@@ -64,6 +64,7 @@ viva-sync-runs = "viva_superpowers.study_outcomes:main"
 # server (`GET /api/citation-gaps`); there is no `viva_superpowers.citation_gaps`
 # module, so the old entry point installed a script that tracebacked on invocation.
 viva-canonicalize-studies = "viva_superpowers.study_canonicalize:main"
+viva-discover = "viva_superpowers.discover:main"
 
 [build-system]
 requires = ["hatchling"]
