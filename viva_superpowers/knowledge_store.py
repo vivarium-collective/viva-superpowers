@@ -26,7 +26,28 @@ from __future__ import annotations
 
 from typing import Any
 
+from .study_outcomes import canonical_outcomes
+from .study_status import _study_tests, bucket_tests
 from .study_verdict import roll_up_verdict
+
+_BEHAVIOR_BUCKET = {"pass": "PASS", "fail": "FAIL", "skip": "SKIP", "pending": "PENDING"}
+
+
+def _study_behaviors(spec: dict) -> dict:
+    """Per-behavior pass/fail for a study's canonical run, keyed by behavior-test
+    name. Lets the discovery engine judge an acceptance criterion by whether its
+    NAMED behavior passed (not the study's roll-up verdict sign). Defensive: a
+    spec whose runs can't be read yields {} (the engine then falls back to the
+    verdict), never a crashed cycle."""
+    try:
+        buckets = bucket_tests(_study_tests(spec), canonical_outcomes(spec))
+    except Exception:
+        return {}
+    out: dict[str, str] = {}
+    for bucket, label in _BEHAVIOR_BUCKET.items():
+        for name in buckets.get(bucket, []) or []:
+            out[name] = label
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +154,13 @@ def derive_knowledge(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
 
     concepts: dict[str, dict] = {}
     verdicts: dict[str, dict] = {}
+    behaviors: dict[str, dict] = {}
     for slug in member_slugs:
         spec = studies_by_slug.get(slug)
         if spec is None:
             continue
         verdicts[slug] = canonical_verdict(spec)
+        behaviors[slug] = _study_behaviors(spec)
         concepts[slug] = {
             "question": _concept_question(spec, slug),
             "study_refs": [slug],
@@ -146,7 +169,7 @@ def derive_knowledge(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
             "derived": True,
         }
 
-    return {"concepts": concepts, "verdicts": verdicts}
+    return {"concepts": concepts, "verdicts": verdicts, "behaviors": behaviors}
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +184,7 @@ def merge_knowledge(authored: dict | None, derived: dict | None) -> dict:
     per entry; an authored-only entry is added.
     """
     out: dict[str, dict] = {}
-    for section in ("concepts", "verdicts"):
+    for section in ("concepts", "verdicts", "behaviors"):
         a = (authored or {}).get(section) or {}
         d = (derived or {}).get(section) or {}
         merged = {k: dict(v) for k, v in d.items()}
