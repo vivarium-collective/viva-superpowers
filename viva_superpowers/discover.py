@@ -29,6 +29,7 @@ the audit surfaces the gaps -> close them by extending models/studies -> re-run.
 from __future__ import annotations
 
 import argparse
+import copy
 import datetime as _dt
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,12 @@ from .synthesis import open_calls, synthesize_gates
 
 #: the canonical scientific verdict vocabulary a human may author
 VERDICT_VOCAB = ("supported", "qualified", "inconclusive", "refuted", "unassessed")
+
+#: the epistemic relation vocabulary a prerequisite edge may carry (RFC-0005 §4).
+#: These are the facet ``argument_store`` reads to build claim->claim edges; a bare
+#: ``condition: tests-passed`` prerequisite is organizational only and yields no
+#: argument edge until its epistemic relation is authored.
+EPISTEMIC_RELATIONS = ("builds-on", "tests", "refutes", "alternative-to", "motivates")
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +103,75 @@ def set_verdict(study_path: Path | str, verdict: str, rationale: str | None = No
         spec["verdict_rationale"] = rationale
     save_yaml_atomic(path, spec)
     return canonical_verdict(spec)
+
+
+# ---------------------------------------------------------------------------
+# relate / connect — author the epistemic edges that connect the argument graph
+# ---------------------------------------------------------------------------
+
+def relate(study_spec: dict, upstream: str, relation: str) -> dict:
+    """Return a NEW study spec with the epistemic ``relation`` to ``upstream`` set.
+
+    If a ``pipeline_gate.prerequisites`` entry for ``upstream`` already exists (a
+    gate dependency), its ``relation`` facet is set in place — the entry then
+    carries both the organizational (``condition``) and epistemic (``relation``)
+    facets, the RFC-0006 unified form. If none exists, an epistemic-only entry
+    ``{study, relation}`` is appended (an argument edge that is not also a gate
+    dependency). Non-mutating; raises ``ValueError`` on an off-vocabulary relation.
+    """
+    if relation not in EPISTEMIC_RELATIONS:
+        raise ValueError(f"relation must be one of {EPISTEMIC_RELATIONS}, got {relation!r}")
+    spec = copy.deepcopy(study_spec)
+    pg = spec.setdefault("pipeline_gate", {})
+    prereqs = pg.setdefault("prerequisites", [])
+    for p in prereqs:
+        if isinstance(p, dict) and p.get("study") == upstream:
+            p["relation"] = relation
+            break
+    else:
+        prereqs.append({"study": upstream, "relation": relation})
+    return spec
+
+
+def connect_investigation(ws_root: Path | str, slug: str,
+                          default_relation: str = "builds-on") -> dict[str, list[str]]:
+    """Enrich every *bare* prerequisite (a gate dependency with no epistemic
+    ``relation``) with ``default_relation`` across an investigation's studies,
+    persisting each changed study.yaml. Already-authored relations are left intact.
+
+    Returns ``{study_slug: [upstreams enriched]}`` for the studies that changed —
+    the streamlined "connect the narrative arc" op (the argument graph only orders
+    claims it has edges for).
+    """
+    if default_relation not in EPISTEMIC_RELATIONS:
+        raise ValueError(f"default_relation must be one of {EPISTEMIC_RELATIONS}, got {default_relation!r}")
+    _, inv, studies = load_cycle_inputs(ws_root, slug)
+    report: dict[str, list[str]] = {}
+    for s in inv.get("studies") or list(studies):
+        spec = studies.get(s)
+        if spec is None:
+            continue
+        pg = spec.get("pipeline_gate") or {}
+        prereqs = pg.get("prerequisites") or [] if isinstance(pg, dict) else []
+        bare = [p["study"] for p in prereqs
+                if isinstance(p, dict) and p.get("study") and not p.get("relation")]
+        if not bare:
+            continue
+        new_spec = spec
+        for up in bare:
+            new_spec = relate(new_spec, up, default_relation)
+        save_yaml_atomic(_study_path(ws_root, slug, s), new_spec)
+        report[s] = bare
+    return report
+
+
+def _study_path(ws_root: Path | str, slug: str, study: str) -> Path:
+    ws = Path(ws_root)
+    for base in (studies_dir(ws), investigations_dir(ws) / slug / "studies"):
+        sp = base / study / "study.yaml"
+        if sp.exists():
+            return sp
+    return studies_dir(ws) / study / "study.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +288,15 @@ def main(argv: list[str] | None = None) -> int:
     p_sv.add_argument("verdict", choices=VERDICT_VOCAB)
     p_sv.add_argument("--rationale", default=None)
 
+    p_rel = sub.add_parser("relate", help="author an epistemic relation downstream <- upstream")
+    p_rel.add_argument("downstream", help="the study whose prerequisite is being labelled")
+    p_rel.add_argument("upstream", help="the study it relates to")
+    p_rel.add_argument("--relation", choices=EPISTEMIC_RELATIONS, default="builds-on")
+
+    p_conn = sub.add_parser("connect", help="enrich every bare prerequisite across an investigation")
+    p_conn.add_argument("investigation", help="investigation slug")
+    p_conn.add_argument("--relation", choices=EPISTEMIC_RELATIONS, default="builds-on")
+
     args = parser.parse_args(argv)
     ws = Path(args.workspace).resolve()
 
@@ -230,6 +315,22 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"no study.yaml at {sp}")
         rec = set_verdict(sp, args.verdict, args.rationale)
         print(f"{args.study}: verdict={rec['verdict']} source={rec['verdict_source']}")
+        return 0
+
+    if args.cmd == "relate":
+        sp = studies_dir(ws) / args.downstream / "study.yaml"
+        if not sp.exists():
+            parser.error(f"no study.yaml at {sp}")
+        save_yaml_atomic(sp, relate(load_yaml_mapping(sp), args.upstream, args.relation))
+        print(f"{args.downstream} <-{args.relation}- {args.upstream}")
+        return 0
+
+    if args.cmd == "connect":
+        report = connect_investigation(ws, args.investigation, args.relation)
+        n = sum(len(v) for v in report.values())
+        print(f"enriched {n} bare prerequisite(s) with '{args.relation}' across {len(report)} studies:")
+        for s, ups in report.items():
+            print(f"  {s}: {', '.join(ups)}")
         return 0
 
     return 1

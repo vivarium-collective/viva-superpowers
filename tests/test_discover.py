@@ -108,6 +108,55 @@ def test_persist_cycle_writes_cache_without_polluting_authored(tmp_path):
 # load_cycle_inputs — read inv + member studies from disk
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# relate / connect — author the epistemic edges that connect the argument graph
+# ---------------------------------------------------------------------------
+
+def test_relate_sets_facet_on_existing_prereq_keeping_condition():
+    spec = {"name": "b", "pipeline_gate": {"prerequisites": [
+        {"study": "a", "condition": "tests-passed"}]}}
+    out = discover.relate(spec, "a", "builds-on")
+    entry = out["pipeline_gate"]["prerequisites"][0]
+    assert entry["relation"] == "builds-on"
+    assert entry["condition"] == "tests-passed"  # organizational facet kept
+    # non-mutating
+    assert "relation" not in spec["pipeline_gate"]["prerequisites"][0]
+
+
+def test_relate_appends_epistemic_only_when_absent():
+    spec = {"name": "b"}
+    out = discover.relate(spec, "a", "tests")
+    assert out["pipeline_gate"]["prerequisites"] == [{"study": "a", "relation": "tests"}]
+
+
+def test_relate_rejects_bad_relation():
+    with pytest.raises(ValueError):
+        discover.relate({"name": "b"}, "a", "depends-on")
+
+
+def test_connect_enriches_only_bare_prereqs(tmp_path):
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv_dir = tmp_path / "investigations" / "og"
+    inv_dir.mkdir(parents=True)
+    save_yaml_atomic(inv_dir / "investigation.yaml", {"studies": ["bare", "authored"]})
+    for slug, rel in (("bare", None), ("authored", "refutes")):
+        sdir = tmp_path / "studies" / slug
+        sdir.mkdir(parents=True)
+        prereq = {"study": "up", "condition": "tests-passed"}
+        if rel:
+            prereq["relation"] = rel
+        save_yaml_atomic(sdir / "study.yaml",
+                         {"name": slug, "pipeline_gate": {"prerequisites": [prereq]}})
+
+    report = discover.connect_investigation(tmp_path, "og", "builds-on")
+
+    assert report == {"bare": ["up"]}  # only the bare one touched
+    bare = load_yaml(tmp_path / "studies" / "bare" / "study.yaml")
+    assert bare["pipeline_gate"]["prerequisites"][0]["relation"] == "builds-on"
+    authored = load_yaml(tmp_path / "studies" / "authored" / "study.yaml")
+    assert authored["pipeline_gate"]["prerequisites"][0]["relation"] == "refutes"  # left intact
+
+
 def test_load_cycle_inputs_reads_inv_and_studies(tmp_path):
     (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
     inv_dir = tmp_path / "investigations" / "og"
