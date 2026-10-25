@@ -33,6 +33,7 @@ from __future__ import annotations
 from typing import Any
 
 from .knowledge_store import canonical_verdict
+from .relations import epistemic_relations
 
 # ---------------------------------------------------------------------------
 # Vocabularies
@@ -175,16 +176,15 @@ def derive_argument(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
             claims[acid] = _arm_claim(claims[cid], arm, cid)
             edges.append(_edge(acid, cid, "synthesis", "arm"))
 
-    # Pass 2: epistemic edges from parent_relations.
+    # Pass 2: epistemic edges from the unified relations (RFC-0006 Tier 2 — reads
+    # the enriched parent_studies entries, falling back to legacy parent_relations).
     for slug in member_slugs:
         spec = studies_by_slug.get(slug)
         if spec is None:
             continue
         cid = f"claim:{slug}"
         child_verdict = claims.get(cid, {}).get("verdict")
-        for rel in spec.get("parent_relations") or []:
-            if not isinstance(rel, dict):
-                continue
+        for rel in epistemic_relations(spec):
             parent, relation = rel.get("study"), rel.get("relation")
             if not parent or not relation:
                 continue
