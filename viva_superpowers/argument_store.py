@@ -62,11 +62,14 @@ def canonical_claim(study_spec: dict, slug: str) -> dict:
     yields a stub, never fabricated text.
     """
     proposition, is_stub = _proposition(study_spec, slug)
+    cv = canonical_verdict(study_spec)
 
     claim: dict[str, Any] = {
         "proposition": proposition,
         "proposition_stub": is_stub,
-        "verdict": canonical_verdict(study_spec)["verdict"],
+        "verdict": cv["verdict"],
+        "verdict_source": cv["verdict_source"],
+        "diverges": cv["diverges"],
         "scope": study_spec.get("primary_limitation"),
         "qualifiers": _qualifiers(study_spec),
         "hypothesis": study_spec.get("hypothesis"),
