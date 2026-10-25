@@ -32,7 +32,6 @@ import argparse
 import copy
 import datetime as _dt
 from pathlib import Path
-from typing import Any
 
 from .argument_store import derive_argument, merge_argument
 from .investigation_import import investigations_dir, studies_dir

@@ -21,7 +21,6 @@ audit(narrative, argument_graph) -> list[dict]
 """
 from __future__ import annotations
 
-from typing import Any
 
 #: ordering/support edge classes (challenge and synthesis do not order the reading)
 _SUPPORTING = ("prerequisite", "support")

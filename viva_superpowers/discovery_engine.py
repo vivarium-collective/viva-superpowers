@@ -30,7 +30,6 @@ crank(cycle_result, inv_spec) -> dict          # one combined report
 """
 from __future__ import annotations
 
-from typing import Any
 
 # Frontier priorities (higher = more urgent; a closure-blocker outranks a polish item).
 _PRIORITY = {
