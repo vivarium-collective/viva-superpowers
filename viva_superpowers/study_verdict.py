@@ -356,6 +356,80 @@ def classify_gates(spec: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Split verdict ledger (restored; review G1 / #285) — pure spec -> dict
+# ---------------------------------------------------------------------------
+# Restored after the Tier-1 cleanup (d4d131b) removed it as "dead": it is NOT
+# dead — vivarium-workbench's gate_rigor.verdict_count_split / behavior_test_card
+# delegate to it for the honest "pins N/N; acceptance M/K" ledger. Removing it
+# silently reverted the workbench to a sentinel label downstream.
+
+
+def verdict_count_split(spec: dict) -> dict:
+    """Per-gate_class outcome counts, so a verdict can render HONESTLY.
+
+    ``roll_up_verdict`` deliberately stays the coarse gate (fail==0 and
+    pass>0); this ADDITIVE split lets the renderer/report say
+    ``pins: N/N; acceptance: M/K`` instead of conflating rerun-guard pins with
+    pre-stated acceptance criteria (review G1). Pure ``spec -> dict``:
+
+    - ``regression_pins`` / ``acceptance_criteria`` — ``{total, pass, fail}``
+      against the canonical run's outcomes (same classification as
+      ``bucket_tests``).
+    - ``expected_fail`` — ``{total, behaved}`` where ``behaved`` counts
+      controls that FAILED as designed. Never contributes to acceptance.
+    - ``narrated`` / ``unclassified`` — counts of tests with no coded gate /
+      no declared gate_class.
+    - ``committed_rerunnable`` — how many tests carry an executable check or
+      machine predicate at all (:func:`_is_committed_rerunnable`).
+    - ``label`` — the honest render string, e.g.
+      ``"pins: 2/2; acceptance: 1/3"`` (expected-fail / narrated appended
+      only when present).
+    """
+    spec = spec or {}
+    tests = _study_tests(spec)
+    outcomes = canonical_outcomes(spec)
+    buckets = bucket_tests(tests, outcomes)
+    passed = set(buckets["pass"])
+    failed = set(buckets["fail"])
+    classes = classify_gates(spec)
+
+    def _split(names: list[str]) -> dict:
+        return {
+            "total": len(names),
+            "pass": sum(1 for n in names if n in passed),
+            "fail": sum(1 for n in names if n in failed),
+        }
+
+    pins = _split(classes["committed_pins"])
+    acceptance = _split(classes["acceptance_criteria"])
+    expected_fail = {
+        "total": len(classes["expected_fail"]),
+        # behaved == FAILED as designed (the control's success condition)
+        "behaved": sum(1 for n in classes["expected_fail"] if n in failed),
+    }
+
+    label = (f"pins: {pins['pass']}/{pins['total']}; "
+             f"acceptance: {acceptance['pass']}/{acceptance['total']}")
+    if expected_fail["total"]:
+        label += (f"; expected-fail behaved: "
+                  f"{expected_fail['behaved']}/{expected_fail['total']}")
+    if classes["narrated"]:
+        label += f"; narrated: {len(classes['narrated'])}"
+    if classes["unclassified"]:
+        label += f"; unclassified: {len(classes['unclassified'])}"
+
+    return {
+        "committed_rerunnable": sum(1 for t in tests if _is_committed_rerunnable(t)),
+        "regression_pins": pins,
+        "acceptance_criteria": acceptance,
+        "expected_fail": expected_fail,
+        "narrated": len(classes["narrated"]),
+        "unclassified": len(classes["unclassified"]),
+        "label": label,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pre-registration status (critique #18) — pure spec -> dict
 # ---------------------------------------------------------------------------
 
