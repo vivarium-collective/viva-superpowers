@@ -25,7 +25,21 @@ def study_relations(spec: dict) -> list[dict]:
     def ent(slug: str) -> dict:
         return out.setdefault(slug, {"study": slug})
 
-    # 1. parent_studies — the backbone (may already carry relation/provides).
+    # 0. pipeline_gate.prerequisites — the CANONICAL dependency field (Section 2).
+    #    Wins over the legacy keys below (RFC-0006 Tier 2b).
+    pg = spec.get("pipeline_gate") or {}
+    for e in (pg.get("prerequisites") if isinstance(pg, dict) else None) or []:
+        if isinstance(e, str) and e:
+            ent(e)
+        elif isinstance(e, dict) and e.get("study"):
+            d = ent(e["study"])
+            for k in _FACETS:
+                if e.get(k) is not None:
+                    d.setdefault(k, e[k])
+            if e.get("outputs_used") is not None:      # pipeline_gate's name for provides
+                d.setdefault("provides", e["outputs_used"])
+
+    # 1. parent_studies — the legacy backbone (may carry relation/provides).
     for e in spec.get("parent_studies") or []:
         if isinstance(e, dict) and e.get("study"):
             d = ent(e["study"])

@@ -50,5 +50,19 @@ def test_epistemic_relations_filters_to_the_scientific_edge_vocab():
     assert eps == {"a", "c"}                                   # b has no epistemic relation
 
 
+def test_pipeline_gate_prerequisites_is_the_canonical_source():
+    # the canonical Section-2 field wins over legacy parent_studies (Tier 2b)
+    spec = {
+        "pipeline_gate": {"prerequisites": [
+            {"study": "a", "condition": "tests-passed", "relation": "builds-on",
+             "outputs_used": "flux"}]},
+        "parent_studies": [{"study": "a", "relation": "tests"}],   # legacy, loses
+    }
+    r = _by_study(study_relations(spec))["a"]
+    assert r["relation"] == "builds-on"          # pipeline_gate wins
+    assert r["provides"] == "flux"               # outputs_used -> provides
+    assert r["condition"] == "tests-passed"
+
+
 def test_empty_spec_is_empty():
     assert study_relations({}) == [] and epistemic_relations({}) == []
