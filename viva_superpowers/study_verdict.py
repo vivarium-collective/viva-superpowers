@@ -46,7 +46,7 @@ _GATE_STATUS_MAP: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
-# Task 1: roll_up_verdict
+# roll_up_verdict
 # ---------------------------------------------------------------------------
 
 def roll_up_verdict(spec: dict) -> dict:
@@ -356,12 +356,11 @@ def classify_gates(spec: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Split verdict ledger (restored; review G1 / #285) — pure spec -> dict
+# Split verdict ledger — pure spec -> dict
 # ---------------------------------------------------------------------------
-# Restored after the Tier-1 cleanup (d4d131b) removed it as "dead": it is NOT
-# dead — vivarium-workbench's gate_rigor.verdict_count_split / behavior_test_card
-# delegate to it for the honest "pins N/N; acceptance M/K" ledger. Removing it
-# silently reverted the workbench to a sentinel label downstream.
+# NOT dead code: vivarium-workbench's gate_rigor.verdict_count_split /
+# behavior_test_card delegate to it for the honest "pins N/N; acceptance M/K"
+# ledger. Removing it silently reverts the workbench to a sentinel label.
 
 
 def verdict_count_split(spec: dict) -> dict:
@@ -660,7 +659,7 @@ def lifecycle_below_floor(finding: dict, spec: dict) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Task 2: write_gate_evaluator
+# write_gate_evaluator
 # ---------------------------------------------------------------------------
 
 def write_gate_evaluator(study_dir) -> bool:

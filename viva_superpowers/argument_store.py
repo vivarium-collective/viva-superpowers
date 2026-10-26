@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .knowledge_store import canonical_verdict
+from .knowledge_store import _EMPTY, _merge_entry, canonical_verdict
 from .relations import epistemic_relations
 
 # ---------------------------------------------------------------------------
@@ -47,9 +47,6 @@ _REBUTTING = {"refutes", "refuted", "refute", "challenges", "challenge", "discon
 
 #: arm.gate_status -> canonical verdict (fallback when an arm has no verdict)
 _GATE_TO_VERDICT = {"passed": "supported", "failed": "refuted"}
-
-#: values that never clobber an existing one during a merge
-_EMPTY = (None, "", [], {})
 
 
 # ---------------------------------------------------------------------------
@@ -262,12 +259,3 @@ def merge_argument(authored: dict | None, derived: dict | None) -> dict:
         merged_edges.append(e)
 
     return {"claims": merged_claims, "edges": merged_edges}
-
-
-def _merge_entry(derived_entry: dict | None, authored_entry: dict | None) -> dict:
-    result = dict(derived_entry or {})
-    for k, v in (authored_entry or {}).items():
-        if v in _EMPTY:
-            continue
-        result[k] = v
-    return result
