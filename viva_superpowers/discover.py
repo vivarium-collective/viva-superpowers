@@ -48,6 +48,44 @@ VERDICT_VOCAB = ("supported", "qualified", "inconclusive", "refuted", "unassesse
 #: ``condition: tests-passed`` prerequisite is organizational only and yields no
 #: argument edge until its epistemic relation is authored.
 EPISTEMIC_RELATIONS = ("builds-on", "tests", "refutes", "alternative-to", "motivates")
+# The frontier-item kinds a resolution can discharge (mirror discovery_engine priorities).
+RESOLUTION_KINDS = ("unaddressed_criterion", "open_challenge", "narrative_gap",
+                    "open_decision", "divergence", "open_question")
+
+
+def add_resolution(inv_spec: dict, kind: str, target: str, rationale: str,
+                   by: str | None = None) -> dict:
+    """Record a resolution ``{kind, target, rationale, by?}`` in an investigation spec —
+    the uniform discharge the discovery crank honors for every frontier-item kind. The op
+    that produced an artifact (an adjudication, a bridging study, a met criterion) records
+    it here, back-referenced via ``by``. Idempotent on ``(kind, target)``: a second call
+    updates the record rather than duplicating. A rationale is required — a resolution
+    documents *why* an item is discharged, it does not silently suppress it. Returns the
+    updated spec (pure; the caller persists)."""
+    if kind not in RESOLUTION_KINDS:
+        raise ValueError(f"kind must be one of {RESOLUTION_KINDS}, got {kind!r}")
+    if not target:
+        raise ValueError("target is required (the frontier item's target, as the crank prints it)")
+    if not (rationale or "").strip():
+        raise ValueError("a rationale is required — a resolution documents why the item is discharged")
+    rec = {"kind": kind, "target": target, "rationale": rationale}
+    if by:
+        rec["by"] = by
+    out = dict(inv_spec)
+    kept = [r for r in (out.get("resolutions") or [])
+            if not (isinstance(r, dict) and r.get("kind") == kind and r.get("target") == target)]
+    kept.append(rec)
+    out["resolutions"] = kept
+    return out
+
+
+def record_resolution(inv_path: Path | str, kind: str, target: str, rationale: str,
+                      by: str | None = None) -> dict:
+    """Load an investigation.yaml, add a resolution, save atomically. Returns the record."""
+    path = Path(inv_path)
+    spec = add_resolution(load_yaml_mapping(path), kind, target, rationale, by)
+    save_yaml_atomic(path, spec)
+    return spec["resolutions"][-1]
 
 
 # ---------------------------------------------------------------------------
@@ -299,6 +337,13 @@ def main(argv: list[str] | None = None) -> int:
     p_crank = sub.add_parser("crank", help="turn the discovery crank: frontier + next action + closure")
     p_crank.add_argument("investigation", help="investigation slug")
 
+    p_res = sub.add_parser("resolve", help="record a resolution that discharges a frontier item")
+    p_res.add_argument("investigation", help="investigation slug")
+    p_res.add_argument("kind", choices=RESOLUTION_KINDS, help="the frontier-item kind to discharge")
+    p_res.add_argument("target", help="the item's target, as the crank prints it (e.g. 'claim:og-x' or a study slug)")
+    p_res.add_argument("--rationale", required=True, help="why the item is discharged (the adjudication / bridge)")
+    p_res.add_argument("--by", default=None, help="the artifact that resolves it (e.g. study#finding)")
+
     args = parser.parse_args(argv)
     ws = Path(args.workspace).resolve()
 
@@ -333,6 +378,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"enriched {n} bare prerequisite(s) with '{args.relation}' across {len(report)} studies:")
         for s, ups in report.items():
             print(f"  {s}: {', '.join(ups)}")
+        return 0
+
+    if args.cmd == "resolve":
+        inv_path = investigations_dir(ws) / args.investigation / "investigation.yaml"
+        if not inv_path.exists():
+            parser.error(f"no investigation.yaml at {inv_path}")
+        rec = record_resolution(inv_path, args.kind, args.target, args.rationale, args.by)
+        print(f"resolved [{rec['kind']}] {rec['target']}"
+              + (f"  (by {rec['by']})" if rec.get("by") else "")
+              + f"  — {rec['rationale']}")
         return 0
 
     if args.cmd == "crank":
