@@ -56,18 +56,37 @@ _CALL_KIND = {"narrative_gap": "narrative_gap", "decision": "open_decision",
 _MET = ("supported", "qualified")
 
 
+def _resolution_keys(inv_spec: dict) -> set:
+    """``(kind, target)`` pairs the investigation has recorded as resolved.
+
+    A resolution is an authored record ``{kind, target, rationale, by?}`` written by
+    the op that discharged the item (e.g. an adjudicated challenge, a bridged narrative
+    gap, a met criterion) — the artifact's back-reference to the frontier item it closes.
+    ``frontier`` consults this one set for every item kind."""
+    out: set = set()
+    for r in inv_spec.get("resolutions") or []:
+        if isinstance(r, dict) and r.get("kind") and r.get("target"):
+            out.add((r["kind"], r["target"]))
+    return out
+
+
 def frontier(cycle_result: dict, inv_spec: dict) -> list[dict]:
     """The prioritized set of unresolved items. Each item is
     ``{kind, target, priority, op, rationale}``; the list is sorted by priority
     (descending), ties broken by a stable key so the crank is deterministic."""
     verdicts = (cycle_result.get("knowledge") or {}).get("verdicts") or {}
     edges = (cycle_result.get("argument") or {}).get("edges") or []
+    resolved = _resolution_keys(inv_spec)
     items: list[dict] = []
     seen: set[tuple] = set()
 
     def add(kind, target, rationale):
         key = (kind, target)
-        if key in seen:
+        # Uniform resolution: one check discharges a frontier item of ANY kind. An op
+        # that produced its artifact records a resolution {kind, target, …}; until then
+        # the item is raised. This closes the knowledge-clock loop — the action aₙ a
+        # cycle performs feeds the next frontier — for every kind, not just acceptance.
+        if key in seen or key in resolved:
             return
         seen.add(key)
         items.append({"kind": kind, "target": target, "priority": _PRIORITY.get(kind, 30),

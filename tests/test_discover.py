@@ -170,3 +170,27 @@ def test_load_cycle_inputs_reads_inv_and_studies(tmp_path):
     assert inv_path == inv_dir / "investigation.yaml"
     assert inv_spec["question"] == "Q?"
     assert studies["a"]["claim"] == "a holds"
+
+
+def test_add_resolution_appends_a_record():
+    from viva_superpowers.discover import add_resolution
+    out = add_resolution({"name": "inv"}, "open_challenge", "claim:x",
+                         "adjudicated: concordant", by="studyA#finding1")
+    rec = out["resolutions"][-1]
+    assert rec["kind"] == "open_challenge" and rec["target"] == "claim:x"
+    assert rec["rationale"] == "adjudicated: concordant" and rec["by"] == "studyA#finding1"
+
+
+def test_add_resolution_is_idempotent_on_kind_target():
+    from viva_superpowers.discover import add_resolution
+    spec = add_resolution({"name": "i"}, "open_challenge", "claim:x", "r1")
+    spec = add_resolution(spec, "open_challenge", "claim:x", "r2")  # same key -> update, no duplicate
+    matches = [r for r in spec["resolutions"] if r["kind"] == "open_challenge" and r["target"] == "claim:x"]
+    assert len(matches) == 1 and matches[0]["rationale"] == "r2"
+
+
+def test_add_resolution_rejects_unknown_kind():
+    import pytest
+    from viva_superpowers.discover import add_resolution
+    with pytest.raises(ValueError):
+        add_resolution({"name": "i"}, "not-a-kind", "claim:x", "r")

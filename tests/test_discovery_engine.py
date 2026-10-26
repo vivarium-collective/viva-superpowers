@@ -71,6 +71,40 @@ def test_criterion_falls_back_to_verdict_when_no_behavior_outcome():
     assert "s" in [i["target"] for i in de.frontier(cyc, inv) if i["kind"] == "unaddressed_criterion"]
 
 
+def test_frontier_skips_items_resolved_in_the_investigation():
+    # Uniform resolution: one recorded resolution discharges a frontier item of ANY kind,
+    # via a single check in add() — the op that produced the artifact records a resolution.
+    cyc = _cycle(
+        edges=[{"type": "challenge", "from": "a", "to": "claim:x", "relation": "refutes"}],
+        open_calls=[{"kind": "narrative_gap", "title": "gap p->q", "refs": ["claim:p", "claim:q"]}],
+        verdicts={"sref": {"verdict": "refuted"}},
+    )
+    inv = {
+        "acceptance_criteria": [{"study": "sref", "behavior": "b"}],
+        "resolutions": [
+            {"kind": "open_challenge", "target": "claim:x", "rationale": "adjudicated: concordant"},
+            {"kind": "narrative_gap", "target": "claim:p", "rationale": "bridged by study z"},
+            {"kind": "unaddressed_criterion", "target": "sref", "rationale": "met by follow-up"},
+        ],
+    }
+    keys = {(i["kind"], i["target"]) for i in de.frontier(cyc, inv)}
+    assert ("open_challenge", "claim:x") not in keys
+    assert ("narrative_gap", "claim:p") not in keys
+    assert ("unaddressed_criterion", "sref") not in keys
+
+
+def test_frontier_resolution_is_specific_to_the_target():
+    cyc = _cycle(edges=[{"type": "challenge", "from": "a", "to": "claim:x", "relation": "refutes"}])
+    inv = {"resolutions": [{"kind": "open_challenge", "target": "claim:OTHER", "rationale": "x"}]}
+    assert ("open_challenge", "claim:x") in {(i["kind"], i["target"]) for i in de.frontier(cyc, inv)}
+
+
+def test_closure_closed_when_every_item_is_resolved():
+    cyc = _cycle(edges=[{"type": "challenge", "from": "a", "to": "claim:x", "relation": "refutes"}])
+    inv = {"resolutions": [{"kind": "open_challenge", "target": "claim:x", "rationale": "adjudicated"}]}
+    assert de.closure(cyc, inv)["closed"] is True
+
+
 def test_frontier_flags_open_challenge_edges():
     cyc = _cycle(edges=[{"from": "claim:alt", "to": "claim:main", "type": "challenge", "relation": "refutes"},
                         {"from": "claim:p", "to": "claim:main", "type": "prerequisite", "relation": "builds-on"}])
