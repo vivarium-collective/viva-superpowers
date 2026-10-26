@@ -166,6 +166,91 @@ def _inplace_extract_template_deps(template_pyproject_text: str) -> list[str]:
     return list(deps)
 
 
+def _template_requires_python(template_pyproject_text: str) -> str | None:
+    """Pull `requires-python` out of the template's pyproject, or None."""
+    import tomllib
+    parsed = tomllib.loads(template_pyproject_text)
+    return (parsed.get("project") or {}).get("requires-python")
+
+
+def _requires_python_floor(spec: str | None) -> tuple[int, ...] | None:
+    """Parse the lower bound out of a requires-python specifier.
+
+    Returns a version tuple like ``(3, 11)`` for the highest ``>=``/``~=``/``==``
+    bound found (e.g. ``">=3.10,<4"`` -> ``(3, 10)``), or None when there is no
+    lower bound to compare.
+    """
+    if not spec:
+        return None
+    import re as _re
+    best: tuple[int, ...] | None = None
+    for m in _re.finditer(r"(?:>=|~=|==)\s*([0-9]+(?:\.[0-9]+)*)", spec):
+        parts = tuple(int(p) for p in m.group(1).split("."))
+        if best is None or parts > best:
+            best = parts
+    return best
+
+
+def _inplace_merge_requires_python(
+    existing_path: Path, template_requires_python: str | None,
+) -> str | None:
+    """Raise the host pyproject's `requires-python` to the template's floor
+    when the template's is higher (or set it when the host declares none).
+
+    Returns the new `requires-python` string if it was changed, else None.
+
+    The in-place scaffolder merges the template's dependencies into the host
+    pyproject (e.g. bigraph-viz>=2.0.3, which needs py>=3.11). If the host still
+    declares a lower floor like `>=3.10`, `uv lock`/`uv sync` can't resolve the
+    merged deps. (#357)
+    """
+    tpl_floor = _requires_python_floor(template_requires_python)
+    if tpl_floor is None:
+        return None
+    text = existing_path.read_text(encoding="utf-8")
+    import tomllib
+    host_rp = (tomllib.loads(text).get("project") or {}).get("requires-python")
+    host_floor = _requires_python_floor(host_rp)
+    if host_floor is not None and host_floor >= tpl_floor:
+        return None
+
+    import re as _re
+    if host_rp is not None:
+        new_text, n = _re.subn(
+            r'(^\s*requires-python\s*=\s*)(["\']).*?\2',
+            lambda m: f'{m.group(1)}"{template_requires_python}"',
+            text, count=1, flags=_re.MULTILINE,
+        )
+        if n == 0:
+            click.echo(
+                "warning: could not rewrite `requires-python` in "
+                f"{existing_path}; set it to {template_requires_python!r} "
+                "manually (the merged template deps need it)", err=True,
+            )
+            return None
+    else:
+        # Host declares no requires-python at all — insert one under [project].
+        new_text, n = _re.subn(
+            r"(^\s*\[project\]\s*\n)",
+            rf'\1requires-python = "{template_requires_python}"\n',
+            text, count=1, flags=_re.MULTILINE,
+        )
+        if n == 0:
+            click.echo(
+                "warning: no [project] table in "
+                f"{existing_path}; add requires-python = "
+                f"{template_requires_python!r} manually", err=True,
+            )
+            return None
+
+    existing_path.write_text(new_text)
+    click.echo(
+        f"raised requires-python to {template_requires_python!r} to match the "
+        "template (its merged dependencies require it)"
+    )
+    return template_requires_python
+
+
 def _inplace_merge_pyproject(existing_path: Path, template_deps: list[str]) -> list[str]:
     """Append any template deps that aren't already in the existing
     pyproject's [project].dependencies array. Returns the list of deps
@@ -630,9 +715,14 @@ def scaffold_workspace_in_place(
         if template_pyproject.is_file():
             tpl_text = _render_text(template_pyproject.read_text(encoding="utf-8"), subs)
             tpl_deps = _inplace_extract_template_deps(tpl_text)
+            tpl_requires_python = _template_requires_python(tpl_text)
             existing_pyproject = workspace_root / "pyproject.toml"
             if existing_pyproject.is_file():
                 added_deps = _inplace_merge_pyproject(existing_pyproject, tpl_deps)
+                # Merged template deps may need a higher Python floor than the
+                # host declares; raise it so uv lock/sync can resolve. (#357)
+                _inplace_merge_requires_python(
+                    existing_pyproject, tpl_requires_python)
                 added_cli_extra = _inplace_merge_pyproject_cli_extra(existing_pyproject)
                 added_cli_script = _inplace_merge_pyproject_scripts(
                     existing_pyproject, workspace_name, pkg_slug)
