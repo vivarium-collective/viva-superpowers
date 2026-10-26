@@ -33,12 +33,38 @@ study cites must actually exist on disk and its pipeline must run in the **canon
 not a result; (b) when the claim is a *passed gate*, re-run it under a **seed/parameter sweep** — a
 pass that holds only at one seed or one calibration is **knife-edge**, not a certificate.
 
-**1. Survey & triage — locate the load-bearing gap.**
-Run [`/viva-report`](../viva-report/SKILL.md) `--audit` if available (its Pass A audit is the
-owner of what gets surfaced — verdict↔chart drift, stale framings, follow-ups); else audit the
-gate axes by hand. Rank
-the gaps by *leverage on the headline claim* and pick the ONE that matters most. Do not enumerate;
-prioritize.
+**1. Survey & triage — turn the crank to locate the load-bearing gap.**
+Don't rank gaps by hand first — the **discovery crank** computes the ranked frontier for you.
+It is the deterministic engine behind this skill's whole premise ("find the one gap that most
+weakens the headline claim"):
+
+```bash
+python -m viva_superpowers.discover --workspace <WS> crank <investigation-slug>
+```
+
+It prints `closure` (CLOSED / OPEN), the single `next` action, and the top frontier — each item
+`{priority, op, kind, target}`. **The top item is the load-bearing gap; its `op` names how to
+close it.** Map the `op` to its executor and work that one item:
+
+| `op` | kind (priority) | execute it with |
+|---|---|---|
+| `branch` | `unaddressed_criterion` (90) / `narrative_gap` with no edge (70) | `/viva-study propose-followup` + `seed-from-followup` (a study that addresses it) |
+| `connect`/`relate` | `narrative_gap` where the edge exists but is **bare** (70) | `discover connect <inv> --relation builds-on` / `relate <downstream> <upstream>` — author the relation; **do not** seed a study. (`connect` reaches only `pipeline_gate.prerequisites` edges today; a `parent_studies`-only edge needs an explicit `relate` — see the crank doc's "known limitation".) Re-crank and read the residual |
+| `synthesize` | `open_challenge` (80) | adjudicate into a finding (`/viva-study findings`), then `discover resolve … open_challenge …` |
+| `reconcile` | `divergence` (50) | [`/viva-investigation`](../viva-investigation/SKILL.md) reconcile + `/viva-study set-verdicts` |
+| `test` | `open_question` (40) | `/viva-study` evaluate / run-baseline |
+| `steer` | `open_decision` (60) | the expert decides — the crank's hand-back point |
+
+The `op` label is advisory — read the `target`; when a whole frontier is one kind, suspect a
+systematic cause (e.g. all prerequisite edges bare → one `connect` clears many gaps). The full
+contract, verbs, convergence rule, and the stale-install precondition are in
+[`docs/conventions/discovery-crank.md`](../../docs/conventions/discovery-crank.md).
+
+If the engine isn't importable in the workspace venv (a common stale-install case), see that
+doc's precondition check. If the crank can't run at all, fall back to
+[`/viva-report`](../viva-report/SKILL.md) `--audit` (its Pass A audit surfaces verdict↔chart
+drift, stale framings, follow-ups) or audit the gate axes by hand — but rank by *leverage on the
+headline claim* and pick the ONE that matters most. Do not enumerate; prioritize.
 
 **2. Classify the hardening mode — each needs different work:**
 
@@ -94,9 +120,18 @@ wholesale. **Cherry-pick per commit** onto current `origin/main`, then verify
 `git diff --stat origin/main HEAD` contains ONLY your deliverables — any unrelated deletion (CI
 config, lockfile, audit allowlists) is a base-gap artifact to drop.
 
-**5. Close the loop.** Record findings (`/viva-study findings`, `set-verdicts`), resolve/fill
-`decisions_needed`, seed follow-ups, then re-run `/viva-report --audit` until the drift it flagged
-is gone. A hardening is done when the report card and the verdict tell the same story as the data.
+**5. Close the loop — record, then re-crank.** Record findings (`/viva-study findings`,
+`set-verdicts`), resolve/fill `decisions_needed`, seed follow-ups. Then **discharge the frontier
+item you worked** so the crank's closure reflects it: `discover resolve <inv> <kind> <target>
+--rationale "<the adjudication / bridge>" --by <study>#<finding>` (a met acceptance criterion
+discharges itself from its behavior outcome; challenges, gaps, and decisions need an explicit
+`resolve`). **Re-run `discover crank`** — a correct resolution drops the item and surfaces the
+next; repeat from step 1. The crank advances monotonically to **CLOSED** (no unmet criterion, no
+open gap, no unadjudicated challenge). What remains at CLOSED is the `steer` class
+(`open_decision`) — genuine expert calls to hand back, not work to grind on. Also re-run
+`/viva-report --audit` until the drift it flagged is gone. A hardening is done when the crank
+reads CLOSED (or only `steer` items remain) and the report card and the verdict tell the same
+story as the data.
 
 **Landing & publishing.** These repos use strict protection (`enforce_admins`, required review,
 up-to-date-required). A PR you authored can't be self-approved, and with `enforce_admins` ON,
@@ -340,7 +375,9 @@ curl -sf -X POST -H "Content-Type: application/json" \
 
 - "The survey/memory says study X is a scaffold" → confirm on current `origin/main` first (step 0).
 - "Let me add seeds and statistics to this failing gate" → root-cause it first (step 2).
-- "Here are 11 things to improve" with no ranking → you skipped triage (step 1).
+- "Here are 11 things to improve" with no ranking → you skipped triage; turn the crank — it ranks them (step 1).
+- A whole frontier of `narrative_gap`s with `op: branch` → check whether the edges merely lack a `relation` facet; `connect`/`relate` closes them, seeding 14 studies fabricates links (step 1).
+- Worked a frontier item but never ran `discover resolve` / re-cranked → closure can't see your progress; the loop isn't closed (step 5).
 - A gate whose threshold matches the run it grades, presented as acceptance → it's a `regression_pin` until a pre-stated prior exists (step 2b).
 - A headline number from the best seed of a stochastic ensemble → lead with the band; gate on the ensemble statistic (step 2b).
 - An observable computed only over the sub-population the mechanism gates/selects (e.g. measuring recruitment over just the cells the mechanism activated) → circular by construction; require the observable's domain/denominator be fixed independently of the mechanism under test.
