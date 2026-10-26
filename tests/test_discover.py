@@ -150,11 +150,91 @@ def test_connect_enriches_only_bare_prereqs(tmp_path):
 
     report = discover.connect_investigation(tmp_path, "og", "builds-on")
 
-    assert report == {"bare": ["up"]}  # only the bare one touched
+    assert report["enriched"] == {"bare": ["up"]}  # only the bare one touched
+    assert report["needs_relate"] == {}             # no parent_studies-only edges here
     bare = load_yaml(tmp_path / "studies" / "bare" / "study.yaml")
     assert bare["pipeline_gate"]["prerequisites"][0]["relation"] == "builds-on"
     authored = load_yaml(tmp_path / "studies" / "authored" / "study.yaml")
     assert authored["pipeline_gate"]["prerequisites"][0]["relation"] == "refutes"  # left intact
+
+
+def test_relate_enriches_bare_parent_studies_dict_in_place():
+    # A dependency declared only in parent_studies (the legacy backbone) is enriched
+    # where it lives — no duplicate canonical pipeline_gate entry is fabricated.
+    spec = {"name": "b", "parent_studies": [{"study": "a"}]}
+    out = discover.relate(spec, "a", "builds-on")
+    assert out["parent_studies"][0] == {"study": "a", "relation": "builds-on"}
+    assert "pipeline_gate" not in out
+    assert "relation" not in spec["parent_studies"][0]  # non-mutating
+
+
+def test_relate_enriches_parent_studies_string_in_place():
+    # A bare string parent_studies entry is promoted to a {study, relation} edge.
+    spec = {"name": "b", "parent_studies": ["a"]}
+    out = discover.relate(spec, "a", "tests")
+    assert out["parent_studies"][0] == {"study": "a", "relation": "tests"}
+    assert "pipeline_gate" not in out
+    assert spec["parent_studies"][0] == "a"  # non-mutating
+
+
+def test_relate_prefers_pipeline_gate_over_parent_studies():
+    # When the edge is declared in both fields, the canonical pipeline_gate entry
+    # carries the relation; the legacy parent_studies entry is left alone.
+    spec = {"name": "b",
+            "pipeline_gate": {"prerequisites": [{"study": "a", "condition": "x"}]},
+            "parent_studies": [{"study": "a"}]}
+    out = discover.relate(spec, "a", "builds-on")
+    assert out["pipeline_gate"]["prerequisites"][0]["relation"] == "builds-on"
+    assert "relation" not in out["parent_studies"][0]
+
+
+def test_connect_auto_enriches_pipeline_gate_and_surfaces_parent_studies(tmp_path):
+    # connect auto-enriches the canonical field but NEVER blanket-asserts a relation
+    # on the ambiguous legacy backbone — it surfaces those for an explicit `relate`.
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml", {"studies": ["gated", "legacy"]})
+    g = tmp_path / "studies" / "gated"
+    g.mkdir(parents=True)
+    save_yaml_atomic(g / "study.yaml", {"name": "gated", "pipeline_gate": {
+        "prerequisites": [{"study": "up", "condition": "tests-passed"}]}})
+    l = tmp_path / "studies" / "legacy"
+    l.mkdir(parents=True)
+    save_yaml_atomic(l / "study.yaml", {"name": "legacy", "parent_studies": ["up"]})
+
+    report = discover.connect_investigation(tmp_path, "og", "builds-on")
+
+    assert report["enriched"] == {"gated": ["up"]}
+    assert report["needs_relate"] == {"legacy": ["up"]}
+    assert load_yaml(g / "study.yaml")["pipeline_gate"]["prerequisites"][0]["relation"] == "builds-on"
+    assert load_yaml(l / "study.yaml")["parent_studies"] == ["up"]  # untouched
+
+
+def test_connect_preserves_comments_and_minimizes_churn(tmp_path):
+    # The write path is comment-preserving (ruamel round-trip), not a full safe_dump
+    # reflow that drops load-bearing annotations.
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml", {"studies": ["s"]})
+    sdir = tmp_path / "studies" / "s"
+    sdir.mkdir(parents=True)
+    raw = (
+        "name: s  # study name\n"
+        "pipeline_gate:\n"
+        "  prerequisites:\n"
+        "    - study: up  # Canonical DAG edge\n"
+        "      condition: tests-passed\n"
+    )
+    (sdir / "study.yaml").write_text(raw, encoding="utf-8")
+
+    discover.connect_investigation(tmp_path, "og", "builds-on")
+
+    out = (sdir / "study.yaml").read_text(encoding="utf-8")
+    assert "# Canonical DAG edge" in out  # load-bearing comment survived
+    assert "# study name" in out
+    assert "relation: builds-on" in out
 
 
 def test_load_cycle_inputs_reads_inv_and_studies(tmp_path):
