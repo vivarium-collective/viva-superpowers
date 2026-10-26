@@ -40,7 +40,7 @@ reporting are owned by `/viva-study` (see its "bias to execute" house rule).
 1. Walk up from cwd to find `workspace.yaml`.
 2. Read `.pbg/server/server-info` for the dashboard URL.
 3. POST to `<url>/api/composite-test-run` with `{"id": "<composite-id>", "steps": <N>, "emit_paths": [...]}` (`emit_paths` optional). **The run is DETACHED** — the POST returns `202 {"run_id": "...", "status": "running"}`, NOT the observables. Do **not** try to read `simulation_id`/`observables` off this response (it doesn't have them; doing so silently reports "0 observables").
-4. **Poll** `GET <url>/api/composite-run/<run_id>/status` until `status` is `completed` (or `failed`). Then read the emitted observables from the run directory `.pbg/runs/<run_id>/observables.json` (shape `{"fields": {<observable>: <value>, ...}}`), plus any `report.html` / `viz.json` there. Print the run_id, final status, and the observables (first 20).
+4. **Poll** `GET <url>/api/composite-run/<run_id>/status` until `status` is `completed` (or `failed`). Then read the emitted observables from the run directory `.pbg/runs/<run_id>/observables.json` (the observables are **top-level keys**, e.g. `{"global_time": 30.0, "vitals/blood_volume_mL": ...}` — not nested under a `fields` key), plus any `report.html` / `viz.json` there. Print the run_id, final status, and the observables (first 20).
 5. Suggest follow-ups:
    - `/viva-workbench open --composite <composite-id>` to inspect in the dashboard
    - `/viva-catalog list` if the composite ID was wrong
@@ -106,12 +106,15 @@ path = os.path.join('.pbg', 'runs', run_id, 'observables.json')
 print('status: ' + status)
 if not os.path.exists(path):
     print('(no observables.json at ' + path + ' — check the run dir)'); sys.exit(0)
-fields = (json.load(open(path)) or {}).get('fields', {})
-print('observables (' + str(len(fields)) + '):')
-for k, v in list(fields.items())[:20]:
+# The workbench writes observables as TOP-LEVEL keys in observables.json
+# (e.g. {"global_time": 30.0, "vitals/blood_volume_mL": ...}), not nested
+# under a "fields" key. Read the mapping directly.
+obs = json.load(open(path)) or {}
+print('observables (' + str(len(obs)) + '):')
+for k, v in list(obs.items())[:20]:
     print('  - ' + str(k) + ' = ' + str(v))
-if len(fields) > 20:
-    print('  ... +' + str(len(fields) - 20) + ' more')
+if len(obs) > 20:
+    print('  ... +' + str(len(obs) - 20) + ' more')
 " "$RUN_ID" "$ST"
 echo
 echo "Next: /viva-workbench open --composite $CID  to inspect in the dashboard"
