@@ -21,18 +21,29 @@ model) → **investigation** (group studies into a campaign) → `/viva-study` (
 study, usually driven by `/viva-model-build`) → `/viva-run` (smoke-test) →
 `/viva-report` (publish read-only via `vivarium-workbench-publish` → gh-pages).
 
-## Layout (investigation-centric, nested)
+## Layout (flat writer, nested-aware resolver)
 
-Studies live **nested under their investigation**:
-`investigations/<inv>/studies/<slug>/study.yaml`, each carrying an `investigation: <inv>`
-back-ref. The investigation's publication/report lives at `investigations/<inv>/reports/`
-(per-investigation — there is **no global repo-wide report**).
+The dashboard's study-create endpoint — the **authoritative writer** — creates
+each study **flat** at `$STUDIES_DIR/<slug>/study.yaml` (the conventional
+`studies/<slug>/`, or `workspace/studies/<slug>/` when the workspace `layout:`
+relocates it). As of vivarium-workbench 0.4.1 it does **not** write the nested
+`investigations/<inv>/studies/<slug>/` tree. The investigation's
+publication/report lives at `investigations/<inv>/reports/` (per-investigation —
+there is **no global repo-wide report**).
 
-- **Resolve a study dir** (nested- and flat-aware): studies live at `$INVESTIGATIONS_DIR/<inv>/studies/<slug>/` (nested) or legacy flat `$STUDIES_DIR/<slug>/`; check the nested path first, then the flat one.
-- **Create a new study** under `$INVESTIGATIONS_DIR/<inv>/studies/<slug>/` (write the `investigation:` back-ref).
-- Legacy flat `studies/<slug>/` still resolves (back-compat) until a repo is migrated with `viva-migrate-nested`.
+- **Resolve a study dir** (nested- and flat-aware): tooling checks the nested
+  path `$INVESTIGATIONS_DIR/<inv>/studies/<slug>/` first, then the flat
+  `$STUDIES_DIR/<slug>/`. New studies land flat; the nested path resolves only
+  after a repo is migrated.
+- **The nested layout is a convention/migration target, not the default writer
+  output.** A repo adopts it by running `viva-migrate-nested`, which relocates
+  flat studies under their investigation and writes the `investigation: <inv>`
+  back-ref. Until then, studies stay flat and carry membership only via the
+  investigation's `studies[]` list.
 
-This block governs the paths below: where older text says `studies/<slug>/` or `$STUDIES_DIR/<slug>/`, prefer the resolver / the nested path.
+Where older text below says "create under the nested path" or implies the
+writer produces `investigations/<inv>/studies/<slug>/`, read it as the
+post-migration convention — the live endpoint writes `$STUDIES_DIR/<slug>/`.
 
 **Investigation-owned inputs.** An investigation owns its datasets/references under `investigations/<inv>/inputs/` (e.g. `inputs/datasets/<file>`), recorded in `investigation.yaml`:
 
