@@ -166,3 +166,19 @@ def test_cli_reports_drift_and_applies(tmp_path, capsys):
     rc3 = IR.main(["--ws", str(tmp_path), "inv", "--json"])
     assert rc3 == 0
     json.loads(capsys.readouterr().out)  # valid JSON (now clean → [])
+
+
+def test_flat_member_without_backref_not_missing(tmp_path):
+    # a declared member exists as studies/<slug>/study.yaml but has NO investigation
+    # back-ref (the common case for older workspaces) -> must NOT be flagged missing.
+    ws = str(tmp_path)
+    (tmp_path / "workspace.yaml").write_text("name: tmp\n")
+    inv = tmp_path / "investigations" / "inv"
+    inv.mkdir(parents=True)
+    (inv / "investigation.yaml").write_text("name: inv\nstudies:\n  - a\n  - b\n")
+    for s in ("a", "b"):
+        sd = tmp_path / "studies" / s
+        sd.mkdir(parents=True)
+        (sd / "study.yaml").write_text(f"name: {s}\n")   # no 'investigation:' back-ref
+    drift = IR.detect_drift(ws, "inv")
+    assert not any(x.kind == "member_missing_on_disk" for x in drift)
