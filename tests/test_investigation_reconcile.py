@@ -147,3 +147,22 @@ def test_apply_is_idempotent(tmp_path):
     IR.apply_mechanical(tmp_path, "inv")
     rep2 = IR.apply_mechanical(tmp_path, "inv")
     assert rep2["applied"] == 0
+
+
+# ---- CLI ----
+
+def test_cli_reports_drift_and_applies(tmp_path, capsys):
+    import json
+    _mk(tmp_path, "inv", declared=["a", "gone"], on_disk=["a"])
+    rc = IR.main(["--ws", str(tmp_path), "inv"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "gone" in out and "member_missing_on_disk" in out
+    rc2 = IR.main(["--ws", str(tmp_path), "inv", "--apply"])
+    assert rc2 == 0
+    capsys.readouterr()  # drain the --apply output before the --json run
+    spec = yaml.safe_load((tmp_path / "investigations" / "inv" / "investigation.yaml").read_text())
+    assert "gone" not in (spec.get("studies") or spec.get("members") or [])
+    rc3 = IR.main(["--ws", str(tmp_path), "inv", "--json"])
+    assert rc3 == 0
+    json.loads(capsys.readouterr().out)  # valid JSON (now clean → [])

@@ -234,3 +234,45 @@ def apply_mechanical(ws_root, inv_slug: str, *, confirm: bool = True) -> dict:
                 with open(sy, "w") as f:
                     y.dump(sd, f)
     return {"applied": applied, "skipped_prose": skipped_prose}
+
+
+def main(argv=None) -> int:
+    import argparse
+    import json as _json
+    import sys
+    from collections import defaultdict
+    from dataclasses import asdict
+
+    ap = argparse.ArgumentParser(prog="python -m viva_superpowers.investigation_reconcile",
+                                 description="Detect (and optionally mechanically apply) investigation "
+                                             "drift after a structural edit.")
+    ap.add_argument("inv", help="investigation slug")
+    ap.add_argument("--ws", default=".", help="workspace root (default: cwd)")
+    ap.add_argument("--apply", action="store_true", help="drop structured refs to removed studies")
+    ap.add_argument("--json", action="store_true", dest="as_json", help="emit the drift report as JSON")
+    a = ap.parse_args(argv)
+
+    drift = detect_drift(a.ws, a.inv)
+    if a.as_json:
+        print(_json.dumps([asdict(d) for d in drift], indent=2))
+        return 0
+    if not drift:
+        print(f"No drift in investigation '{a.inv}'.")
+    else:
+        groups = defaultdict(list)
+        for d in drift:
+            groups[d.kind].append(d)
+        for kind, items in groups.items():
+            print(f"[{kind}] {len(items)}")
+            for d in items:
+                print(f"  - {d.where}: {d.detail}  -> {d.suggested_action}")
+    if a.apply:
+        rep = apply_mechanical(a.ws, a.inv)
+        print(f"apply_mechanical: dropped {rep['applied']} structured ref(s); "
+              f"{rep['skipped_prose']} prose ref(s) left for you to rewrite.")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
