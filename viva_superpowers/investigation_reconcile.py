@@ -239,7 +239,6 @@ def apply_mechanical(ws_root, inv_slug: str, *, confirm: bool = True) -> dict:
 def main(argv=None) -> int:
     import argparse
     import json as _json
-    import sys
     from collections import defaultdict
     from dataclasses import asdict
 
