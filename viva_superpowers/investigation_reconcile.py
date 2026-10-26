@@ -149,3 +149,88 @@ def detect_drift(ws_root, inv_slug: str) -> list[DriftItem]:
                                        f"acceptance_criteria references removed study '{s}'",
                                        "drop or repoint the criterion"))
     return items
+
+
+def _study_yaml(ws_root: Path, inv_slug: str, slug: str) -> Path | None:
+    flat = studies_dir(ws_root) / slug / "study.yaml"
+    if flat.is_file():
+        return flat
+    nested = investigations_dir(ws_root) / inv_slug / "studies" / slug / "study.yaml"
+    if nested.is_file():
+        return nested
+    return None
+
+
+def _drop_from_list(container, key, removed) -> int:
+    lst = container.get(key)
+    if not isinstance(lst, list):
+        return 0
+    keep = [x for x in lst
+            if not ((isinstance(x, str) and x in removed)
+                    or (isinstance(x, dict) and x.get("study") in removed))]
+    n = len(lst) - len(keep)
+    if n:
+        lst[:] = keep  # mutate in place to keep the ruamel container + comments
+    return n
+
+
+def apply_mechanical(ws_root, inv_slug: str, *, confirm: bool = True) -> dict:
+    """Drop STRUCTURED references to removed studies (member lists, at_a_glance,
+    acceptance_criteria, surviving studies' pipeline_gate.prerequisites) via a
+    comment-preserving ruamel round-trip. Prose is left for the agent. Idempotent."""
+    from viva_superpowers.investigation_canonicalize import _ruamel
+
+    ws_root = Path(ws_root)
+    inv_yaml = _inv_yaml(ws_root, inv_slug)
+    spec_plain = yaml.safe_load(inv_yaml.read_text()) or {}
+    declared = _declared_members(spec_plain, inv_yaml)
+    on_disk = _on_disk_members(ws_root, inv_slug)
+    removed = {s for s in declared if s not in on_disk}
+    skipped_prose = sum(1 for d in detect_drift(ws_root, inv_slug)
+                        if d.kind == "prose_ref_to_removed")
+    if not removed:
+        return {"applied": 0, "skipped_prose": skipped_prose}
+
+    y = _ruamel()
+    with open(inv_yaml) as f:
+        doc = y.load(f)
+    applied = 0
+    for key in ("members", "studies"):
+        applied += _drop_from_list(doc, key, removed)
+    aag = doc.get("at_a_glance")
+    if isinstance(aag, dict):
+        applied += _drop_from_list(aag, "studies", removed)
+    elif isinstance(aag, list):
+        keep = [x for x in aag
+                if not ((isinstance(x, dict) and x.get("study") in removed)
+                        or (isinstance(x, str) and x in removed))]
+        if len(keep) != len(aag):
+            applied += len(aag) - len(keep)
+            aag[:] = keep
+    ac = doc.get("acceptance_criteria")
+    if isinstance(ac, list):
+        keep = [c for c in ac if not (isinstance(c, dict) and c.get("study") in removed)]
+        if len(keep) != len(ac):
+            applied += len(ac) - len(keep)
+            ac[:] = keep
+    if applied:
+        with open(inv_yaml, "w") as f:
+            y.dump(doc, f)
+
+    # prune dangling prerequisites in surviving study.yamls (comment-preserving)
+    for slug in on_disk:
+        sy = _study_yaml(ws_root, inv_slug, slug)
+        if not sy:
+            continue
+        with open(sy) as f:
+            sd = y.load(f)
+        pg = (sd or {}).get("pipeline_gate")
+        if isinstance(pg, dict) and isinstance(pg.get("prerequisites"), list):
+            pr = pg["prerequisites"]
+            keep = [p for p in pr if p not in removed]
+            if len(keep) != len(pr):
+                applied += len(pr) - len(keep)
+                pr[:] = keep
+                with open(sy, "w") as f:
+                    y.dump(sd, f)
+    return {"applied": applied, "skipped_prose": skipped_prose}

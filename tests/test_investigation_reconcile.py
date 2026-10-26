@@ -93,3 +93,57 @@ def test_clean_investigation_returns_no_drift(tmp_path):
     _mk(tmp_path, "inv", declared=["a", "b"], on_disk=["a", "b"],
         narrative={"scientific_argument": {"evidence_for": ["a: ok", "b: ok"]}})
     assert IR.detect_drift(tmp_path, "inv") == []
+
+
+# ---- apply_mechanical (structured drops; prose untouched; comment-preserving) ----
+
+def test_apply_drops_removed_from_members_and_at_a_glance(tmp_path):
+    _mk(tmp_path, "inv", declared=["a", "gone"], on_disk=["a"],
+        narrative={"at_a_glance": [{"study": "a", "role": "x"}, {"study": "gone", "role": "y"}]})
+    rep = IR.apply_mechanical(tmp_path, "inv")
+    assert rep["applied"] >= 1
+    spec = yaml.safe_load((tmp_path / "investigations" / "inv" / "investigation.yaml").read_text())
+    members = spec.get("members") or spec.get("studies") or []
+    names = [m if isinstance(m, str) else m.get("study") for m in members]
+    assert "gone" not in names
+    aag = [e.get("study") for e in (spec.get("at_a_glance") or [])]
+    assert "gone" not in aag
+
+
+def test_apply_prunes_dangling_prerequisite(tmp_path):
+    _mk(tmp_path, "inv", declared=["a", "gone"], on_disk=["a"])
+    # surviving study 'a' lists removed 'gone' as a prerequisite
+    sa = tmp_path / "studies" / "a" / "study.yaml"
+    sa.write_text(yaml.safe_dump({"name": "a", "investigation": "inv",
+                                  "pipeline_gate": {"prerequisites": ["gone", "x"]}}))
+    IR.apply_mechanical(tmp_path, "inv")
+    d = yaml.safe_load(sa.read_text())
+    assert "gone" not in (d["pipeline_gate"]["prerequisites"])
+    assert "x" in d["pipeline_gate"]["prerequisites"]
+
+
+def test_apply_preserves_comments_and_leaves_prose(tmp_path):
+    inv_dir = tmp_path / "investigations" / "inv"
+    inv_dir.mkdir(parents=True)
+    (tmp_path / "workspace.yaml").write_text("name: tmp\n")
+    (tmp_path / "studies" / "a").mkdir(parents=True)
+    (tmp_path / "studies" / "a" / "study.yaml").write_text("name: a\ninvestigation: inv\n")
+    (inv_dir / "investigation.yaml").write_text(
+        "name: inv\n"
+        "# keep this comment\n"
+        "studies:\n  - a\n  - gone\n"
+        "scientific_argument:\n  evidence_for:\n    - 'gone: showed a thing'\n")
+    rep = IR.apply_mechanical(tmp_path, "inv")
+    text = (inv_dir / "investigation.yaml").read_text()
+    assert "# keep this comment" in text          # comment preserved
+    assert "gone: showed a thing" in text          # prose NOT touched
+    assert rep["skipped_prose"] >= 1               # prose ref reported, not deleted
+    spec = yaml.safe_load(text)
+    assert "gone" not in (spec.get("studies") or spec.get("members") or [])  # structured drop done
+
+
+def test_apply_is_idempotent(tmp_path):
+    _mk(tmp_path, "inv", declared=["a", "gone"], on_disk=["a"])
+    IR.apply_mechanical(tmp_path, "inv")
+    rep2 = IR.apply_mechanical(tmp_path, "inv")
+    assert rep2["applied"] == 0
