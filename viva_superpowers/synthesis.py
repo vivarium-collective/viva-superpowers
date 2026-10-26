@@ -35,9 +35,7 @@ def gate_verdict(member_verdicts: list) -> str:
         return "refuted"
     if assessed == {"inconclusive"}:
         return "inconclusive"
-    if assessed == {"qualified"}:
-        return "qualified"
-    return "qualified"
+    return "qualified"  # a lone {"qualified"} or any mixed set reads as qualified
 
 
 def _verdict_of(claims: dict, slug: str):

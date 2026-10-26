@@ -12,7 +12,7 @@ hand-maintained field that can't keep up. This module is the shared core both
 the dashboard (live render) and the report (export) call, so a study's status
 reflects what actually ran — by construction, it can't go stale.
 
-Multi-axis status vocabulary (Pass A): design / implementation / simulation /
+Multi-axis status vocabulary: design / implementation / simulation /
 evaluation / gate / expert_review. Of these:
 
 - ``simulation_status`` and ``evaluation_status`` are **observable** — fully
@@ -112,8 +112,8 @@ def derive_status(spec: dict, runs: list[dict] | None,
 
 # ---------------------------------------------------------------------------
 # Clarity summary — a single normalized "did it run / were the tests run / did
-# it pass" object that every renderer (pbg-report slim renderer, the dashboard
-# downloadable report) reads, so the run/test/verdict markers are derived ONCE
+# it pass" object that every renderer (the viva-report slim renderer and the
+# dashboard downloadable report) reads, so the run/test/verdict markers are derived ONCE
 # and shown consistently everywhere. Driven by reviewer feedback on
 # dnaa-replication (2026-05-31): "make it clear which studies have run, if the
 # tests were run and if the study passed."

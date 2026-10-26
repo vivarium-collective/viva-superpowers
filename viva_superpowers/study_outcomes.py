@@ -1,16 +1,14 @@
 """Reconcile a study's runs.db into study.yaml and expose the canonical outcome
-surface. Mechanical run fields are code-owned; authored outcomes/prose are preserved.
-Increment A: record + single-source. (Evaluation of measure/pass_if is Increment B.)"""
+surface. Mechanical run fields are code-owned; authored outcomes/prose are preserved."""
 from __future__ import annotations
 
 from pathlib import Path
 
 from . import study_io, run_registry
 
-# Canonical-run outcome selection was the SOURCE this package's copy was ported
-# from into viva-workspace; re-export it from the shared package so there is one
-# implementation. ``finding_observations``/``chart_store`` import ``canonical_run``
-# via this module, so the name must stay exposed here.
+# Single-sourced from the shared viva-workspace implementation.
+# ``finding_observations``/``chart_store`` import ``canonical_run`` via this module,
+# so the name must stay exposed here.
 from viva_workspace.outcomes import canonical_outcomes, canonical_run  # noqa: F401
 
 
@@ -20,17 +18,14 @@ from viva_workspace.outcomes import canonical_outcomes, canonical_run  # noqa: F
 
 # Code-owned mechanical fields written from runs.db
 #
-# ``provenance_status``/``env_id`` (reproducible-rerun-spine Task 5 fix):
-# the SAME runs.db is written by vivarium_workbench.lib.composite_runs
-# (which ALTERs in these nullable columns — Task 2/3/5's env-fingerprint +
-# reproducibility-verdict machinery). run_registry.list_runs does
-# ``SELECT *``, so a migrated DB's row already carries them through as
-# ``db_row``; without listing them here they were silently dropped before
-# reaching study.yaml, which is where needs_attention.env_stale_items /
-# nondeterministic_items actually read them from (pbg-superpowers cannot
-# import vivarium_workbench to read the DB directly). Best-effort/nullable
-# throughout: an older DB missing the columns simply omits the keys (see
-# ``_mechanical_record``'s final None-filter), never raises.
+# ``provenance_status``/``env_id``: the SAME runs.db is written by
+# vivarium_workbench.lib.composite_runs (which ALTERs in these nullable columns —
+# the env-fingerprint + reproducibility-verdict machinery). run_registry.list_runs
+# does ``SELECT *``, so a migrated DB's row carries them through as ``db_row``;
+# without listing them here they were silently dropped before reaching study.yaml,
+# where needs_attention.env_stale_items / nondeterministic_items read them from
+# (viva-superpowers cannot import vivarium_workbench to read the DB directly).
+# Best-effort/nullable: an older DB missing the columns simply omits the keys.
 _MECHANICAL = ("status", "kind", "emitter", "seeds", "params", "timestamp", "commit",
                "generations", "sim_minutes", "n_readouts",
                "provenance_status", "env_id")
@@ -59,8 +54,8 @@ def _mechanical_record(db_row: dict) -> dict:
         "status": db_row.get("status"),
         "timestamp": db_row.get("completed_at") or db_row.get("started_at"),
         "emitter": emitter,
-        # Task 5 fix: reproducibility provenance, when the DB row has it
-        # (vwb-migrated runs.db only — absent on an older/pbg-only DB).
+        # reproducibility provenance, when the DB row has it
+        # (vwb-migrated runs.db only — absent on an older DB).
         "provenance_status": db_row.get("provenance_status"),
         "env_id": db_row.get("env_id"),
     }

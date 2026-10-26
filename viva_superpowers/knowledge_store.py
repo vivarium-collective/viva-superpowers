@@ -9,7 +9,7 @@ The derived projection here is read-only: it writes nothing into study.yaml or
 investigation.yaml. An authored half (persisted in the investigation's
 `knowledge` block) is merged over it by `merge_knowledge` (authored wins, derived
 fills, empty never clobbers). Concept *grouping* is an epistemic act performed by
-the slice-2 `consolidate` op — the derived projection seeds one singleton Concept
+the `consolidate` op — the derived projection seeds one singleton Concept
 per Study.
 
 Public API
@@ -148,7 +148,7 @@ def derive_knowledge(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
     ``verdicts`` carries a canonical verdict for every member study that has a
     spec; a member listed in ``studies[]`` with no spec is skipped, not fatal.
     ``concepts`` seeds one derived singleton Concept per study — grouping into
-    themed Concepts is the slice-2 ``consolidate`` act.
+    themed Concepts is the ``consolidate`` act.
     """
     member_slugs = inv_spec.get("studies") or list(studies_by_slug.keys())
 
