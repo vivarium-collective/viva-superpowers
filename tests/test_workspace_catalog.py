@@ -66,6 +66,32 @@ def test_add_explicit_name_overrides_yaml(pbg_home, workspace_dir):
     assert entry["package"] == "pbg_explicit"
 
 
+def test_add_reads_package_path_key(pbg_home, tmp_path):
+    """A workspace.yaml using the canonical top-level `package_path` key
+    (what the schema defines and the scaffolder writes) must populate the
+    catalog entry's package — not store null. Regression for #356."""
+    from viva_superpowers.workspace_catalog import add
+    ws = tmp_path / "pp-workspace"
+    ws.mkdir()
+    (ws / "workspace.yaml").write_text(
+        "name: pp-workspace\npackage_path: viva_ppworkspace\n"
+    )
+    entry = add(ws)
+    assert entry["package"] == "viva_ppworkspace"
+
+
+def test_add_prefers_package_path_over_legacy_package(pbg_home, tmp_path):
+    """When both keys are present, the canonical `package_path` wins."""
+    from viva_superpowers.workspace_catalog import add
+    ws = tmp_path / "both-workspace"
+    ws.mkdir()
+    (ws / "workspace.yaml").write_text(
+        "name: both-workspace\npackage_path: viva_new\npackage: pbg_old\n"
+    )
+    entry = add(ws)
+    assert entry["package"] == "viva_new"
+
+
 def test_forget_removes_entry(pbg_home, workspace_dir):
     from viva_superpowers.workspace_catalog import add, forget, list_workspaces
     add(workspace_dir)

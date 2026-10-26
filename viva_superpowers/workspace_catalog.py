@@ -119,7 +119,12 @@ def add(path: str | Path, name: str | None = None, package: str | None = None) -
         import yaml  # local import keeps the module light at import time
         data = yaml.safe_load((target / "workspace.yaml").read_text(encoding="utf-8")) or {}
         name = name or data.get("name") or target.name
-        package = package or data.get("package")
+        # The schema's canonical top-level key is `package_path` (the scaffolder
+        # writes it); `package` only appears under the legacy `stages`/`layout`
+        # blocks. Prefer `package_path`, falling back to `package` for older
+        # hand-written files. Without this, every entry added without --package
+        # (including `vwb serve`'s add(workspace)) stored package=null. (#356)
+        package = package or data.get("package_path") or data.get("package")
 
     def _do_add() -> dict:
         catalog = _load_catalog()
