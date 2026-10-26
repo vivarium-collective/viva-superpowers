@@ -488,7 +488,32 @@ Remove a study slug from an investigation's `studies:` list.
 4. Atomic write.
 5. Print: `Removed '<study-slug>' from investigation '<inv-slug>' (now <N> studies).`
 
-This command does NOT modify acceptance_criteria that reference the removed study — those are left in place and the user is notified: "Note: acceptance_criteria still references '<study-slug>'. Update or remove those entries manually."
+This command does NOT modify acceptance_criteria or narrative that reference the removed study. Run **`reconcile`** (below) to clean those up systematically instead of hand-hunting each reference.
+
+---
+
+### `reconcile <inv-slug> [--apply]`
+
+Reconcile an investigation after a **structural edit** — studies removed, added, or merged — so its membership, cross-references, and narrative stay consistent. Run it after any `add-study` / `remove-study` / study-set change. It is the systematic answer to the dangling-reference gap that `remove-study` leaves manual, and it splits into deterministic detection (AI-free) + agent-authored prose, mirroring the helper split used elsewhere in viva-superpowers.
+
+1. **Detect (AI-free, no writes):** `python -m viva_superpowers.investigation_reconcile <inv-slug> --ws "$WORKSPACE_ROOT"` prints a grouped drift report:
+   - `member_missing_on_disk` — a declared member whose study was removed;
+   - `orphan_on_disk` — a study on disk not listed as a member;
+   - `structured_ref_to_removed` — a removed study still named in `members`/`studies`, `at_a_glance`, `acceptance_criteria`, or a surviving study's `pipeline_gate.prerequisites`;
+   - `prose_ref_to_removed` — a removed study named in free-text narrative (`executive.verdict`/`what_is_this`, `scientific_argument.evidence_for`/`evidence_against`/`key_figures`, `biological_story`).
+   `--json` emits the report for tooling. Membership is resolved across both `members:` and `studies:`, so it works on pre- and post-canonicalization investigations.
+
+2. **Apply the mechanical drops (`--apply`):** the same command with `--apply` drops every `structured_ref_to_removed` and prunes dangling prerequisites in surviving studies, via a comment-preserving round-trip. It is idempotent and **never edits prose**.
+
+3. **Rewrite the prose (the agent's job):** for each `prose_ref_to_removed`, and for the newly-added members, author the narrative so it reflects the current study set:
+   - rewrite `scientific_argument.evidence_for` (and `evidence_against` / `key_figures`) to cite the surviving plus newly-added studies, dropping the removed ones;
+   - refresh `executive.verdict` / `verdict_status` to match the current member set and findings;
+   - reconcile mentions of removed studies in `biological_story`;
+   - add an `at_a_glance` role line for each added study;
+   - when two studies were merged into one, record `reconciled_from: [<a>, <b>]` on the survivor so the lineage stays visible.
+   Write prose in normal sentence case; use the atomic comment-preserving YAML-write helper.
+
+4. **Confirm clean:** re-run the detector — it should report no drift once the prose is reconciled and the mechanical drops applied.
 
 ---
 
