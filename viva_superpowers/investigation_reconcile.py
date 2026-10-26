@@ -56,9 +56,19 @@ def _declared_members(spec: dict, inv_yaml: Path) -> list[str]:
     return res
 
 
-def _on_disk_members(ws_root: Path, inv_slug: str) -> set[str]:
-    """Studies that physically exist for this investigation: nested
-    <inv>/studies/<slug>/ or flat studies/<slug>/ whose study.yaml back-refs the inv."""
+def _study_dir_exists(ws_root: Path, inv_slug: str, slug: str) -> bool:
+    """A declared member is present if its study.yaml exists on disk — flat
+    studies/<slug>/ or nested <inv>/studies/<slug>/ — regardless of any
+    ``investigation:`` back-ref (older workspaces often omit it)."""
+    flat = studies_dir(ws_root) / slug / "study.yaml"
+    nested = investigations_dir(ws_root) / inv_slug / "studies" / slug / "study.yaml"
+    return flat.is_file() or nested.is_file()
+
+
+def _backref_members(ws_root: Path, inv_slug: str) -> set[str]:
+    """Studies that CLAIM this investigation: nested <inv>/studies/<slug>/ or flat
+    studies/<slug>/ whose study.yaml back-refs the inv. Used for ORPHAN detection
+    (a study claiming the inv but not listed) + pruning surviving studies."""
     found: set[str] = set()
     nested = investigations_dir(ws_root) / inv_slug / "studies"
     if nested.is_dir():
@@ -106,9 +116,9 @@ def detect_drift(ws_root, inv_slug: str) -> list[DriftItem]:
     spec = yaml.safe_load(inv_yaml.read_text()) or {}
 
     declared = _declared_members(spec, inv_yaml)
-    on_disk = _on_disk_members(ws_root, inv_slug)
-    removed = [s for s in declared if s not in on_disk]
-    orphan = sorted(on_disk - set(declared))
+    present = {s for s in declared if _study_dir_exists(ws_root, inv_slug, s)}
+    removed = [s for s in declared if s not in present]
+    orphan = sorted(_backref_members(ws_root, inv_slug) - set(declared))
 
     items: list[DriftItem] = []
     for s in removed:
@@ -184,8 +194,8 @@ def apply_mechanical(ws_root, inv_slug: str, *, confirm: bool = True) -> dict:
     inv_yaml = _inv_yaml(ws_root, inv_slug)
     spec_plain = yaml.safe_load(inv_yaml.read_text()) or {}
     declared = _declared_members(spec_plain, inv_yaml)
-    on_disk = _on_disk_members(ws_root, inv_slug)
-    removed = {s for s in declared if s not in on_disk}
+    surviving = {s for s in declared if _study_dir_exists(ws_root, inv_slug, s)}
+    removed = {s for s in declared if s not in surviving}
     skipped_prose = sum(1 for d in detect_drift(ws_root, inv_slug)
                         if d.kind == "prose_ref_to_removed")
     if not removed:
@@ -218,7 +228,7 @@ def apply_mechanical(ws_root, inv_slug: str, *, confirm: bool = True) -> dict:
             y.dump(doc, f)
 
     # prune dangling prerequisites in surviving study.yamls (comment-preserving)
-    for slug in on_disk:
+    for slug in surviving:
         sy = _study_yaml(ws_root, inv_slug, slug)
         if not sy:
             continue
