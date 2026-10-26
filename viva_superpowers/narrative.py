@@ -114,25 +114,48 @@ def _toposort(nodes: list[str], edges: list[tuple[str, str]]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def audit(narrative: dict, argument_graph: dict) -> list[dict]:
-    """Flag unsupported transitions between adjacent narrative units.
+    """Flag unsupported transitions the reading actually ASSERTS.
 
-    A transition is supported when a `support`/`prerequisite` path connects the
-    two claims (direct or transitive). Each unsupported one yields a gap with the
-    missing evidence and a candidate follow-up study.
+    Units are placed in a topological *total* order, so two consecutive units are a
+    transition the reading asserts only when a declared edge connects them. Two
+    independent claims that merely land adjacent in the linearization are NOT a
+    transition — flagging them would demand a bridging study for a link the argument
+    never claimed (the over-reporting this detector used to produce on a wide DAG).
+
+    So a gap requires a declared dependency between the pair that is:
+      • not justified — no support/prerequisite path connects them (either direction); and
+      • not a `challenge` — a challenge edge is tracked on the open-challenge axis
+        (an unadjudicated alternative/refutation), not re-raised as a narrative gap.
+    What remains is a genuine unsupported transition: a declared dependency the reading
+    leans on without a justifying link.
     """
     claims: dict[str, dict] = argument_graph.get("claims") or {}
     edges: list[dict] = argument_graph.get("edges") or []
 
     support: dict[str, set] = {}
+    linked: set = set()       # frozenset{a, b}: a declared edge connects the pair (any type)
+    challenged: set = set()   # frozenset{a, b}: the pair is joined by a challenge edge
     for e in edges:
-        if e.get("type") in _SUPPORTING:
-            support.setdefault(e["from"], set()).add(e["to"])
+        f, t, typ = e.get("from"), e.get("to"), e.get("type")
+        if not f or not t:
+            continue
+        if typ in _SUPPORTING:
+            support.setdefault(f, set()).add(t)
+        pair = frozenset((f, t))
+        linked.add(pair)
+        if typ == "challenge":
+            challenged.add(pair)
 
     units = narrative.get("units") or []
     gaps: list[dict] = []
     for u1, u2 in zip(units, units[1:]):
         a, b = u1["claim_id"], u2["claim_id"]
-        if _reachable(a, b, support):
+        pair = frozenset((a, b))
+        if pair not in linked:                 # independent adjacency — not an asserted transition
+            continue
+        if pair in challenged:                 # tracked on the open-challenge axis, not a narrative gap
+            continue
+        if _reachable(a, b, support) or _reachable(b, a, support):  # a supporting path justifies it
             continue
         gaps.append(_gap(u1, u2, claims))
     return gaps

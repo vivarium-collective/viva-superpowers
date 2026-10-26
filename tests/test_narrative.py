@@ -94,9 +94,18 @@ class TestAudit:
         # ordered a,b,c; a->c reachable transitively; adjacent pairs both direct
         assert audit(narrate(g), g) == []
 
-    def test_unsupported_transition_is_a_gap_with_followup(self):
-        # two independent claims, no edge -> ordered by id -> adjacent unsupported
+    def test_independent_adjacent_claims_are_not_a_gap(self):
+        # Two independent claims with NO edge land adjacent only because of the
+        # topological tie-break — the reading never asserts a transition between them,
+        # so it is a linearization artifact, not a gap. (Previously over-reported.)
         g = _graph([_claim("claim:a"), _claim("claim:b")], [])
+        assert audit(narrate(g), g) == []
+
+    def test_declared_unsupported_transition_is_a_gap_with_followup(self):
+        # A declared dependency that is neither a supporting path nor a challenge is a
+        # genuine unsupported transition the reading leans on without justification.
+        g = _graph([_claim("claim:a"), _claim("claim:b")],
+                   [_e("claim:a", "claim:b", "informs")])  # declared, non-supporting, non-challenge
         gaps = audit(narrate(g), g)
         assert len(gaps) == 1
         gap = gaps[0]
@@ -107,13 +116,17 @@ class TestAudit:
         assert fu["parent_study"] == "b"  # derived from the target claim's slug
 
     def test_verdict_escalation_flagged(self):
+        # Escalation is annotated on a gap that is a real asserted (declared) transition.
         g = _graph([_claim("claim:a", verdict="inconclusive"),
-                    _claim("claim:b", verdict="supported")], [])
+                    _claim("claim:b", verdict="supported")],
+                   [_e("claim:a", "claim:b", "informs")])
         gap = audit(narrate(g), g)[0]
         assert gap["verdict_escalation"] is True
 
-    def test_challenge_edge_does_not_count_as_support(self):
-        # a challenge edge between adjacent claims is NOT a supporting link -> gap
+    def test_challenge_edge_is_not_a_narrative_gap(self):
+        # A challenge edge is NOT a supporting link, but it is tracked on the
+        # open-challenge axis (an unadjudicated alternative/refutation) — so it is not
+        # re-raised as a narrative gap (that was a double-count).
         g = _graph([_claim("claim:a"), _claim("claim:b")],
                    [_e("claim:a", "claim:b", "challenge")])
-        assert len(audit(narrate(g), g)) == 1
+        assert audit(narrate(g), g) == []
