@@ -73,15 +73,28 @@ def frontier(cycle_result: dict, inv_spec: dict) -> list[dict]:
         items.append({"kind": kind, "target": target, "priority": _PRIORITY.get(kind, 30),
                       "op": _OP.get(kind, "test"), "rationale": rationale})
 
-    # 1. acceptance criteria not met by a supported/qualified claim
+    behaviors = (cycle_result.get("knowledge") or {}).get("behaviors") or {}
+    # 1. acceptance criteria. A criterion {study, behavior} is MET when its NAMED
+    #    behavior's test PASSED — independent of the study's roll-up verdict. This keeps
+    #    the two axes (progress ⊥ verdict) orthogonal: an adversarial null control, whose
+    #    designed success is a `refuted` verdict AND whose acceptance behavior passed, is a
+    #    met criterion, not an open frontier item. With no behavior outcome recorded, it
+    #    falls back to the verdict (a non-supported/qualified verdict is unmet).
     for c in inv_spec.get("acceptance_criteria") or []:
         study = c.get("study") if isinstance(c, dict) else (c if isinstance(c, str) else None)
         if not study:
             continue
+        behavior = c.get("behavior") if isinstance(c, dict) else None
+        beh_result = (behaviors.get(study) or {}).get(behavior) if behavior else None
+        if beh_result == "PASS":
+            continue  # the named acceptance behavior passed → criterion met
         v = (verdicts.get(study) or {}).get("verdict")
         if v not in _MET:
             add("unaddressed_criterion", study,
-                f"acceptance criterion on {study} not met (verdict: {v or 'none'})")
+                (f"acceptance criterion '{behavior}' on {study} not met "
+                 f"(behavior: {beh_result or 'no-run'}, verdict: {v or 'none'})"
+                 if behavior else
+                 f"acceptance criterion on {study} not met (verdict: {v or 'none'})"))
 
     # 2. unadjudicated challenge edges (an alternative/refutation left open)
     for e in edges:

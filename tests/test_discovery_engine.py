@@ -10,9 +10,9 @@ from __future__ import annotations
 from viva_superpowers import discovery_engine as de
 
 
-def _cycle(open_calls=None, edges=None, verdicts=None):
+def _cycle(open_calls=None, edges=None, verdicts=None, behaviors=None):
     return {
-        "knowledge": {"verdicts": verdicts or {}},
+        "knowledge": {"verdicts": verdicts or {}, "behaviors": behaviors or {}},
         "argument": {"claims": {}, "edges": edges or []},
         "narrative": {"units": []},
         "audit": [],
@@ -41,6 +41,34 @@ def test_frontier_prioritizes_criteria_over_gaps_over_divergence():
     assert kinds.index("unaddressed_criterion") < kinds.index("narrative_gap") < kinds.index("divergence")
     # addressed criterion sok produced no item
     assert "sok" not in [i["target"] for i in f]
+
+
+def test_criterion_met_when_named_behavior_passes_despite_refuted_verdict():
+    # A null / adversarial-control study: refuting the null is the DESIGNED success,
+    # and its acceptance behavior passed. Acceptance must track the behavior outcome,
+    # not the verdict sign — so the criterion is MET and raises no frontier item.
+    cyc = _cycle(verdicts={"nullctl": {"verdict": "refuted"}},
+                 behaviors={"nullctl": {"rejects-generic": "PASS"}})
+    inv = {"acceptance_criteria": [{"study": "nullctl", "behavior": "rejects-generic"}]}
+    f = de.frontier(cyc, inv)
+    assert "nullctl" not in [i["target"] for i in f if i["kind"] == "unaddressed_criterion"]
+    assert de.closure(cyc, inv)["closed"] is True
+
+
+def test_criterion_unmet_when_named_behavior_fails():
+    # The named behavior failed → the criterion is unmet regardless of verdict.
+    cyc = _cycle(verdicts={"s": {"verdict": "refuted"}},
+                 behaviors={"s": {"b": "FAIL"}})
+    inv = {"acceptance_criteria": [{"study": "s", "behavior": "b"}]}
+    f = de.frontier(cyc, inv)
+    assert "s" in [i["target"] for i in f if i["kind"] == "unaddressed_criterion"]
+
+
+def test_criterion_falls_back_to_verdict_when_no_behavior_outcome():
+    # Backward-compatible: with no behavior outcome recorded, a non-met verdict still flags.
+    cyc = _cycle(verdicts={"s": {"verdict": "refuted"}})  # behaviors empty
+    inv = {"acceptance_criteria": [{"study": "s", "behavior": "b"}]}
+    assert "s" in [i["target"] for i in de.frontier(cyc, inv) if i["kind"] == "unaddressed_criterion"]
 
 
 def test_frontier_flags_open_challenge_edges():
