@@ -591,3 +591,18 @@ def test_suggest_studies_proposes_discriminating_study_from_divergence():
     assert len(div) == 1 and div[0]["status"] == "awaiting_expert"
     assert "resolve divergence" in div[0]["title"].lower()
     assert len(oq) == 1 and oq[0]["parent_study"] == "og-foo"
+
+
+def test_run_readiness_flags_missing_baseline_composite():
+    # the workspace package resolves but the composite module does not → not ready + a build gap.
+    study = {"behavior_tests": [], "baseline": [{"composite": "viva_superpowers.nonexistent_xyz.model"}]}
+    r = discover.run_readiness(study, None)
+    assert r["composite_resolves"] is False
+    assert r["ready"] is False
+    assert any("composite not built" in g for g in r["gaps"])
+
+
+def test_run_readiness_resolves_an_existing_composite_module():
+    study = {"behavior_tests": [], "baseline": [{"composite": "viva_superpowers.discover.run_readiness"}]}
+    r = discover.run_readiness(study, None)
+    assert r["composite_resolves"] is True
