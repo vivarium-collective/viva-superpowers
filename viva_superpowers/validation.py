@@ -429,6 +429,61 @@ def _investigation_hygiene(ctx: ValidationContext) -> list[dict]:
         validator_id="structural.investigation.hygiene")]
 
 
+# Load-bearing secondary prose the derive-first cycle DEPENDS ON but does not generate
+# (content-flow audit, 2026-10-27): the cycle copies these into propositions / the
+# executive opening, or degrades to an explicit stub. Flag an absent one on the frontier
+# so the gap is visible in the cycle instead of silently stubbing — the authoring stays a
+# `/viva-*` skill's job, but its absence becomes a tracked, actionable item.
+_STUDY_PROSE = ("claim",)            # the cycle's sole proposition source; absent → ⟨no claim⟩ stub
+_INV_PROSE = ("what_is_this", "verdict_detail")  # the state-first opening + verdict support
+
+
+@validator(type="structural", scope="study", id="structural.study.narrative_completeness",
+           surfaces="frontier")
+def _study_narrative_completeness(ctx: ValidationContext) -> list[dict]:
+    """Flag a member study missing load-bearing authored prose the cycle leans on: the
+    one-line ``claim`` (its proposition source), or an interpretive ``findings[].statement``
+    when the study has recorded findings. A record per gapped study; the fix is to author
+    it (``/viva-study`` / ``/viva-biology-forward``), not to fabricate it in the cycle."""
+    recs: list[dict] = []
+    for slug, spec in (getattr(ctx, "studies", None) or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        missing = [f"executive prose `{f}`" for f in _STUDY_PROSE if not str(spec.get(f) or "").strip()]
+        findings = [f for f in (spec.get("findings") or []) if isinstance(f, dict)]
+        if findings and not any(str(f.get("statement") or f.get("summary") or "").strip() for f in findings):
+            missing.append("an interpretive `findings[].statement`")
+        if missing:
+            recs.append(validation_record(
+                type="structural", scope="study", target=slug,
+                execution_status="failed", scientific_judgment=None,
+                criteria=["narrative_completeness"],
+                findings=[f"missing authored prose: {m}" for m in missing],
+                recommendations=["author via `/viva-study` (claim/conclusion) or "
+                                 "`/viva-biology-forward` (findings) — the cycle will then surface it"],
+                validator_id="structural.study.narrative_completeness"))
+    return recs
+
+
+@validator(type="structural", scope="investigation", id="structural.investigation.narrative_completeness",
+           surfaces="frontier")
+def _investigation_narrative_completeness(ctx: ValidationContext) -> list[dict]:
+    """Flag the investigation opening missing load-bearing authored prose: the state-first
+    ``executive.what_is_this`` and the ``executive.verdict_detail``. The cycle renders and
+    reasons over these but never writes them; a gap surfaces here as an actionable item."""
+    ex = (getattr(ctx, "inv_spec", None) or {}).get("executive") or {}
+    missing = [f"executive.{f}" for f in _INV_PROSE if not str(ex.get(f) or "").strip()]
+    if not missing:
+        return []
+    return [validation_record(
+        type="structural", scope="investigation", target="investigation",
+        execution_status="failed", scientific_judgment=None,
+        criteria=["narrative_completeness"],
+        findings=[f"missing authored prose: {m}" for m in missing],
+        recommendations=["author via `/viva-investigation` (set-overview / verdict)"],
+        validator_id="structural.investigation.narrative_completeness")]
+
+
 @validator(type="narrative", scope="narrative", id="narrative.narrative.coherence")
 def _narrative_coherence(ctx: ValidationContext) -> list[dict]:
     """Evidential coherence of the reading — one record summarizing ``audit`` gaps
