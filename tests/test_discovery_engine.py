@@ -383,3 +383,24 @@ def test_diagnose_pass_rate_excludes_standing_feedback():
     d = de.diagnose(_cycle(validations=[fr_pass, fr_fail, st_fail1, st_fail2]), {})
     assert d["validator_pass_rate"] == 0.5     # 1 of 2 FRONTIER passed; 2 standing excluded
     assert d["standing_feedback"] == 2
+
+
+def test_diagnose_flags_argument_disconnected_when_no_edges_either_channel():
+    # edges are the union of investigation scientific_argument + study parent_studies;
+    # zero edges means NEITHER channel was authored.
+    cyc = _cycle(edges=[]); cyc["argument"]["claims"] = {"c1": {}}
+    assert "argument_disconnected" in [f["flag"] for f in de.diagnose(cyc, {})["flags"]]
+
+
+def test_diagnose_no_disconnected_flag_when_edges_present():
+    cyc = _cycle(edges=[{"from": "a", "to": "b"}]); cyc["argument"]["claims"] = {"c1": {}}
+    assert "argument_disconnected" not in [f["flag"] for f in de.diagnose(cyc, {})["flags"]]
+
+
+def test_diagnose_census_splits_frontier_and_standing():
+    recs = [{**_record(target="a", execution="failed"), "surfaces": "standing"},
+            {**_record(target="b", execution="failed"), "surfaces": "frontier"},
+            {**_record(target="c", execution="passed"), "surfaces": "frontier"}]
+    d = de.diagnose(_cycle(validations=recs), {})
+    assert d["census_standing"]["failed"] == 1
+    assert d["census_frontier"]["failed"] == 1 and d["census_frontier"]["passed"] == 1

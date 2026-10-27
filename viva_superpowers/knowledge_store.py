@@ -111,7 +111,12 @@ def canonical_verdict(study_spec: dict) -> dict:
     """
     derived = _CANON.get(roll_up_verdict(study_spec).get("result"), "unassessed")
 
+    # Verdict schema drift: some workspaces author `verdict`, others `conclusion_verdict`
+    # (a scalar or a {verdict, status} object). Read either so both schemas resolve uniformly.
     authored = study_spec.get("verdict")
+    if not authored:
+        cv = study_spec.get("conclusion_verdict")
+        authored = cv.get("verdict") if isinstance(cv, dict) else cv
     authored = authored if authored in _AUTHORED_OK else None
 
     verdict = authored or derived

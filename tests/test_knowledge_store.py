@@ -214,3 +214,11 @@ class TestMergeKnowledge:
         authored = {"concepts": {"new": {"question": "New?"}}, "verdicts": {}}
         m = merge_knowledge(authored, derived)
         assert m["concepts"]["new"]["question"] == "New?"
+
+
+def test_canonical_verdict_reads_conclusion_verdict_when_verdict_absent():
+    from viva_superpowers.knowledge_store import canonical_verdict
+    scalar = canonical_verdict({"conclusion_verdict": "supported"})
+    assert scalar["verdict"] == "supported" and scalar["verdict_source"] == "authored"
+    obj = canonical_verdict({"conclusion_verdict": {"verdict": "refuted"}})
+    assert obj["verdict"] == "refuted"

@@ -347,14 +347,35 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
         flags.append(_flag("capability_limited",
                             f"{len(errored)} validator(s) could not run: {', '.join(str(i) for i in ids)}",
                             "fix or add the simulator / interface / validator"))
+    # The argument graph's edges are the UNION of two authoring channels — investigation-level
+    # `scientific_argument` and study-level `parent_studies` — so an edgeless graph means
+    # NEITHER was authored. Flag that (not "author parent_studies", which names only one
+    # channel): with no edges, every claim stands alone, downstream impact is 0, and the
+    # value-ranking can't differentiate (observed on island; genesis has 94 edges and is fine).
+    arg = cycle_result.get("argument") or {}
+    if (arg.get("claims")) and not (arg.get("edges") or []):
+        flags.append(_flag("argument_disconnected",
+                            "the argument graph has no epistemic edges — every claim stands "
+                            "alone, so downstream impact is 0 and the value-ranking cannot "
+                            "differentiate opportunities",
+                            "author epistemic relations in EITHER channel: investigation "
+                            "`scientific_argument` (claim→claim) or study `parent_studies` "
+                            "(builds-on / refutes / qualifies)"))
 
+    # Census split so the actionable-vs-standing weight is legible (observed on genesis:
+    # 64 records = 3 actionable + 61 standing — the pass-rate uses only the frontier bucket).
     census: dict[str, int] = {}
+    census_frontier: dict[str, int] = {}
+    census_standing: dict[str, int] = {}
     for r in records:
         st = (r.get("result") or {}).get("execution_status")
         census[st] = census.get(st, 0) + 1
+        bucket = census_standing if r.get("surfaces") == "standing" else census_frontier
+        bucket[st] = bucket.get(st, 0) + 1
 
     return {"closed": clo["closed"], "frontier_size": len(f),
             "validator_pass_rate": pass_rate, "census": census,
+            "census_frontier": census_frontier, "census_standing": census_standing,
             "standing_feedback": standing, "flags": flags}
 
 
