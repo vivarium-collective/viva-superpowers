@@ -118,7 +118,7 @@ EPISTEMIC_RELATIONS = ("builds-on", "tests", "refutes", "alternative-to", "motiv
 # The frontier-item kinds a resolution can discharge (mirror discovery_engine priorities).
 RESOLUTION_KINDS = ("unaddressed_criterion", "open_challenge", "narrative_gap",
                     "open_decision", "divergence", "open_question",
-                    "validation_finding", "stale_validation")
+                    "validation_finding", "stale_validation", "pending_gate")
 
 
 def add_resolution(inv_spec: dict, kind: str, target: str, rationale: str,
@@ -447,8 +447,27 @@ def _default_runner(command: str, ws_root: Path | str) -> dict:
             "tail": (proc.stdout or proc.stderr or "")[-400:]}
 
 
+def _env_decider(target: str, detail: str) -> dict:
+    """An AI decider that drives an open decision by shelling out to the agent command in
+    ``$VIVA_DECIDER_CMD``. The command receives the decision as ``{"target","detail"}`` JSON
+    on stdin and must print ``{"choice","rationale"}`` JSON on stdout (the option that
+    maximizes discovery, and why). The engine stays LLM-free; the AI lives in that command
+    (e.g. ``claude -p`` with the decide skill). Raises if the var is unset so --ai-decide
+    fails loud rather than silently deferring."""
+    import json
+    import os
+    import subprocess
+    cmd = os.environ.get("VIVA_DECIDER_CMD")
+    if not cmd:
+        raise RuntimeError("--ai-decide needs $VIVA_DECIDER_CMD set to an AI agent command "
+                           "that reads {target,detail} JSON and prints {choice,rationale} JSON")
+    proc = subprocess.run(cmd, shell=True, input=json.dumps({"target": target, "detail": detail}),
+                          capture_output=True, text=True, timeout=1800)
+    return json.loads(proc.stdout)
+
+
 def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = False,
-                   runner=None) -> dict:
+                   runner=None, decider=None, target: str | None = None) -> dict:
     """The bridge's execution step: take the top value-ranked action and carry it out,
     gated by consequence.
 
@@ -456,19 +475,31 @@ def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = Fal
     - A consequential action (``simulation`` / ``simulation+study`` — run a study, seed
       one) runs **only** with ``autonomous=True``, by invoking its real executor command
       as a subprocess (``runner``, injectable for tests); the outcome is recorded.
-    - A ``review`` (verdict overwrite) or ``human-only`` (expert decision / adjudication)
-      action never auto-runs — it is handed back.
+    - A ``steer`` (an open expert decision) is normally ``human-only``, BUT when an AI
+      ``decider`` is supplied and ``autonomous=True`` the AI drives it: ``decider`` is
+      called with the decision and returns the option that maximizes discovery plus a
+      rationale; the choice is recorded as a resolution (``[ai-driven]``) so the decision
+      is made and its gated study becomes ready. The engine itself never reasons — the
+      ``decider`` is the AI, injected by the caller (a skill / agent / this session).
+    - A ``review`` (verdict overwrite) or a ``human-only`` action with no ``decider``
+      never auto-runs — it is handed back.
 
     Executed actions are appended to the investigation's ``executed_actions`` log and the
     frontier is re-derived so the caller sees the change. Returns a record of what
     happened."""
     from . import discovery_engine as de
     inv_path, inv_spec, studies = load_cycle_inputs(ws_root, inv_slug)
-    before = de.closure(run_cycle(inv_spec, studies), inv_spec)["open_items"]
-    plan = de.execute_plan(run_cycle(inv_spec, studies), inv_spec)
+    cyc = run_cycle(inv_spec, studies)
+    before = de.closure(cyc, inv_spec)["open_items"]
+    plan = de.execute_plan(cyc, inv_spec)
     if not plan:
         return {"status": "nothing-to-do", "frontier": before}
-    top = plan[0]
+    # Default: the single highest-value move (plan[0]). With `target`, drive that specific
+    # frontier item instead — e.g. an AI decider driving a decision that a higher-value
+    # verification run would otherwise rank ahead of.
+    top = plan[0] if target is None else next((p for p in plan if p["source"] == target), None)
+    if top is None:
+        return {"status": "no-such-action", "target": target, "frontier": before}
     rec = {"action": top["action_type"], "source": top["source"], "command": top["command"],
            "consequence": top["consequence"], "score": top["score"]}
 
@@ -483,7 +514,17 @@ def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = Fal
         else:
             rec["outcome"] = (runner or _default_runner)(top["command"], ws_root)
             rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
-    else:  # review / human-only
+    elif top["action_type"] == "steer" and decider is not None and autonomous:
+        # AI drives the expert decision: pick the option that maximizes discovery.
+        detail = next((i["rationale"] for i in de.frontier(cyc, inv_spec)
+                       if i["kind"] == "open_decision" and i["target"] == top["source"]), top["source"])
+        choice = decider(top["source"], detail) or {}
+        pick, why = choice.get("choice") or "(unspecified)", choice.get("rationale") or ""
+        record_resolution(inv_path, "open_decision", top["source"],
+                          f"[ai-driven · maximize-discovery] chose {pick}. {why}", by="discovery-ai")
+        rec["status"] = "executed"
+        rec["outcome"] = {"ok": True, "detail": f"ai-decided: {pick}", "rationale": why}
+    else:  # review / human-only with no decider
         rec["status"] = "gated-human"
         rec["outcome"] = {"ok": None, "detail": f"{top['consequence']} — needs a human decision"}
 
@@ -508,6 +549,60 @@ def _append_executed(inv_path: Path | str, record: dict) -> None:
                 "at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")})
     on_disk["executed_actions"] = log
     save_yaml_atomic(path, on_disk)
+
+
+def build_completion_map(ws_root: Path | str, inv_slug: str) -> dict:
+    """The single 'what's left to complete this cycle' view: the gate state, the
+    verification debt (gates met by verdict only), the expert decisions that gate the
+    next studies, and the ordered next-step commands. Pure read — assembles the frontier,
+    closure, suggestions, and the execution plan into one map."""
+    from . import discovery_engine as de
+    _, inv_spec, studies = load_cycle_inputs(ws_root, inv_slug)
+    cyc = run_cycle(inv_spec, studies)
+    clo = de.closure(cyc, inv_spec)
+    front = de.frontier(cyc, inv_spec)
+    plan = de.execute_plan(cyc, inv_spec)
+    suggestions = [s for s in (cyc.get("suggestions") or []) if s.get("status") == "awaiting_expert"]
+    return {
+        "closed": clo["closed"],
+        "open_items": clo["open_items"],
+        "unaddressed_criteria": clo["unaddressed_criteria"],
+        "pending_gates": [{"target": i["target"], "detail": i["rationale"]}
+                          for i in front if i["kind"] == "pending_gate"],
+        "gating_decisions": [{"target": i["target"], "detail": i["rationale"]}
+                             for i in front if i["kind"] == "open_decision"],
+        "suggested_studies": [{"parent": s.get("parent_study"),
+                               "decision": (s.get("awaiting_expert") or [""])[0]}
+                              for s in suggestions],
+        "next_steps": [{"action": p["action_type"], "source": p["source"],
+                        "consequence": p["consequence"], "command": p["command"],
+                        "auto_safe": p["auto_safe"]} for p in plan],
+    }
+
+
+def summarize_completion(cmap: dict) -> str:
+    """Human-readable completion map: gates to verify, decisions to make, steps to run."""
+    L = [f"closure: {'CLOSED' if cmap['closed'] else 'OPEN'}  ·  {cmap['open_items']} open frontier item(s)"]
+    if cmap["unaddressed_criteria"]:
+        L.append("\nunmet acceptance criteria (block closure):")
+        L += [f"  ✗ {s}" for s in cmap["unaddressed_criteria"]]
+    if cmap["pending_gates"]:
+        L.append("\nverification gates — met by verdict only, behavior unrun (run to verify):")
+        L += [f"  ○ {g['target']}: {g['detail']}" for g in cmap["pending_gates"]]
+    if cmap["gating_decisions"]:
+        L.append("\ndecisions that gate the next studies (an AI decider can drive these):")
+        L += [f"  ◆ {d['target']}" for d in cmap["gating_decisions"]]
+    if cmap["suggested_studies"]:
+        L.append("\nsuggested follow-up studies (each awaits the decision above):")
+        L += [f"  → on {s['parent']}: {(s['decision'] or '')[:100]}" for s in cmap["suggested_studies"]]
+    L.append("\nnext steps to run (ordered by value; consequence-gated):")
+    for p in cmap["next_steps"][:8]:
+        tag = "auto-safe" if p["auto_safe"] else p["consequence"]
+        L.append(f"  [{tag:>16}]  {p['action']} {p['source']}")
+        L.append(f"  {' ' * 20}{p['command']}")
+    if not cmap["next_steps"]:
+        L.append("  (frontier clear — nothing to run)")
+    return "\n".join(L)
 
 
 def summarize_suggestions(suggestions: list[dict]) -> str:
@@ -645,6 +740,10 @@ def main(argv: list[str] | None = None) -> int:
                            help="rank the frontier by value — what is most valuable to investigate next")
     p_opp.add_argument("investigation", help="investigation slug")
 
+    p_comp = sub.add_parser("complete",
+                            help="the completion map: gates to verify, decisions that gate the next studies, and the ordered next-step commands")
+    p_comp.add_argument("investigation", help="investigation slug")
+
     p_exec = sub.add_parser("execute",
                             help="the recommendation→action bridge: show (or, with --execute, run) the next action")
     p_exec.add_argument("investigation", help="investigation slug")
@@ -652,6 +751,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="actually run the top action when it is side-effect-free (else print its gated command)")
     p_exec.add_argument("--autonomous", action="store_true",
                         help="also run a CONSEQUENTIAL top action (seed a study / run a simulation) and record the outcome")
+    p_exec.add_argument("--ai-decide", action="store_true",
+                        help="let an AI decider drive an open expert decision (needs $VIVA_DECIDER_CMD; implies --autonomous)")
 
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
@@ -767,13 +868,19 @@ def main(argv: list[str] | None = None) -> int:
         print(discovery_engine.summarize_opportunities(opps))
         return 0
 
+    if args.cmd == "complete":
+        print(summarize_completion(build_completion_map(ws, args.investigation)))
+        return 0
+
     if args.cmd == "execute":
         from . import discovery_engine
         _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
         plan = discovery_engine.execute_plan(run_cycle(inv_spec, studies), inv_spec)
         print(discovery_engine.summarize_execute_plan(plan))
-        if (args.execute or args.autonomous) and plan:
-            rec = execute_action(ws, args.investigation, autonomous=args.autonomous)
+        autonomous = args.autonomous or args.ai_decide
+        if (args.execute or autonomous) and plan:
+            rec = execute_action(ws, args.investigation, autonomous=autonomous,
+                                 decider=_env_decider if args.ai_decide else None)
             print(f"\n[{rec['status']}] {rec['action']} on {rec['source']}: "
                   f"{(rec.get('outcome') or {}).get('detail') or (rec.get('outcome') or {})}")
             if rec.get("status") == "executed" and "frontier_after" in rec:
