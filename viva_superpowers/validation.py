@@ -119,16 +119,30 @@ class ValidationContext:
 _REGISTRY: list[dict] = []
 
 
-def validator(*, type: str, scope: str, id: str, registry: list | None = None):
-    """Register ``fn(ctx) -> [record]`` under its ``(type, scope)`` and id."""
+#: how a validator's records reach the user.
+#:   "frontier"  — a real defect; failed/errored records become actionable crank items.
+#:   "standing"  — informational feedback (a scorecard dimension); shown in the
+#:                 coverage/census view but never floods the actionable frontier.
+SURFACES = ("frontier", "standing")
+
+
+def validator(*, type: str, scope: str, id: str, surfaces: str = "standing",
+              registry: list | None = None):
+    """Register ``fn(ctx) -> [record]`` under its ``(type, scope)``, id and surface.
+
+    ``surfaces`` defaults to ``"standing"`` — a new validator is feedback until it
+    explicitly opts into the frontier, so adding validators can never silently flood
+    the actionable crank."""
     if type not in VALIDATOR_TYPES:
         raise ValueError(f"type must be one of {VALIDATOR_TYPES}, got {type!r}")
     if scope not in VALIDATOR_SCOPES:
         raise ValueError(f"scope must be one of {VALIDATOR_SCOPES}, got {scope!r}")
+    if surfaces not in SURFACES:
+        raise ValueError(f"surfaces must be one of {SURFACES}, got {surfaces!r}")
     reg = _REGISTRY if registry is None else registry
 
     def deco(fn: Callable):
-        reg.append({"type": type, "scope": scope, "id": id, "fn": fn})
+        reg.append({"type": type, "scope": scope, "id": id, "surfaces": surfaces, "fn": fn})
         return fn
 
     return deco
@@ -140,11 +154,28 @@ def registry() -> list[dict]:
 
 
 def run_validators(ctx: ValidationContext | None, registry: list | None = None) -> list[dict]:
-    """Dispatch every registered validator over ``ctx`` and collect the records."""
+    """Dispatch every registered validator over ``ctx`` and collect the records.
+
+    A validator that raises is **isolated**: it yields a single ``error``-status
+    record (so the failure is visible and surfaces on the frontier) and the cycle
+    continues — one buggy validator never takes down the whole projection."""
     reg = _REGISTRY if registry is None else registry
     out: list[dict] = []
     for v in reg:
-        out.extend(v["fn"](ctx) or [])
+        surfaces = v.get("surfaces", "standing")
+        try:
+            records = v["fn"](ctx) or []
+        except Exception as exc:  # noqa: BLE001 — isolation is the whole point
+            records = [validation_record(
+                type=v["type"], scope=v["scope"], target=v["id"],
+                execution_status="error",
+                findings=[f"validator raised {type(exc).__name__}: {exc}"],
+                recommendations=["fix the validator; its records are missing this cycle"],
+                validator_id=v["id"])]
+            surfaces = "frontier"  # a broken validator is itself actionable
+        for r in records:
+            r.setdefault("surfaces", surfaces)
+        out.extend(records)
     return out
 
 
@@ -179,7 +210,7 @@ def epistemic_separation_violations(records: list[dict]) -> list[dict]:
 # Shipped adapters (RFC-0007 Phase 1) — thin wrappers over existing checks
 # ---------------------------------------------------------------------------
 
-@validator(type="logical", scope="claim", id="logical.claim.provenance")
+@validator(type="logical", scope="claim", id="logical.claim.provenance", surfaces="frontier")
 def _provenance(ctx: ValidationContext) -> list[dict]:
     """An assessed claim (supported/qualified/refuted) that traces to no evidence.
     The same check ``discovery_engine.invariants`` ran inline, now a record."""
@@ -197,6 +228,54 @@ def _provenance(ctx: ValidationContext) -> list[dict]:
                 findings=[f"claim is {v} but traces to no evidence"],
                 recommendations=["attach evidence_refs, or downgrade the verdict to unresolved"],
                 validator_id="logical.claim.provenance"))
+    return recs
+
+
+@validator(type="scientific", scope="study", id="scientific.study.rigor")
+def _rigor(ctx: ValidationContext) -> list[dict]:
+    """The rigor scorecard as a record per study: a GAP dimension fails the study's
+    method rigor, a WARN leaves it inconclusive. Measures method quality, not the
+    claim's truth — so it asserts no scientific_judgment."""
+    from . import rigor  # lazy: rigor pulls a large module graph
+    recs: list[dict] = []
+    for slug, spec in (getattr(ctx, "studies", None) or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        dims = (rigor.study_rigor(spec) or {}).get("dimensions") or []
+        gaps = [d for d in dims if d.get("severity") == "gap"]
+        warns = [d for d in dims if d.get("severity") == "warn"]
+        flagged = gaps or warns
+        status = "failed" if gaps else ("inconclusive" if warns else "passed")
+        recs.append(validation_record(
+            type="scientific", scope="study", target=slug,
+            execution_status=status, scientific_judgment=None,
+            criteria=[d.get("id") for d in flagged],
+            findings=[f"{d.get('label')}: {d.get('detail')}" for d in flagged],
+            recommendations=[f"address rigor dimension '{d.get('id')}'" for d in flagged],
+            validator_id="scientific.study.rigor"))
+    return recs
+
+
+@validator(type="empirical", scope="claim", id="empirical.claim.band_provenance")
+def _band_provenance(ctx: ValidationContext) -> list[dict]:
+    """Numeric acceptance bands with no cited provenance — the empirical grounding a
+    claim leans on without a source (one record per study, findings per band)."""
+    from . import band_provenance as bp
+    recs: list[dict] = []
+    for slug, spec in (getattr(ctx, "studies", None) or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        missing = bp.bands_missing_provenance(spec)
+        if not missing:
+            continue
+        recs.append(validation_record(
+            type="empirical", scope="claim", target=f"claim:{slug}",
+            execution_status="failed", scientific_judgment=None,
+            criteria=["band_provenance"],
+            findings=[f"band on '{m.get('name')}' ({m.get('field_path')}) has no cited provenance"
+                      for m in missing],
+            recommendations=["cite each acceptance band's source (/viva-tests cite-bands)"],
+            validator_id="empirical.claim.band_provenance"))
     return recs
 
 

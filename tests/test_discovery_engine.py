@@ -38,12 +38,29 @@ def test_frontier_projects_a_failing_validation_record():
     assert "supported but no evidence" in items[("validation_finding", "claim:unbacked")]["rationale"]
 
 
-def test_frontier_skips_passing_and_narrative_validation_records():
+def test_frontier_skips_passing_inconclusive_and_narrative_validation_records():
     passing = _record(execution="passed")
-    narrative = _record(type="narrative", scope="narrative", target="narrative")  # surfaced via open_calls
-    cyc = _cycle(validations=[passing, narrative])
+    inconclusive = _record(execution="inconclusive", target="claim:warn")  # standing feedback
+    narrative = _record(type="narrative", scope="narrative", target="narrative")  # via open_calls
+    cyc = _cycle(validations=[passing, inconclusive, narrative])
     kinds = {i["kind"] for i in de.frontier(cyc, {})}
     assert "validation_finding" not in kinds
+
+
+def test_frontier_suppresses_standing_validation_records():
+    # a failing 'standing' record (rigor/band feedback) must NOT flood the frontier.
+    standing = {**_record(type="scientific", scope="study", target="s", execution="failed"),
+                "surfaces": "standing"}
+    cyc = _cycle(validations=[standing])
+    assert "validation_finding" not in {i["kind"] for i in de.frontier(cyc, {})}
+
+
+def test_frontier_projects_errored_validator_records():
+    errored = _record(type="structural", scope="study", target="scientific.study.rigor",
+                      execution="error", findings=["validator raised RuntimeError: boom"])
+    cyc = _cycle(validations=[errored])
+    assert ("validation_finding", "scientific.study.rigor") in {
+        (i["kind"], i["target"]) for i in de.frontier(cyc, {})}
 
 
 def test_frontier_validation_finding_is_resolvable():
