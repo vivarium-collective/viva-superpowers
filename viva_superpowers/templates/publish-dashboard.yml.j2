@@ -55,7 +55,10 @@ jobs:
         # composite in the dashboard rather than aborting the whole publish.
         run: |
           uv venv
-          uv pip install "vivarium-workbench @ git+https://github.com/vivarium-collective/vivarium-workbench.git@main"
+          # --refresh-package: setup-uv caches uv's git clone of @main (enable-cache
+          # above), so without this uv reuses a STALE cached commit and republishes a
+          # pre-merge bundle while the run stays green. Force a re-fetch of the tip.
+          uv pip install --refresh-package vivarium-workbench "vivarium-workbench @ git+https://github.com/vivarium-collective/vivarium-workbench.git@main"
           uv pip install -e . --no-deps || echo "workspace has no installable build; composites render from spec only"
 
       - name: Build read-only workbench snapshot
