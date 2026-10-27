@@ -521,3 +521,30 @@ def test_run_readiness_flags_unemitted_gate_observables(monkeypatch):
     study["observables"] = ["trap/enrichment_factor"]
     r2 = discover.run_readiness(study, "/ws")
     assert r2["ready"] and not r2["observables"]["missing"]
+
+
+def test_advance_cycle_runs_a_run_ready_open_question(tmp_path):
+    # the ADVANCE phase: an unassessed, run-ready study (open_question -> test op) gets run.
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml", {"studies": ["a"]})
+    sd = tmp_path / "studies" / "a"
+    sd.mkdir(parents=True)
+    save_yaml_atomic(sd / "study.yaml", {"name": "a", "claim": "a holds"})  # unassessed, no required observables
+
+    calls = []
+
+    def runner(cmd, ws):
+        calls.append(cmd)
+        return {"ok": True, "returncode": 0, "tail": "done"}
+
+    # dry: reports what it would run, runner untouched
+    dry = discover.advance_cycle(tmp_path, "og", autonomous=False, runner=runner)
+    assert dry["runs"] and "would-run" in dry["runs"][0]["status"] and not calls
+
+    # autonomous: actually runs the run-ready open question
+    res = discover.advance_cycle(tmp_path, "og", autonomous=True, runner=runner)
+    assert res["runs"] and res["runs"][0]["status"] == "executed"
+    assert calls and "run study" in calls[0]
+    assert not res["needs_build"]

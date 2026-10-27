@@ -654,13 +654,91 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     if not has_contracts:
         gaps.append("no contracts declared")
 
-    ready = not missing and has_emitter          # can produce an evaluable result
-    complete = ready and has_viz and has_tests and has_contracts
+    # `ready` = the run can produce an EVALUABLE result: every gate's observables are
+    # emittable. A study-level emitter is NOT required — a fresh study's composite declares
+    # its own emitter and the run records it only afterward; demanding a study-level emitter
+    # wrongly blocked never-run studies whose composite self-emits. Emitter/viz/contracts are
+    # `complete` (the quality bar), not `ready`.
+    ready = not missing                           # observables satisfiable → evaluable
+    complete = ready and has_emitter and has_viz and has_tests and has_contracts
     return {"ready": ready, "complete": complete, "gaps": gaps,
             "observables": {"required": sorted(required), "declared": sorted(declared),
                             "missing": missing},
             "has_emitter": has_emitter, "has_visualizations": has_viz,
             "has_tests": has_tests, "has_contracts": has_contracts}
+
+
+def advance_cycle(ws_root: Path | str, inv_slug: str, *, autonomous: bool = False,
+                  runner=None, max_runs: int = 12) -> dict:
+    """The cycle's ADVANCE phase — build-if-needed and RUN the open questions, so turning
+    the crank moves the science forward instead of only describing it.
+
+    Repeatedly: crank, take the top **run-ready** ``test`` op (an ``open_question`` /
+    ``pending_gate`` on an existing study), run it via :func:`execute_action`, re-crank —
+    until no runnable open work remains, a study needs BUILDING (not run-ready: its run
+    spec is incomplete, per :func:`run_readiness`), or only human-gated items are left. A
+    ``test`` op is tried once (``seen``), so a run that only SKIPs its gates doesn't loop.
+
+    This makes "run the open questions" a defined phase of a cycle, not an afterthought.
+    Without ``autonomous`` it reports what it WOULD run (dry). Returns
+    ``{runs, needs_build, frontier_before, frontier_after}``."""
+    from . import discovery_engine as de
+    ran: list[dict] = []
+    needs_build: list[dict] = []
+    seen: set = set()
+    _, inv0, st0 = load_cycle_inputs(ws_root, inv_slug)
+    before = de.closure(run_cycle(inv0, st0), inv0)["open_items"]
+    for _ in range(max_runs):
+        _, inv, studies = load_cycle_inputs(ws_root, inv_slug)
+        plan = de.execute_plan(run_cycle(inv, studies), inv)
+        target = None
+        for p in plan:
+            if p["action_type"] != "test" or p["source"] in seen:
+                continue
+            slug = p["source"].split(":", 1)[1] if str(p["source"]).startswith("claim:") else p["source"]
+            spec = studies.get(slug)
+            if not isinstance(spec, dict):
+                continue
+            if spec.get("runs"):
+                # already ran: a lingering open_question / pending_gate here means the gate
+                # SKIP'd or the verdict is only-by-roll-up — re-running won't resolve it (the
+                # behavior test / evaluation needs attention, not another sim). Don't loop on it.
+                seen.add(p["source"])
+                continue
+            rr = run_readiness(spec, ws_root)
+            if rr["ready"]:
+                target = p["source"]
+                break
+            needs_build.append({"study": slug, "gaps": rr["gaps"]})
+            seen.add(p["source"])
+        if target is None:
+            break                                   # no runnable test op left
+        seen.add(target)
+        if not autonomous:
+            ran.append({"target": target, "status": "would-run (pass --autonomous to execute)"})
+            break
+        rec = execute_action(ws_root, inv_slug, autonomous=True, runner=runner, target=target)
+        ran.append({"target": target, "status": rec["status"],
+                    "outcome": (rec.get("outcome") or {}).get("detail")})
+        if rec["status"] != "executed":
+            break
+    _, inv2, st2 = load_cycle_inputs(ws_root, inv_slug)
+    after = de.closure(run_cycle(inv2, st2), inv2)["open_items"]
+    return {"runs": ran, "needs_build": needs_build,
+            "frontier_before": before, "frontier_after": after}
+
+
+def summarize_advance(result: dict) -> str:
+    """Human-readable advance log: what ran, what needs building, the frontier delta."""
+    L = [f"frontier {result['frontier_before']} → {result['frontier_after']} "
+         f"({len(result['runs'])} run attempt(s))"]
+    for r in result["runs"]:
+        L.append(f"  [{r['status']}] {r['target']}" + (f" — {r['outcome']}" if r.get("outcome") else ""))
+    for b in result["needs_build"]:
+        L.append(f"  [needs build] {b['study']}: {'; '.join(b['gaps'][:2])}")
+    if not result["runs"] and not result["needs_build"]:
+        L.append("  (no runnable open questions — nothing to advance)")
+    return "\n".join(L)
 
 
 def build_completion_map(ws_root: Path | str, inv_slug: str) -> dict:
@@ -856,6 +934,12 @@ def main(argv: list[str] | None = None) -> int:
                             help="the completion map: gates to verify, decisions that gate the next studies, and the ordered next-step commands")
     p_comp.add_argument("investigation", help="investigation slug")
 
+    p_adv = sub.add_parser("advance",
+                           help="the cycle's ADVANCE phase: build-if-needed and run the open questions (run-ready `test` ops), re-cranking after each")
+    p_adv.add_argument("investigation", help="investigation slug")
+    p_adv.add_argument("--autonomous", action="store_true",
+                       help="actually run the runnable open questions (else report what it would run)")
+
     p_exec = sub.add_parser("execute",
                             help="the recommendation→action bridge: show (or, with --execute, run) the next action")
     p_exec.add_argument("investigation", help="investigation slug")
@@ -982,6 +1066,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "complete":
         print(summarize_completion(build_completion_map(ws, args.investigation)))
+        return 0
+
+    if args.cmd == "advance":
+        print(summarize_advance(advance_cycle(ws, args.investigation, autonomous=args.autonomous)))
         return 0
 
     if args.cmd == "execute":
