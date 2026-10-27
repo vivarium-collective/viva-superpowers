@@ -42,6 +42,7 @@ from .knowledge_store import canonical_verdict, derive_knowledge, merge_knowledg
 from .narrative import audit, narrate
 from .study_io import atomic_write, load_yaml, load_yaml_mapping, save_yaml_atomic
 from .synthesis import open_calls, synthesize_gates
+from .validation import ValidationContext, run_validators
 
 
 def _ruamel() -> YAML:
@@ -114,7 +115,8 @@ VERDICT_VOCAB = ("supported", "qualified", "inconclusive", "refuted", "unassesse
 EPISTEMIC_RELATIONS = ("builds-on", "tests", "refutes", "alternative-to", "motivates")
 # The frontier-item kinds a resolution can discharge (mirror discovery_engine priorities).
 RESOLUTION_KINDS = ("unaddressed_criterion", "open_challenge", "narrative_gap",
-                    "open_decision", "divergence", "open_question")
+                    "open_decision", "divergence", "open_question",
+                    "validation_finding")
 
 
 def add_resolution(inv_spec: dict, kind: str, target: str, rationale: str,
@@ -174,6 +176,12 @@ def run_cycle(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
     gates = synthesize_gates(inv_spec, argument["claims"])
     calls = open_calls(inv_spec, argument["claims"], gaps)
 
+    # RFC-0007: run the registered validators over the derived cycle. Each returns
+    # typed (type, scope) validation records; the frontier projects the failing ones
+    # and invariants() checks execution ⊥ scientific-judgment across them.
+    ctx = ValidationContext(inv_spec=inv_spec, studies=studies_by_slug,
+                            argument=argument, narrative=narrative, audit=gaps)
+
     return {
         "knowledge": knowledge,
         "argument": argument,
@@ -181,6 +189,7 @@ def run_cycle(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
         "audit": gaps,
         "gates": gates,
         "open_calls": calls,
+        "validations": run_validators(ctx),
     }
 
 

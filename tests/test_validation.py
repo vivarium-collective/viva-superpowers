@@ -1,0 +1,126 @@
+"""Tests for viva_superpowers.validation — the validator layer (RFC-0007).
+
+One validation-record shape + a (type, scope)-tagged registry, generalizing the
+checks the framework already runs. The two-axis rule (execution_status ⊥
+scientific_judgment) is enforced via the type axis: a type that only establishes
+execution correctness must leave the scientific judgment null.
+"""
+from __future__ import annotations
+
+import pytest
+
+from viva_superpowers import validation as V
+
+
+# --- record shape ----------------------------------------------------------
+
+def test_validation_record_builds_the_two_axis_shape():
+    r = V.validation_record(
+        type="scientific", scope="study", target="study_12",
+        execution_status="passed", scientific_judgment="unresolved",
+        criteria=["controls_adequacy"], findings=["competing mechanism not excluded"],
+        recommendations=["add control simulation"], evidence=["run_34"],
+        validator_id="scientific.study.controls")
+    assert r["type"] == "scientific" and r["scope"] == "study" and r["target"] == "study_12"
+    assert r["result"]["execution_status"] == "passed"
+    assert r["result"]["scientific_judgment"] == "unresolved"
+    assert r["findings"] == ["competing mechanism not excluded"]
+    assert r["provenance"]["validator_id"] == "scientific.study.controls"
+
+
+def test_validation_record_is_deterministic_no_wallclock():
+    # the record is produced in the pure cycle projection — no wall-clock stamp,
+    # so the same evidence yields the identical record (Phase-4 staleness needs this).
+    kw = dict(type="empirical", scope="claim", target="c", execution_status="passed")
+    assert V.validation_record(**kw) == V.validation_record(**kw)
+    assert V.validation_record(**kw)["provenance"]["evaluated_at"] is None
+
+
+def test_validation_record_rejects_off_vocabulary_axes():
+    with pytest.raises(ValueError):
+        V.validation_record(type="bogus", scope="study", target="t", execution_status="passed")
+    with pytest.raises(ValueError):
+        V.validation_record(type="scientific", scope="bogus", target="t", execution_status="passed")
+    with pytest.raises(ValueError):
+        V.validation_record(type="scientific", scope="study", target="t", execution_status="green")
+    with pytest.raises(ValueError):
+        V.validation_record(type="scientific", scope="study", target="t",
+                            execution_status="passed", scientific_judgment="true-ish")
+
+
+def test_execution_only_types_may_not_assert_a_judgment():
+    assert V.establishes_judgment("empirical") is True
+    assert V.establishes_judgment("structural") is False
+    # a structural validator asserting scientific truth is a construction-time error
+    with pytest.raises(ValueError):
+        V.validation_record(type="structural", scope="study", target="t",
+                            execution_status="passed", scientific_judgment="supported")
+
+
+# --- registry + dispatch ---------------------------------------------------
+
+def test_registry_dispatch_and_coverage_matrix():
+    reg: list[dict] = []
+
+    @V.validator(type="logical", scope="claim", id="t.logical.claim", registry=reg)
+    def _v(ctx):
+        return [V.validation_record(type="logical", scope="claim", target="c1",
+                                    execution_status="failed",
+                                    validator_id="t.logical.claim")]
+
+    records = V.run_validators(ctx=None, registry=reg)
+    assert len(records) == 1 and records[0]["target"] == "c1"
+
+    matrix = V.coverage_matrix(registry=reg)
+    assert matrix["logical"]["claim"] == ["t.logical.claim"]
+    assert matrix["visual"]["figure"] == []  # an empty cell is visible
+
+
+# --- the epistemic-separation invariant ------------------------------------
+
+def test_epistemic_separation_flags_execution_only_judgment():
+    good = V.validation_record(type="empirical", scope="claim", target="c",
+                               execution_status="passed", scientific_judgment="supported")
+    # a record that smuggles a judgment past the builder (constructed raw) is still caught
+    smuggled = {"type": "computational", "scope": "study", "target": "s",
+                "result": {"execution_status": "passed", "scientific_judgment": "supported"}}
+    violations = V.epistemic_separation_violations([good, smuggled])
+    assert len(violations) == 1
+    assert violations[0]["invariant"] == "epistemic_separation"
+    assert violations[0]["target"] == "s"
+
+
+# --- the two shipped adapters ----------------------------------------------
+
+def test_provenance_adapter_flags_assessed_claim_without_evidence():
+    ctx = V.ValidationContext(
+        inv_spec={}, studies={},
+        argument={"claims": {
+            "claim:a": {"verdict": "supported", "evidence_refs": []},
+            "claim:b": {"verdict": "supported", "evidence_refs": ["run_1"]},
+            "claim:c": {"verdict": "unassessed", "evidence_refs": []},
+        }},
+        narrative={}, audit=[])
+    recs = V.run_validators(ctx=ctx, registry=V.registry())
+    prov = [r for r in recs if r["provenance"]["validator_id"] == "logical.claim.provenance"]
+    assert [r["target"] for r in prov] == ["claim:a"]  # only the unbacked assessed claim
+    assert prov[0]["result"]["execution_status"] == "failed"
+    assert prov[0]["result"]["scientific_judgment"] is None  # logical check asserts no truth
+
+
+def test_narrative_adapter_reports_gaps_as_one_record():
+    ctx_gap = V.ValidationContext(
+        inv_spec={}, studies={}, argument={"claims": {}}, narrative={},
+        audit=[{"from": "claim:a", "to": "claim:b", "reason": "unsupported transition",
+                "followup": {"title": "Discriminate: b"}}])
+    recs = V.run_validators(ctx=ctx_gap, registry=V.registry())
+    nar = [r for r in recs if r["provenance"]["validator_id"] == "narrative.narrative.coherence"]
+    assert len(nar) == 1
+    assert nar[0]["result"]["execution_status"] == "failed"
+    assert "unsupported transition" in nar[0]["findings"][0]
+
+    ctx_clean = V.ValidationContext(inv_spec={}, studies={}, argument={"claims": {}},
+                                    narrative={}, audit=[])
+    recs2 = V.run_validators(ctx=ctx_clean, registry=V.registry())
+    nar2 = [r for r in recs2 if r["provenance"]["validator_id"] == "narrative.narrative.coherence"]
+    assert nar2[0]["result"]["execution_status"] == "passed"

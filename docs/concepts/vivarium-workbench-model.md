@@ -80,6 +80,26 @@ A recurring reviewer complaint is "I can't tell which studies ran, whether the t
 - **The downloadable report** (`walkthrough.js` `_buildInvestigationReportHtml`) renders a per-study **"Ran · Tests · Verdict" strip** from `study_clarity_summary` (server-injected as `spec.clarity_summary`, with an equivalent client-side fallback).
 - **The report-linter guards this**: `status_claims_done_no_runs_recorded` (declares done but no run provenance) and `reviewer_clarity_ambiguity` (ran-but-every-test-pending, gate↔test divergence) both run in `viva-report` Pass B, single-sourced from the same summary.
 
+#### Validation & judgment vocabulary (RFC-0007)
+
+Every check in the framework reports on **two independent axes**, and they are
+never mixed (see [RFC-0007 — the validator layer](../rfcs/RFC-0007-validator-layer.md)):
+
+| Axis | Question | Canonical values | Folds in (legacy) |
+|---|---|---|---|
+| **execution_status** | Did the check run and pass? | `passed · failed · inconclusive · error` | gate `PASS`/`FAIL`, card grade, `gate_status`, `simulation_status`, run half of `evaluation_status`, rigor `ok`/`warn`/`gap` |
+| **scientific_judgment** | Does the claim hold? | `supported · qualified · refuted · unresolved · null` | `verdict` (`VERDICT_VOCAB`), `verdict_status`; spec synonyms `contested`→challenge, `unresolved`→`inconclusive`/`unassessed` |
+
+- A green run is `passed` — **never** a judgment. A validator *type* that only
+  establishes execution correctness (`structural`/`computational`/`visual`) must
+  leave `scientific_judgment` null; `discovery_engine.invariants()` enforces this
+  as `epistemic_separation`.
+- A **finding** is an observation a validator emits (`findings[]`); it is not a
+  verdict and not a frontier item. A **recommendation** is what a validator
+  suggests; a **resolution** is the record that an op *executed* it and discharged
+  the item. Evaluation proposes; intervention (`set-verdict`/`resolve`/`relate`)
+  resolves.
+
 ### 8-section canonical Study structure
 
 A v3 `study.yaml` is organized into 8 user-facing sections plus two cross-cutting fields. Each section maps to a top-level YAML field. The shape below mirrors `studies/dnaa-01-expression-dynamics/study.yaml` in a v2ecoli workspace — read that file for live, expanded values.

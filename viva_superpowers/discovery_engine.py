@@ -30,6 +30,8 @@ crank(cycle_result, inv_spec) -> dict          # one combined report
 """
 from __future__ import annotations
 
+from .validation import epistemic_separation_violations
+
 
 # Frontier priorities (higher = more urgent; a closure-blocker outranks a polish item).
 _PRIORITY = {
@@ -38,6 +40,7 @@ _PRIORITY = {
     "narrative_gap": 70,           # an unsupported transition in the reading
     "open_decision": 60,           # an authored decision awaiting a steer
     "divergence": 50,              # authored verdict disagrees with the coded roll-up
+    "validation_finding": 45,      # a registered validator (RFC-0007) reported a failing check
     "open_question": 40,           # an unassessed / inconclusive claim
 }
 # Recommended operation per item kind (the RFC-0005 op that resolves it).
@@ -47,6 +50,7 @@ _OP = {
     "narrative_gap": "branch",           # a follow-up study supplying the missing link
     "open_decision": "steer",            # resolve the decision and propagate
     "divergence": "reconcile",           # reconcile authored vs derived verdict
+    "validation_finding": "revise",      # act on the validator's recommendation, then resolve
     "open_question": "test",             # evaluate the claim
 }
 # open_calls kinds map straight onto frontier kinds.
@@ -130,6 +134,22 @@ def frontier(cycle_result: dict, inv_spec: dict) -> list[dict]:
         target = refs[0] if refs else (call.get("title") or kind)
         add(kind, target, call.get("title") or "")
 
+    # 4. validator findings (RFC-0007): a registered validator reported a failing
+    #    check. Records already surfaced by another path (narrative coherence is
+    #    raised as a narrative_gap via open_calls) are skipped so they are not
+    #    double-counted; the rest enter the frontier, resolvable like any item.
+    for rec in cycle_result.get("validations") or []:
+        if not isinstance(rec, dict):
+            continue
+        if (rec.get("result") or {}).get("execution_status") not in ("failed", "inconclusive", "error"):
+            continue
+        if rec.get("type") == "narrative":
+            continue
+        findings = rec.get("findings") or []
+        add("validation_finding", rec.get("target"),
+            f"[{rec.get('type')}/{rec.get('scope')}] "
+            + ("; ".join(str(f) for f in findings) if findings else "validation failed"))
+
     items.sort(key=lambda x: (-x["priority"], str(x["kind"]), str(x["target"])))
     return items
 
@@ -161,8 +181,9 @@ def invariants(cycle_result: dict) -> list[dict]:
     """Validity-invariant violations to flag each turn (RFC-0005 §"validity invariants").
 
     - provenance: an assessed claim (supported/qualified/refuted) with no evidence_refs.
-    - epistemic_separation: a progress field standing in for a verdict (a claim whose
-      verdict was taken from execution status) — flagged if ever observed.
+    - epistemic_separation (RFC-0007): a validation record whose type establishes
+      execution correctness only (structural/computational/visual) yet asserts a
+      scientific judgment — a passing check standing in for biological truth.
     """
     out: list[dict] = []
     claims = (cycle_result.get("argument") or {}).get("claims") or {}
@@ -173,6 +194,7 @@ def invariants(cycle_result: dict) -> list[dict]:
         if v in ("supported", "qualified", "refuted") and not (c.get("evidence_refs") or []):
             out.append({"invariant": "provenance", "target": cid,
                         "detail": f"claim is {v} but traces to no evidence"})
+    out.extend(epistemic_separation_violations(cycle_result.get("validations") or []))
     return out
 
 
