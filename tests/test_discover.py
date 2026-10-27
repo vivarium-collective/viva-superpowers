@@ -652,3 +652,14 @@ def test_run_readiness_empty_registry_does_not_false_flag(monkeypatch):
     r = discover.run_readiness(study, "/tmp")
     assert r["measures_resolvable"] is True
     assert not any("no registered evaluator" in g for g in r["gaps"])
+
+
+def test_summarize_completion_surfaces_publishable_axis():
+    # publishable (presentation complete) is distinct from closure — a closed investigation can
+    # still be not-publishable when a study's artifacts haven't materialized.
+    cmap = {"closed": True, "open_items": 0, "unaddressed_criteria": [], "pending_gates": [],
+            "gating_decisions": [], "suggested_studies": [], "next_steps": [],
+            "publishable": False, "not_publishable": {"s1": ["no contracts declared"]}}
+    out = discover.summarize_completion(cmap)
+    assert "publishable (presentation complete): NO" in out
+    assert "s1: no contracts declared" in out

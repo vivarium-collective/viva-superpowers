@@ -878,8 +878,23 @@ def build_completion_map(ws_root: Path | str, inv_slug: str) -> dict:
     front = de.frontier(cyc, inv_spec)
     plan = de.execute_plan(cyc, inv_spec)
     suggestions = [s for s in (cyc.get("suggestions") or []) if s.get("status") == "awaiting_expert"]
+    # Presentation readiness ⊥ scientific closure (P1): an investigation can be CLOSED (every
+    # acceptance criterion met) while still not PUBLISHABLE — a member study's figures, evaluators,
+    # or contracts haven't materialized (observed on eukaryogenesis: closed-ish arc, empty viz
+    # tabs). `publishable` is every member study `complete` (composite resolves + viz rendered +
+    # measures resolvable + emitter/tests/contracts); `not_publishable` names what each is missing.
+    study_completion: dict = {}
+    for slug, spec in (studies or {}).items():
+        if isinstance(spec, dict):
+            r = run_readiness(spec, ws_root)
+            study_completion[slug] = {"complete": r["complete"], "gaps": r["gaps"]}
+    publishable = bool(study_completion) and all(c["complete"] for c in study_completion.values())
+    not_publishable = {s: c["gaps"] for s, c in study_completion.items() if not c["complete"]}
     return {
         "closed": clo["closed"],
+        "publishable": publishable,
+        "not_publishable": not_publishable,
+        "study_completion": study_completion,
         "open_items": clo["open_items"],
         "unaddressed_criteria": clo["unaddressed_criteria"],
         "pending_gates": [{"target": i["target"], "detail": i["rationale"]}
@@ -898,6 +913,12 @@ def build_completion_map(ws_root: Path | str, inv_slug: str) -> dict:
 def summarize_completion(cmap: dict) -> str:
     """Human-readable completion map: gates to verify, decisions to make, steps to run."""
     L = [f"closure: {'CLOSED' if cmap['closed'] else 'OPEN'}  ·  {cmap['open_items']} open frontier item(s)"]
+    if "publishable" in cmap:
+        L.append(f"publishable (presentation complete): {'YES' if cmap['publishable'] else 'NO'}"
+                 + (f"  ·  {len(cmap['not_publishable'])} study(ies) not materialized"
+                    if cmap.get("not_publishable") else ""))
+        for slug, gaps in (cmap.get("not_publishable") or {}).items():
+            L.append(f"  ▢ {slug}: {', '.join(gaps[:3])}")
     if cmap["unaddressed_criteria"]:
         L.append("\nunmet acceptance criteria (block closure):")
         L += [f"  ✗ {s}" for s in cmap["unaddressed_criteria"]]
