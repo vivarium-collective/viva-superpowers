@@ -396,6 +396,24 @@ def test_execute_action_lets_an_ai_decider_drive_an_expert_decision(tmp_path):
     assert any(r["kind"] == "open_decision" and "ai-driven" in r["rationale"] for r in res)
 
 
+def test_execute_action_can_target_a_specific_decision_not_only_the_top(tmp_path):
+    # two decisions on the frontier; `target` drives the chosen one rather than plan[0].
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml",
+                     {"studies": [],
+                      "executive": {"decisions_needed": [{"question": "prior A?"}, {"question": "prior B?"}]}})
+
+    def pick(target, detail):
+        return {"choice": "x", "rationale": "y"}
+
+    rec = discover.execute_action(tmp_path, "og", autonomous=True, decider=pick, target="prior B?")
+    assert rec["status"] == "executed" and rec["source"] == "prior B?"
+    res = load_yaml(inv / "investigation.yaml")["resolutions"]
+    assert [r["target"] for r in res] == ["prior B?"]
+
+
 def test_snapshot_validations_persists_the_accepted_state(tmp_path):
     (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
     inv = tmp_path / "investigations" / "og"

@@ -467,7 +467,7 @@ def _env_decider(target: str, detail: str) -> dict:
 
 
 def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = False,
-                   runner=None, decider=None) -> dict:
+                   runner=None, decider=None, target: str | None = None) -> dict:
     """The bridge's execution step: take the top value-ranked action and carry it out,
     gated by consequence.
 
@@ -494,7 +494,12 @@ def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = Fal
     plan = de.execute_plan(cyc, inv_spec)
     if not plan:
         return {"status": "nothing-to-do", "frontier": before}
-    top = plan[0]
+    # Default: the single highest-value move (plan[0]). With `target`, drive that specific
+    # frontier item instead — e.g. an AI decider driving a decision that a higher-value
+    # verification run would otherwise rank ahead of.
+    top = plan[0] if target is None else next((p for p in plan if p["source"] == target), None)
+    if top is None:
+        return {"status": "no-such-action", "target": target, "frontier": before}
     rec = {"action": top["action_type"], "source": top["source"], "command": top["command"],
            "consequence": top["consequence"], "score": top["score"]}
 
