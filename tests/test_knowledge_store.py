@@ -14,10 +14,41 @@ Covers:
 from __future__ import annotations
 
 from viva_superpowers.knowledge_store import (
+    _study_behaviors,
     canonical_verdict,
     derive_knowledge,
     merge_knowledge,
 )
+
+
+class TestBehaviorsUnionAcrossRuns:
+    """A gate recorded in a sibling run must be seen, not reported PENDING."""
+
+    def test_gate_recorded_in_a_non_selected_run_is_seen(self):
+        # two runs both flagged canonical; the motifs gate PASSES in the first, but the
+        # single-canonical-run lookup would select the second (last wins) and miss it.
+        spec = {
+            "name": "s", "behavior_tests": [{"name": "motifs"}, {"name": "flux"}],
+            "runs": [
+                {"name": "net", "status": "completed", "canonical": True,
+                 "outcomes": {"motifs": {"result": "PASS"}}},
+                {"name": "proto", "status": "completed", "canonical": True,
+                 "outcomes": {"flux": {"result": "PASS"}}},
+            ],
+        }
+        beh = _study_behaviors(spec)
+        assert beh["motifs"] == "PASS" and beh["flux"] == "PASS"
+
+    def test_canonical_run_wins_on_a_genuine_conflict(self):
+        spec = {
+            "name": "s", "behavior_tests": [{"name": "g"}],
+            "runs": [
+                {"name": "old", "status": "completed", "outcomes": {"g": {"result": "FAIL"}}},
+                {"name": "canon", "status": "completed", "canonical": True,
+                 "outcomes": {"g": {"result": "PASS"}}},
+            ],
+        }
+        assert _study_behaviors(spec)["g"] == "PASS"
 
 
 # ---------------------------------------------------------------------------

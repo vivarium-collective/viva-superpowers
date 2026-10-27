@@ -26,21 +26,40 @@ from __future__ import annotations
 
 from typing import Any
 
-from .study_outcomes import canonical_outcomes
 from .study_status import _study_tests, bucket_tests
 from .study_verdict import roll_up_verdict
 
 _BEHAVIOR_BUCKET = {"pass": "PASS", "fail": "FAIL", "skip": "SKIP", "pending": "PENDING"}
 
 
+def _merged_run_outcomes(spec: dict) -> dict:
+    """Behavior-gate outcomes UNIONED across the study's recorded runs.
+
+    A study's acceptance behaviors are often split across the several composite runs
+    that produced them — each run records outcomes only for the gates it computes (e.g.
+    the reaction-network gates in one run, protometabolism gates in another). Reading a
+    single ``canonical`` run therefore reports a gate recorded in a *sibling* run as
+    PENDING — a false 'unverified' flag that the discovery engine surfaces as spurious
+    verification debt. Union the runs' outcomes so each behavior counts as whatever the
+    run that tested it recorded. Canonical runs are applied last, so on a genuine key
+    conflict the canonical value still wins — the verdict path (which reads
+    ``canonical_outcomes``) is unchanged; only this gate lookup widens."""
+    merged: dict = {}
+    runs = [r for r in (spec.get("runs") or []) if isinstance(r, dict) and isinstance(r.get("outcomes"), dict)]
+    for r in sorted(runs, key=lambda r: 1 if r.get("canonical") is True else 0):
+        merged.update(r["outcomes"])
+    return merged
+
+
 def _study_behaviors(spec: dict) -> dict:
-    """Per-behavior pass/fail for a study's canonical run, keyed by behavior-test
-    name. Lets the discovery engine judge an acceptance criterion by whether its
-    NAMED behavior passed (not the study's roll-up verdict sign). Defensive: a
-    spec whose runs can't be read yields {} (the engine then falls back to the
-    verdict), never a crashed cycle."""
+    """Per-behavior pass/fail for a study, keyed by behavior-test name. Lets the
+    discovery engine judge an acceptance criterion by whether its NAMED behavior passed
+    (not the study's roll-up verdict sign). Reads outcomes unioned across the study's runs
+    (see :func:`_merged_run_outcomes`) so a gate recorded in any run is seen. Defensive: a
+    spec whose runs can't be read yields {} (the engine then falls back to the verdict),
+    never a crashed cycle."""
     try:
-        buckets = bucket_tests(_study_tests(spec), canonical_outcomes(spec))
+        buckets = bucket_tests(_study_tests(spec), _merged_run_outcomes(spec))
     except Exception:
         return {}
     out: dict[str, str] = {}
