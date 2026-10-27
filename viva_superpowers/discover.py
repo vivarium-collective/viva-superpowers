@@ -305,29 +305,59 @@ def _study_path(ws_root: Path | str, slug: str, study: str) -> Path:
 # persist_cycle — regenerable cache, authored blocks untouched
 # ---------------------------------------------------------------------------
 
+def build_cycle_state(result: dict, inv_spec: dict) -> dict:
+    """Project a **slim, actionable** summary of the cycle — the few dozen lines a
+    human, the dashboard, or the next cycle actually needs, instead of the full
+    regenerable projection. Carries the cycle's *outputs* that previously never fed
+    forward: the value-ranked opportunities, suggestions, diagnosis, validator census,
+    and drift. The full `knowledge`/`argument`/`narrative` are recomputable on demand
+    via :func:`run_cycle`, so they are not dumped here."""
+    from . import discovery_engine as de
+    clo = de.closure(result, inv_spec)
+    na = de.next_action(result, inv_spec)
+    opps = de.opportunities(result, inv_spec)
+    diag = de.diagnose(result, inv_spec)
+    frontier = de.frontier(result, inv_spec)
+    recs = result.get("validations") or []
+    census: dict[str, int] = {}
+    for r in recs:
+        st = (r.get("result") or {}).get("execution_status")
+        census[st] = census.get(st, 0) + 1
+    sugg = result.get("suggestions") or []
+    from .validation import stale_records
+    return {
+        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+        "closed": clo["closed"],
+        "frontier_size": clo["open_items"],
+        "next_action": ({"op": na["op"], "kind": na["kind"], "target": na["target"]}
+                        if na else None),
+        "top_opportunities": [{"source": o["source"], "action": o["action_type"],
+                               "score": o["value"]["score"]} for o in opps[:8]],
+        "suggestions": {"ready": sum(1 for s in sugg if s.get("status") == "ready"),
+                        "awaiting_expert": sum(1 for s in sugg if s.get("status") == "awaiting_expert")},
+        "diagnosis": {"flags": [f["flag"] for f in diag["flags"]],
+                      "validator_pass_rate": diag["validator_pass_rate"]},
+        "validator_census": census,
+        "drift": {"divergences": sum(1 for i in frontier if i["kind"] == "divergence"),
+                  "stale_validations": len(stale_records(recs, inv_spec.get("validation_snapshot")))},
+    }
+
+
 def persist_cycle(inv_path: Path | str, inv_spec: dict, result: dict) -> dict:
-    """Write the cycle projection into investigation.yaml as ``knowledge_cycle``.
+    """Write the slim ``cycle_state`` summary into investigation.yaml.
 
     Re-reads the on-disk spec (so concurrent authored edits are never clobbered),
-    sets only the regenerable ``knowledge_cycle`` cache, and atomically rewrites.
-    The sparse authored ``knowledge`` / ``argument`` blocks are left alone — the
-    cache is derived and may be regenerated at any time.
+    sets only the regenerable ``cycle_state``, and atomically rewrites. The authored
+    blocks are left alone. **Retires the old bloated ``knowledge_cycle`` cache** (a
+    multi-thousand-line dump of the full projection that nothing read); the full
+    projection is recomputable via :func:`run_cycle`.
     """
     path = Path(inv_path)
     on_disk = load_yaml_mapping(path) if path.exists() else dict(inv_spec)
-    on_disk["knowledge_cycle"] = {
-        "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
-        "verdicts": result["knowledge"]["verdicts"],
-        "concepts": result["knowledge"]["concepts"],
-        "claims": result["argument"]["claims"],
-        "edges": result["argument"]["edges"],
-        "narrative": result["narrative"],
-        "audit": result["audit"],
-        "gates": result["gates"],
-        "open_calls": result["open_calls"],
-    }
+    on_disk.pop("knowledge_cycle", None)  # retire the bloated derived cache (0 readers)
+    on_disk["cycle_state"] = build_cycle_state(result, inv_spec)
     save_yaml_atomic(path, on_disk)
-    return on_disk["knowledge_cycle"]
+    return on_disk["cycle_state"]
 
 
 def _parent_in_parens(text: str, members: set) -> str | None:

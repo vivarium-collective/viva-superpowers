@@ -371,6 +371,51 @@ def _edge_integrity(ctx: ValidationContext) -> list[dict]:
     return recs
 
 
+# Hygiene guards (RFC-0007) — keep retired bloat and deprecated fields from creeping back
+# into the data model each cycle. Lists mirror docs/concepts/vivarium-workbench-model.md.
+_DEPRECATED_STUDY_FIELDS = ("consolidation_note", "split_note", "program", "concept", "gate_reason")
+_DEPRECATED_INV_FIELDS = ("plan_acts",)
+_RETIRED_INV_CACHES = ("knowledge_cycle",)
+
+
+@validator(type="structural", scope="study", id="structural.study.deprecated_fields",
+           surfaces="standing")
+def _deprecated_study_fields(ctx: ValidationContext) -> list[dict]:
+    """Flag a study still carrying a deprecated, unread field (standing feedback)."""
+    recs: list[dict] = []
+    for slug, spec in (getattr(ctx, "studies", None) or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        present = [f for f in _DEPRECATED_STUDY_FIELDS if f in spec]
+        if present:
+            recs.append(validation_record(
+                type="structural", scope="study", target=slug,
+                execution_status="failed", criteria=["no_deprecated_fields"],
+                findings=[f"deprecated field(s) present: {', '.join(present)}"],
+                recommendations=["remove the deprecated field(s) — no renderer consumes them"],
+                validator_id="structural.study.deprecated_fields"))
+    return recs
+
+
+@validator(type="structural", scope="investigation", id="structural.investigation.hygiene",
+           surfaces="frontier")
+def _investigation_hygiene(ctx: ValidationContext) -> list[dict]:
+    """Flag a retired bloat cache (``knowledge_cycle``) or a deprecated investigation
+    field creeping back — a real regression, so it surfaces on the frontier."""
+    inv = getattr(ctx, "inv_spec", None) or {}
+    problems = [f"retired bloat cache `{f}` present (re-run `discover cycle` → `cycle_state`)"
+                for f in _RETIRED_INV_CACHES if f in inv]
+    problems += [f"deprecated field `{f}` present" for f in _DEPRECATED_INV_FIELDS if f in inv]
+    if not problems:
+        return []
+    return [validation_record(
+        type="structural", scope="investigation", target="investigation",
+        execution_status="failed", criteria=["data_model_hygiene"],
+        findings=problems,
+        recommendations=["re-run `discover cycle` to replace the cache; remove deprecated fields"],
+        validator_id="structural.investigation.hygiene")]
+
+
 @validator(type="narrative", scope="narrative", id="narrative.narrative.coherence")
 def _narrative_coherence(ctx: ValidationContext) -> list[dict]:
     """Evidential coherence of the reading — one record summarizing ``audit`` gaps
