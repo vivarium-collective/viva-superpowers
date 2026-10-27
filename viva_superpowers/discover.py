@@ -547,8 +547,17 @@ def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = Fal
             rec["status"] = "gated"
             rec["outcome"] = {"ok": None, "detail": "consequential — re-run with --autonomous to execute"}
         else:
-            rec["outcome"] = (runner or _default_runner)(top["command"], ws_root)
-            rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
+            # Fill the <ws> placeholder with the real workspace root, then refuse to shell
+            # out a still-templated command (e.g. a branch op's <parent>/<proposal>, which
+            # the cycle can't auto-fill) rather than running a broken literal placeholder.
+            command = (top["command"] or "").replace("<ws>", str(ws_root))
+            rec["command"] = command
+            if re.search(r"<[^>]+>", command):
+                rec["status"] = "gated"
+                rec["outcome"] = {"ok": None, "detail": f"command needs manual values, run it yourself: {command}"}
+            else:
+                rec["outcome"] = (runner or _default_runner)(command, ws_root)
+                rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
     elif top["action_type"] == "steer" and decider is not None and autonomous:
         # AI drives the expert decision: pick the option that maximizes discovery.
         detail = next((i["rationale"] for i in de.frontier(cyc, inv_spec)

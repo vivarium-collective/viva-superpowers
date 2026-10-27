@@ -372,7 +372,8 @@ def test_execute_action_gates_a_consequential_action_until_autonomous(tmp_path):
     # with --autonomous, it invokes the real executor (the runner), records + re-cranks
     ran = discover.execute_action(tmp_path, "og", autonomous=True, runner=fake_runner)
     assert ran["status"] == "executed"
-    assert calls and "run-baseline" in calls[0]
+    # the real headless run command, with the <ws> placeholder filled in (not shelled literally)
+    assert calls and "run study" in calls[0] and "<ws>" not in calls[0]
     log = load_yaml(inv / "investigation.yaml")["executed_actions"]
     assert log[0]["action"] == "test" and log[0]["status"] == "executed"
 
