@@ -85,6 +85,46 @@ def test_frontier_flags_stale_validation_against_snapshot():
     assert items[("stale_validation", "c")]["op"] == "revalidate"
 
 
+def test_diagnose_input_limited_when_decisions_dominate():
+    # a frontier of expert decisions -> the investigation is waiting on input, not planner work.
+    cyc = _cycle(open_calls=[{"kind": "decision", "title": f"D{i}", "refs": [f"d{i}"]} for i in range(3)])
+    d = de.diagnose(cyc, {})
+    flags = {f["flag"] for f in d["flags"]}
+    assert "input_limited" in flags
+
+
+def test_diagnose_planner_limited_on_a_large_same_priority_cluster():
+    # many divergences at the same priority -> the crank cannot rank them by value.
+    cyc = _cycle(open_calls=[{"kind": "divergence", "title": f"v{i}", "refs": [f"c{i}"]} for i in range(5)])
+    d = de.diagnose(cyc, {})
+    assert "planner_limited" in {f["flag"] for f in d["flags"]}
+
+
+def test_diagnose_validation_limited_on_low_pass_rate():
+    recs = [_record(type="empirical", scope="claim", target=f"claim:{i}", execution="failed")
+            for i in range(4)]
+    d = de.diagnose(_cycle(validations=recs), {})
+    assert "validation_limited" in {f["flag"] for f in d["flags"]}
+    assert d["validator_pass_rate"] == 0.0
+
+
+def test_diagnose_capability_limited_on_a_validator_error():
+    err = _record(type="structural", scope="study", target="v", execution="error")
+    assert "capability_limited" in {f["flag"] for f in de.diagnose(_cycle(validations=[err]), {})["flags"]}
+
+
+def test_diagnose_task_saturated_when_closed_and_empty():
+    d = de.diagnose(_cycle(), {})  # nothing open, no validations
+    assert d["closed"] is True
+    assert "task_saturated" in {f["flag"] for f in d["flags"]}
+
+
+def test_diagnose_flags_carry_evidence_and_intervention():
+    cyc = _cycle(open_calls=[{"kind": "decision", "title": "D", "refs": ["d"]}])
+    for f in de.diagnose(cyc, {})["flags"]:
+        assert f["evidence"] and f["intervention"]  # every flag is actionable
+
+
 def test_invariants_flags_epistemic_separation_in_validation_records():
     smuggled = _record(type="computational", scope="study", target="s",
                        execution="passed", judgment="supported")

@@ -426,6 +426,10 @@ def main(argv: list[str] | None = None) -> int:
                             help="accept the current validation state; later drift is flagged stale")
     p_snap.add_argument("investigation", help="investigation slug")
 
+    p_diag = sub.add_parser("diagnose",
+                            help="classify the crank's productivity bottlenecks (why it is/isn't progressing)")
+    p_diag.add_argument("investigation", help="investigation slug")
+
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
     p_sv.add_argument("verdict", choices=VERDICT_VOCAB)
@@ -516,6 +520,14 @@ def main(argv: list[str] | None = None) -> int:
         snap = snapshot_validations(ws, args.investigation)
         print(f"accepted validation snapshot: {len(snap)} record(s) "
               f"— later drift surfaces as stale_validation")
+        return 0
+
+    if args.cmd == "diagnose":
+        from . import discovery_engine
+        _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
+        result = run_cycle(inv_spec, studies)
+        diag = discovery_engine.diagnose(result, inv_spec)
+        print(discovery_engine.summarize_diagnosis(diag))
         return 0
 
     return 1

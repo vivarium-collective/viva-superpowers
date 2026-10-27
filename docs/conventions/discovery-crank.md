@@ -60,6 +60,7 @@ top frontier:
 | Verb | Does |
 |---|---|
 | `crank <inv>` | frontier + next action + closure (read-only) — **the one you run most** |
+| `diagnose <inv>` | **why** the cycle is/isn't progressing — productivity-bottleneck flags (read-only) |
 | `status <inv>` | project one cycle, print the summary, no write |
 | `cycle <inv> [--no-write]` | run + persist one cycle as a regenerable `knowledge_cycle` cache |
 | `set-verdict <study> <verdict> [--rationale …]` | author a canonical verdict (`supported`/`qualified`/`inconclusive`/`refuted`/`unassessed`) |
@@ -124,6 +125,27 @@ verdict sign (PR #360). Don't branch a new study to "fix" a null control that di
   genuine expert calls the crank cannot and should not make for you (publication scope,
   rule-set scope, architecture choices). `divergence` and `open_question` are still
   agent-actionable (reconcile, test) — clear those before handing back.
+
+## Diagnose — why the cycle is (not) progressing
+
+`CLOSED` means the argument is internally settled; it does **not** mean maximum value
+was extracted. `discover diagnose <inv>` classifies the residual state into
+productivity-bottleneck flags (after the *Perfect Discovery Engine* paper's Table 2),
+each with its evidence and the next intervention — computed from the cycle data, no
+oracle needed:
+
+- **`task_saturated`** — CLOSED with an empty frontier; genuinely done.
+- **`input_limited`** — the frontier is dominated by `steer`/`open_decision` items; the
+  investigation is waiting on expert priors/data, not more planning.
+- **`planner_limited`** — a large cluster of same-priority actionable items the crank can
+  only order by id (no value signal); it can't tell you which to do first.
+- **`validation_limited`** — low validator pass-rate / many ungrounded claims (uncited
+  bands, unbacked verdicts).
+- **`capability_limited`** — a validator errored (a check couldn't run).
+
+The flags are not exclusive. A "CLOSED, frontier 22" investigation routinely diagnoses as
+`input_limited` + `planner_limited` + `validation_limited` at once — the real state the
+bare closure line hides.
 
 ## Preconditions (checklist)
 

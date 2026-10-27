@@ -246,3 +246,102 @@ def summarize(report: dict) -> str:
     for i in report["frontier"][:8]:
         lines.append(f"  {i['priority']:>3}  [{i['op']:>10}] {i['kind']:<22} {i['target']}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# diagnose — why is the cycle (not) making progress?
+# ---------------------------------------------------------------------------
+# A crank that reaches CLOSED, or stalls, is *productive* (items discharged) but that
+# says nothing about decision value. Following the Perfect-Discovery-Engine productivity
+# diagnostics (Table 2 / §11.1), classify the residual state into bottleneck categories
+# from data run_cycle already produces — each with the operational signal, the evidence,
+# and the next intervention. The flags are not exclusive: a cycle can be several at once.
+
+#: frontier kinds that are expert hand-backs, not engine-actionable work.
+_STEER_KINDS = frozenset({"open_decision"})
+
+
+def _flag(name: str, evidence: str, intervention: str) -> dict:
+    return {"flag": name, "evidence": evidence, "intervention": intervention}
+
+
+def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
+    """Diagnose the crank's productivity bottlenecks (pure; no oracle required).
+
+    Returns ``{closed, frontier_size, validator_pass_rate, census, flags}`` where each
+    flag is ``{flag, evidence, intervention}``. Flags: ``task_saturated`` (nothing worth
+    doing left), ``input_limited`` (waiting on expert priors/data — steer items dominate),
+    ``planner_limited`` (a large same-priority cluster the crank can't rank by value),
+    ``validation_limited`` (low validator pass-rate / ungrounded claims), and
+    ``capability_limited`` (a validator could not run)."""
+    f = frontier(cycle_result, inv_spec)
+    clo = closure(cycle_result, inv_spec)
+    records = cycle_result.get("validations") or []
+
+    gradeable = [r for r in records
+                 if (r.get("result") or {}).get("execution_status") in ("passed", "failed", "error")]
+    passed = sum(1 for r in gradeable
+                 if (r.get("result") or {}).get("execution_status") == "passed")
+    pass_rate = (passed / len(gradeable)) if gradeable else None
+    errored = [r for r in records if (r.get("result") or {}).get("execution_status") == "error"]
+    unsupported = [r for r in records if r.get("type") in ("logical", "empirical")
+                   and (r.get("result") or {}).get("execution_status") == "failed"]
+
+    steer = [i for i in f if i["kind"] in _STEER_KINDS]
+    actionable = [i for i in f if i["kind"] not in _STEER_KINDS]
+    tiers: dict[int, int] = {}
+    for i in actionable:
+        tiers[i["priority"]] = tiers.get(i["priority"], 0) + 1
+    top_tier_pri, top_tier_n = (max(tiers.items(), key=lambda kv: kv[1]) if tiers else (None, 0))
+
+    flags: list[dict] = []
+    if clo["closed"] and not f:
+        flags.append(_flag("task_saturated",
+                            "closed with an empty frontier — no admissible action remains",
+                            "stop, change the objective, or expand the action space"))
+    if len(steer) >= 2:
+        flags.append(_flag("input_limited",
+                            f"{len(steer)} expert decision(s) pending — the residual frontier is "
+                            f"dominated by steer items (the next action is 'the expert decides')",
+                            "supply the requested priors / datasets / scope choices (new inputs), "
+                            "not more planning"))
+    if top_tier_n >= 3:
+        flags.append(_flag("planner_limited",
+                            f"{top_tier_n} actionable items at priority {top_tier_pri} the crank "
+                            f"orders only by id — no value signal to rank within the tier",
+                            "add a value/EVSI estimate or lookahead to next_action (not fixed "
+                            "priority alone)"))
+    if pass_rate is not None and pass_rate < 0.5:
+        flags.append(_flag("validation_limited",
+                            f"validator pass-rate {passed}/{len(gradeable)}; "
+                            f"{len(unsupported)} ungrounded logical/empirical claim(s)",
+                            "strengthen provenance/holdouts (cite bands, back assessed claims, "
+                            "fill or waive rigor dimensions)"))
+    if errored:
+        ids = sorted({(r.get('provenance') or {}).get('validator_id') for r in errored})
+        flags.append(_flag("capability_limited",
+                            f"{len(errored)} validator(s) could not run: {', '.join(str(i) for i in ids)}",
+                            "fix or add the simulator / interface / validator"))
+
+    census: dict[str, int] = {}
+    for r in records:
+        st = (r.get("result") or {}).get("execution_status")
+        census[st] = census.get(st, 0) + 1
+
+    return {"closed": clo["closed"], "frontier_size": len(f),
+            "validator_pass_rate": pass_rate, "census": census, "flags": flags}
+
+
+def summarize_diagnosis(diag: dict) -> str:
+    pr = diag["validator_pass_rate"]
+    lines = [
+        f"diagnosis: {'CLOSED' if diag['closed'] else 'OPEN'}  frontier {diag['frontier_size']}  "
+        f"validator pass-rate {f'{pr:.0%}' if pr is not None else 'n/a'}  "
+        f"records {diag['census'] or '{}'}",
+    ]
+    if not diag["flags"]:
+        lines.append("  no bottleneck flags — the cycle is unobstructed.")
+    for fl in diag["flags"]:
+        lines.append(f"  [{fl['flag']}] {fl['evidence']}")
+        lines.append(f"      → {fl['intervention']}")
+    return "\n".join(lines)
