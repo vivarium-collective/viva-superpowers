@@ -116,7 +116,7 @@ EPISTEMIC_RELATIONS = ("builds-on", "tests", "refutes", "alternative-to", "motiv
 # The frontier-item kinds a resolution can discharge (mirror discovery_engine priorities).
 RESOLUTION_KINDS = ("unaddressed_criterion", "open_challenge", "narrative_gap",
                     "open_decision", "divergence", "open_question",
-                    "validation_finding")
+                    "validation_finding", "stale_validation")
 
 
 def add_resolution(inv_spec: dict, kind: str, target: str, rationale: str,
@@ -325,6 +325,23 @@ def persist_cycle(inv_path: Path | str, inv_spec: dict, result: dict) -> dict:
     return on_disk["knowledge_cycle"]
 
 
+def snapshot_validations(ws_root: Path | str, slug: str) -> dict:
+    """Persist the current validation records' signatures as the investigation's
+    accepted ``validation_snapshot`` (RFC-0007 Phase 4). Later cycles compare a fresh
+    re-derivation against it; drift surfaces as a ``stale_validation`` frontier item
+    (an accepted judgment an upstream model/run change moved past). Returns the
+    snapshot. Like :func:`persist_cycle`, re-reads on-disk so authored edits are not
+    clobbered and writes only this regenerable cache."""
+    from .validation import snapshot_of
+    inv_path, inv_spec, studies = load_cycle_inputs(ws_root, slug)
+    snap = snapshot_of(run_cycle(inv_spec, studies)["validations"])
+    path = Path(inv_path)
+    on_disk = load_yaml_mapping(path) if path.exists() else dict(inv_spec)
+    on_disk["validation_snapshot"] = snap
+    save_yaml_atomic(path, on_disk)
+    return snap
+
+
 # ---------------------------------------------------------------------------
 # load_cycle_inputs — read an investigation + its member studies from disk
 # ---------------------------------------------------------------------------
@@ -404,6 +421,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p_status = sub.add_parser("status", help="project one cycle and print the summary (no write)")
     p_status.add_argument("investigation", help="investigation slug")
+
+    p_snap = sub.add_parser("snapshot-validations",
+                            help="accept the current validation state; later drift is flagged stale")
+    p_snap.add_argument("investigation", help="investigation slug")
 
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
@@ -489,6 +510,12 @@ def main(argv: list[str] | None = None) -> int:
         _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
         result = run_cycle(inv_spec, studies)
         print(discovery_engine.summarize(discovery_engine.crank(result, inv_spec)))
+        return 0
+
+    if args.cmd == "snapshot-validations":
+        snap = snapshot_validations(ws, args.investigation)
+        print(f"accepted validation snapshot: {len(snap)} record(s) "
+              f"— later drift surfaces as stale_validation")
         return 0
 
     return 1

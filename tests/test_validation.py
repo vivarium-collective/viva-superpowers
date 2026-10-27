@@ -215,6 +215,35 @@ def test_relationship_validator_flags_building_on_a_refuted_parent():
     assert recs and recs[0]["result"]["execution_status"] == "inconclusive"  # weak foundation, informational
 
 
+def test_record_signature_is_stable_and_content_sensitive():
+    base = dict(type="logical", scope="claim", target="c", execution_status="failed",
+                findings=["a"], validator_id="v")
+    assert V.record_signature(V.validation_record(**base)) == \
+        V.record_signature(V.validation_record(**base))  # same content -> same sig
+    changed = {**base, "execution_status": "passed"}
+    assert V.record_signature(V.validation_record(**base)) != \
+        V.record_signature(V.validation_record(**changed))  # content drift -> diff sig
+
+
+def test_stale_records_detects_drift_removal_and_ignores_new():
+    r = V.validation_record(type="logical", scope="claim", target="c",
+                            execution_status="failed", findings=["x"], validator_id="v")
+    snap = V.snapshot_of([r])
+    assert V.stale_records([r], snap) == []  # unchanged -> not stale
+
+    drifted = V.validation_record(type="logical", scope="claim", target="c",
+                                  execution_status="passed", validator_id="v")
+    s = V.stale_records([drifted], snap)
+    assert len(s) == 1 and s[0]["change"] == "changed" and s[0]["target"] == "c"
+
+    s2 = V.stale_records([], snap)
+    assert len(s2) == 1 and s2[0]["change"] == "removed"
+
+    fresh = V.validation_record(type="logical", scope="claim", target="new",
+                                execution_status="failed", validator_id="v")
+    assert V.stale_records([r, fresh], snap) == []  # a brand-new record is not stale
+
+
 def test_narrative_adapter_reports_gaps_as_one_record():
     ctx_gap = V.ValidationContext(
         inv_spec={}, studies={}, argument={"claims": {}}, narrative={},

@@ -163,12 +163,18 @@ Three small, additive touch-points — no new control flow:
 The crank loop is unchanged: `crank → work the op → record/resolve → re-crank`.
 Validators simply feed it more, already-typed, already-resolvable items.
 
-### `#6` — re-validation as re-projection (next phase)
+### `#6` — re-validation as re-projection (implemented, Phase 4)
 
-Because `run_cycle` is pure, staleness is "persisted record ≠ freshly re-derived
-record." Generalize the existing `divergence` kind (authored-vs-derived verdict) to
-stored-vs-rederived validation record → a `stale_validation` frontier item when an
-upstream model/run changed. No polling; the crank already re-derives every turn.
+Because `run_cycle` is pure and records carry no wall-clock, staleness is "accepted
+record ≠ freshly re-derived record." `discover snapshot-validations <inv>` writes a
+content signature per record (`validation.record_signature`: type/scope/target + both
+result statuses + findings, provenance excluded) into the investigation's
+`validation_snapshot`. Each later cycle calls `validation.stale_records(fresh,
+snapshot)`; a record whose signature drifted is `changed`, one whose target is gone is
+`removed`, and a brand-new record is *not* stale. `frontier()` raises each as a
+`stale_validation` item (priority 55, op `revalidate`), resolvable like any item. No
+polling — the crank re-derives every turn; snapshotting is the explicit "I accept this
+validation state" act, and drift from it is the re-evaluation trigger.
 
 ## 6. Vocabulary unification
 
@@ -216,7 +222,8 @@ same change so the model doc and the code agree.
   `study_contract`, …) into the registry — each a thin wrapper.
 - **Phase 3:** the empty cells the matrix exposes — the `visual` type
   (plotted-state-vs-output) and `figure` scope are the genuinely-absent ones.
-- **Phase 4:** re-validation/staleness (`#6`).
+- **Phase 4 (landed):** re-validation/staleness (`#6`) — `snapshot-validations` +
+  the `stale_validation` frontier kind.
 
 ## 8. Non-goals
 

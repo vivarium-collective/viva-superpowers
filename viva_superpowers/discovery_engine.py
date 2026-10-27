@@ -30,7 +30,7 @@ crank(cycle_result, inv_spec) -> dict          # one combined report
 """
 from __future__ import annotations
 
-from .validation import epistemic_separation_violations
+from .validation import epistemic_separation_violations, stale_records
 
 
 # Frontier priorities (higher = more urgent; a closure-blocker outranks a polish item).
@@ -39,6 +39,7 @@ _PRIORITY = {
     "open_challenge": 80,          # an alternative/refutation not yet adjudicated
     "narrative_gap": 70,           # an unsupported transition in the reading
     "open_decision": 60,           # an authored decision awaiting a steer
+    "stale_validation": 55,        # a snapshotted validation the world moved past (RFC-0007)
     "divergence": 50,              # authored verdict disagrees with the coded roll-up
     "validation_finding": 45,      # a registered validator (RFC-0007) reported a failing check
     "open_question": 40,           # an unassessed / inconclusive claim
@@ -49,6 +50,7 @@ _OP = {
     "open_challenge": "synthesize",      # adjudicate the alternative into a justification
     "narrative_gap": "branch",           # a follow-up study supplying the missing link
     "open_decision": "steer",            # resolve the decision and propagate
+    "stale_validation": "revalidate",    # re-check and re-snapshot the drifted judgment
     "divergence": "reconcile",           # reconcile authored vs derived verdict
     "validation_finding": "revise",      # act on the validator's recommendation, then resolve
     "open_question": "test",             # evaluate the claim
@@ -156,6 +158,14 @@ def frontier(cycle_result: dict, inv_spec: dict) -> list[dict]:
         add("validation_finding", rec.get("target"),
             f"[{rec.get('type')}/{rec.get('scope')}] "
             + ("; ".join(str(f) for f in findings) if findings else "validation failed"))
+
+    # 5. stale validations (RFC-0007 Phase 4): a snapshotted validation record that a
+    #    fresh re-derivation no longer matches — an accepted judgment the world moved
+    #    past (an upstream model/run changed). Re-validate and re-snapshot.
+    for s in stale_records(cycle_result.get("validations"), inv_spec.get("validation_snapshot")):
+        add("stale_validation", s["target"],
+            f"validation '{s['validator_id']}' on {s['target']} is {s['change']} since the "
+            f"accepted snapshot — re-validate")
 
     items.sort(key=lambda x: (-x["priority"], str(x["kind"]), str(x["target"])))
     return items
