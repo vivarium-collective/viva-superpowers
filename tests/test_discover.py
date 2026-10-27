@@ -548,3 +548,13 @@ def test_advance_cycle_runs_a_run_ready_open_question(tmp_path):
     assert res["runs"] and res["runs"][0]["status"] == "executed"
     assert calls and "run study" in calls[0]
     assert not res["needs_build"]
+
+
+def test_run_readiness_flags_unevaluable_pathless_measure():
+    # a measure with a kind but no path can't be graded (the evaluator records SKIP) — the
+    # readiness contract must surface it as a build gap.
+    study = {"behavior_tests": [{"name": "t1", "measure": {"kind": "derived_scalar"},
+                                 "pass_if": {"op": "<", "value": 0}}]}
+    r = discover.run_readiness(study, None)
+    assert "t1" in r["unevaluable_tests"]
+    assert any("no measure.path" in g for g in r["gaps"])

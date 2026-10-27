@@ -638,9 +638,18 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     from .study_evaluator import required_observables_for_measure
     tests = study_spec.get("behavior_tests") or study_spec.get("tests") or []
     required: set = set()
+    # A behavior test whose measure declares a KIND that needs a readout but no `path`
+    # cannot be graded — the evaluator records SKIP (agent bucket), so the gate never
+    # resolves to PASS/FAIL even after a run. Surface those so the "build" step (author the
+    # measure's path / its derived-scalar computer) is explicit, not a silent SKIP.
+    unevaluable: list[str] = []
     for t in tests:
-        if isinstance(t, dict):
-            required |= required_observables_for_measure(t.get("measure"), ws_root)
+        if not isinstance(t, dict):
+            continue
+        m = t.get("measure") or {}
+        if m.get("kind") and m.get("kind") not in ("config_value", "cross_run", "run_delta") and not m.get("path"):
+            unevaluable.append(t.get("name") or "<unnamed>")
+        required |= required_observables_for_measure(m, ws_root)
     declared = [str(o) for o in (study_spec.get("observables") or [])]
     declared_leaves = {o.split("/")[-1] for o in declared}
     missing = sorted(o for o in required
@@ -655,6 +664,8 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     gaps: list[str] = []
     if missing:
         gaps.append(f"run must emit observables the gates need: {missing}")
+    if unevaluable:
+        gaps.append(f"behavior tests with no measure.path (will SKIP, gate never resolves): {unevaluable}")
     if not has_emitter:
         gaps.append("no emitter declared")
     if not has_viz:
@@ -674,6 +685,7 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     return {"ready": ready, "complete": complete, "gaps": gaps,
             "observables": {"required": sorted(required), "declared": sorted(declared),
                             "missing": missing},
+            "unevaluable_tests": unevaluable,
             "has_emitter": has_emitter, "has_visualizations": has_viz,
             "has_tests": has_tests, "has_contracts": has_contracts}
 
