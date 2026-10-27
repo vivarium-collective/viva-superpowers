@@ -697,6 +697,20 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     has_tests = bool(tests)
     has_contracts = bool(study_spec.get("contracts") or study_spec.get("process_contracts"))
 
+    # A declared visualization is useless until it is RENDERED to studies/<slug>/viz/*.html — the
+    # workbench's study-charts endpoint AND the study report both glob that directory, so a
+    # declared-but-unrendered viz shows "No figures yet" (a silent gap; observed on eukaryogenesis,
+    # where all 5 studies declared a viz but rendered none). Verify the figure exists on disk.
+    viz_rendered = has_viz
+    if has_viz and ws_root is not None:
+        _slug = study_spec.get("name")
+        if _slug:
+            try:
+                _vdir = studies_dir(Path(ws_root)) / _slug / "viz"
+                viz_rendered = _vdir.is_dir() and any(_vdir.glob("*.html"))
+            except Exception:  # noqa: BLE001 — a path problem is not a render verdict
+                viz_rendered = has_viz
+
     # Does the baseline composite (the MODEL) actually resolve? A study whose composite does not
     # exist cannot run, yet observable/emitter/etc. checks would otherwise call it ready (observed
     # on eukaryogenesis: all 5 baseline composites were ModuleNotFoundError while readiness said
@@ -731,6 +745,9 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
         gaps.append("no emitter declared")
     if not has_viz:
         gaps.append("no visualizations declared")
+    elif not viz_rendered:
+        gaps.append("visualizations declared but not rendered (no studies/<slug>/viz/*.html — "
+                    "the workbench shows 'No figures yet')")
     if not has_tests:
         gaps.append("no behavior tests declared")
     if not has_contracts:
@@ -744,13 +761,14 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     # ready = can produce an EVALUABLE result: observables emittable AND the model exists. An
     # already-run study is ready regardless (it demonstrably did both).
     ready = already_run or (not missing and not composite_missing)
-    complete = ready and has_emitter and has_viz and has_tests and has_contracts
+    complete = ready and has_emitter and viz_rendered and has_tests and has_contracts
     return {"ready": ready, "complete": complete, "gaps": gaps, "already_run": already_run,
             "composite_resolves": composite_missing is None,
             "observables": {"required": sorted(required), "declared": sorted(declared),
                             "missing": missing},
             "unevaluable_tests": unevaluable,
             "has_emitter": has_emitter, "has_visualizations": has_viz,
+            "visualizations_rendered": viz_rendered,
             "has_tests": has_tests, "has_contracts": has_contracts}
 
 

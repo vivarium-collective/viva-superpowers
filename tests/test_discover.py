@@ -606,3 +606,21 @@ def test_run_readiness_resolves_an_existing_composite_module():
     study = {"behavior_tests": [], "baseline": [{"composite": "viva_superpowers.discover.run_readiness"}]}
     r = discover.run_readiness(study, None)
     assert r["composite_resolves"] is True
+
+
+def test_run_readiness_flags_declared_but_unrendered_viz(tmp_path):
+    # A viz declared in study.yaml but with NO rendered figure on disk is the silent gap that shows
+    # "No figures yet" in the workbench. run_readiness must flag it (and `complete` must require it).
+    (tmp_path / "workspace.yaml").write_text("name: t\nlayout:\n  studies: studies\n")
+    (tmp_path / "studies" / "s").mkdir(parents=True)
+    spec = {"name": "s", "behavior_tests": [],
+            "visualizations": [{"name": "v", "address": "local:X"}]}
+    r = discover.run_readiness(spec, tmp_path)
+    assert r["visualizations_rendered"] is False
+    assert any("not rendered" in g for g in r["gaps"])
+    # render a figure to studies/s/viz/v.html → the gap clears
+    (tmp_path / "studies" / "s" / "viz").mkdir()
+    (tmp_path / "studies" / "s" / "viz" / "v.html").write_text("<html></html>")
+    r2 = discover.run_readiness(spec, tmp_path)
+    assert r2["visualizations_rendered"] is True
+    assert not any("not rendered" in g for g in r2["gaps"])
