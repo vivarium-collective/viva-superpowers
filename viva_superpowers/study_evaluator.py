@@ -1530,8 +1530,8 @@ def _resolve_run_store(
     if run.get("parquet"):
         candidates.append((str(run["parquet"]), True))
 
-    if not candidates:
-        return None
+    # (No early return on empty candidates: an entry with no explicit store pointer still
+    # falls through to the shared-runs.db fallback below.)
 
     # Bases for relative-path resolution (tried in order)
     bases: list[_Path | None] = [None]  # None = treat path as absolute/cwd-relative
@@ -1572,6 +1572,24 @@ def _resolve_run_store(
             continue
         else:
             return str(resolved)
+
+    # Fallback: the study's shared multi-run store. `vivarium-workbench run study` writes a
+    # run into <study_dir>/runs.db but does not always record a per-run store pointer
+    # (emitter_path can be None in runs_meta), leaving the entry with no candidate above —
+    # so the run's real data is present but unresolvable, and the gate it computes never
+    # gets recorded. If this entry's run_id is in that runs.db, resolve to it (RunReader
+    # opens the shared DB directly). Scoped to a present run_id so stale entries pointing
+    # at a gone per-run store don't all collapse onto the shared DB. (A multi-run DB with
+    # several present ids still resolves them to the same path; selecting by run_id inside
+    # RunReader is a follow-up.)
+    shared = study_dir / "runs.db"
+    if shared.exists() and run.get("name"):
+        try:
+            from . import run_registry
+            if any(r.get("run_id") == run["name"] for r in run_registry.list_runs(shared)):
+                return str(shared)
+        except Exception:  # noqa: BLE001 — a best-effort probe, never block resolution
+            pass
 
     return None
 

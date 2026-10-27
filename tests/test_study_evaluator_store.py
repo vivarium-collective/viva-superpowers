@@ -24,3 +24,20 @@ def test_emitter_store_still_preferred(tmp_path):
     other.mkdir()
     run = {"emitter": {"store": str(good)}, "store_path": str(other)}
     assert _resolve_run_store(run, tmp_path) == str(good)
+
+
+def test_falls_back_to_shared_runs_db_for_a_storeless_entry(tmp_path, monkeypatch):
+    # `vivarium-workbench run study` writes into <study_dir>/runs.db but can leave the run
+    # entry with no store pointer; resolve to that shared DB when the entry's run_id is in it.
+    import viva_superpowers.run_registry as rr
+    shared = tmp_path / "runs.db"
+    shared.write_bytes(b"")
+    monkeypatch.setattr(rr, "list_runs", lambda p: [{"run_id": "run-xyz"}])
+    assert _resolve_run_store({"name": "run-xyz"}, tmp_path) == str(shared)
+
+
+def test_no_shared_fallback_when_run_id_absent(tmp_path, monkeypatch):
+    import viva_superpowers.run_registry as rr
+    (tmp_path / "runs.db").write_bytes(b"")
+    monkeypatch.setattr(rr, "list_runs", lambda p: [{"run_id": "other"}])
+    assert _resolve_run_store({"name": "run-xyz"}, tmp_path) is None
