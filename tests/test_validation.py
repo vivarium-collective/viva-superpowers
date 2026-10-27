@@ -265,6 +265,18 @@ def test_investigation_hygiene_guard_flags_retired_cache_and_deprecated_field():
     assert "knowledge_cycle" in joined and "plan_acts" in joined
 
 
+def test_investigation_hygiene_guard_flags_resolved_decision_still_listed_open():
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["a"],
+                  "resolutions": [{"kind": "open_decision", "target": "prior A?", "rationale": "x"}],
+                  "executive": {"decisions_needed": [{"question": "prior A?"}, {"question": "prior B?"}]}},
+        studies={})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "structural.investigation.hygiene"]
+    assert len(recs) == 1
+    assert "already resolved" in " ".join(recs[0]["findings"])
+
+
 def test_hygiene_guards_are_quiet_on_a_clean_workspace():
     ctx = V.ValidationContext(inv_spec={"studies": ["a"]}, studies={"a": {"name": "a"}})
     ids = {r["provenance"]["validator_id"] for r in V.run_validators(ctx=ctx, registry=V.registry())}
@@ -288,3 +300,38 @@ def test_narrative_adapter_reports_gaps_as_one_record():
     recs2 = V.run_validators(ctx=ctx_clean, registry=V.registry())
     nar2 = [r for r in recs2 if r["provenance"]["validator_id"] == "narrative.narrative.coherence"]
     assert nar2[0]["result"]["execution_status"] == "passed"
+
+
+def test_study_narrative_completeness_flags_missing_claim_and_findings_statement():
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["a", "b"]},
+        studies={
+            "a": {"name": "a"},  # no claim -> flagged
+            "b": {"name": "b", "claim": "b holds",
+                  "findings": [{"id": "f1"}]},  # has findings but no statement -> flagged
+        })
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "structural.study.narrative_completeness"]
+    by_target = {r["target"]: " ".join(r["findings"]) for r in recs}
+    assert "claim" in by_target.get("a", "")
+    assert "findings[].statement" in by_target.get("b", "")
+
+
+def test_study_narrative_completeness_quiet_when_prose_present():
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["a"]},
+        studies={"a": {"name": "a", "claim": "a holds",
+                       "findings": [{"id": "f1", "statement": "a does X"}]}})
+    ids = {r["provenance"]["validator_id"] for r in V.run_validators(ctx=ctx, registry=V.registry())}
+    assert "structural.study.narrative_completeness" not in ids
+
+
+def test_investigation_narrative_completeness_flags_missing_opening_prose():
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["a"], "executive": {"verdict": "holds"}},  # no what_is_this / verdict_detail
+        studies={})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "structural.investigation.narrative_completeness"]
+    assert len(recs) == 1
+    joined = " ".join(recs[0]["findings"])
+    assert "what_is_this" in joined and "verdict_detail" in joined

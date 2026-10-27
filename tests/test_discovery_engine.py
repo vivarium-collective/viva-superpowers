@@ -350,3 +350,36 @@ def test_invariants_flags_unprovenanced_and_divergence_hidden():
     v = de.invariants(cyc)
     assert any(x["invariant"] == "provenance" and x["target"] == "claim:a" for x in v)
     assert not any(x["target"] == "claim:b" for x in v)
+
+
+def test_executor_for_revise_is_actionable():
+    # a validation_finding (op `revise`) must resolve to a real executor + command, not the
+    # `unknown`/None default (which rendered dead rows in the Decide plan).
+    ex = de._executor_for("revise", "some-study")
+    assert ex["consequence"] == "review"
+    assert ex["command"] and "resolve" in ex["command"] and "some-study" in ex["command"]
+
+
+def test_closure_blocking_opportunity_outranks_a_non_blocking_one_without_edges():
+    # On an edgeless graph (impact=0 for all), a closure-blocking criterion (branch) must
+    # rank ABOVE a non-blocking item (a divergence) via the closure-leverage term, instead
+    # of being buried by its higher cost.
+    cyc = _cycle(verdicts={"crit": {"verdict": "refuted"}},
+                 open_calls=[{"kind": "divergence", "title": "d diverges", "refs": ["claim:d"]}])
+    inv = {"acceptance_criteria": [{"study": "crit", "behavior": "x"}]}
+    by_kind = {o["kind"]: o for o in de.opportunities(cyc, inv)}
+    assert by_kind["unaddressed_criterion"]["value"]["closure"] == 1.0
+    assert by_kind["divergence"]["value"]["closure"] == 0.0
+    assert by_kind["unaddressed_criterion"]["value"]["score"] > by_kind["divergence"]["value"]["score"]
+
+
+def test_diagnose_pass_rate_excludes_standing_feedback():
+    # the validator pass-rate must measure ACTIONABLE (frontier) validators, not `standing`
+    # feedback (rigor/band), which otherwise washes the rate out.
+    fr_pass = {**_record(target="a", execution="passed"), "surfaces": "frontier"}
+    fr_fail = {**_record(target="b", execution="failed"), "surfaces": "frontier"}
+    st_fail1 = {**_record(target="c", execution="failed"), "surfaces": "standing"}
+    st_fail2 = {**_record(target="d", execution="failed"), "surfaces": "standing"}
+    d = de.diagnose(_cycle(validations=[fr_pass, fr_fail, st_fail1, st_fail2]), {})
+    assert d["validator_pass_rate"] == 0.5     # 1 of 2 FRONTIER passed; 2 standing excluded
+    assert d["standing_feedback"] == 2

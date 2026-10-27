@@ -26,21 +26,40 @@ from __future__ import annotations
 
 from typing import Any
 
-from .study_outcomes import canonical_outcomes
 from .study_status import _study_tests, bucket_tests
 from .study_verdict import roll_up_verdict
 
 _BEHAVIOR_BUCKET = {"pass": "PASS", "fail": "FAIL", "skip": "SKIP", "pending": "PENDING"}
 
 
+def _merged_run_outcomes(spec: dict) -> dict:
+    """Behavior-gate outcomes UNIONED across the study's recorded runs.
+
+    A study's acceptance behaviors are often split across the several composite runs
+    that produced them — each run records outcomes only for the gates it computes (e.g.
+    the reaction-network gates in one run, protometabolism gates in another). Reading a
+    single ``canonical`` run therefore reports a gate recorded in a *sibling* run as
+    PENDING — a false 'unverified' flag that the discovery engine surfaces as spurious
+    verification debt. Union the runs' outcomes so each behavior counts as whatever the
+    run that tested it recorded. Canonical runs are applied last, so on a genuine key
+    conflict the canonical value still wins — the verdict path (which reads
+    ``canonical_outcomes``) is unchanged; only this gate lookup widens."""
+    merged: dict = {}
+    runs = [r for r in (spec.get("runs") or []) if isinstance(r, dict) and isinstance(r.get("outcomes"), dict)]
+    for r in sorted(runs, key=lambda r: 1 if r.get("canonical") is True else 0):
+        merged.update(r["outcomes"])
+    return merged
+
+
 def _study_behaviors(spec: dict) -> dict:
-    """Per-behavior pass/fail for a study's canonical run, keyed by behavior-test
-    name. Lets the discovery engine judge an acceptance criterion by whether its
-    NAMED behavior passed (not the study's roll-up verdict sign). Defensive: a
-    spec whose runs can't be read yields {} (the engine then falls back to the
-    verdict), never a crashed cycle."""
+    """Per-behavior pass/fail for a study, keyed by behavior-test name. Lets the
+    discovery engine judge an acceptance criterion by whether its NAMED behavior passed
+    (not the study's roll-up verdict sign). Reads outcomes unioned across the study's runs
+    (see :func:`_merged_run_outcomes`) so a gate recorded in any run is seen. Defensive: a
+    spec whose runs can't be read yields {} (the engine then falls back to the verdict),
+    never a crashed cycle."""
     try:
-        buckets = bucket_tests(_study_tests(spec), canonical_outcomes(spec))
+        buckets = bucket_tests(_study_tests(spec), _merged_run_outcomes(spec))
     except Exception:
         return {}
     out: dict[str, str] = {}
@@ -72,6 +91,11 @@ _PROGRESS_OK = {"proposed", "planned", "running", "completed", "failed"}
 #: values that never clobber an existing one during a merge
 _EMPTY = (None, "", [], {})
 
+#: verdicts that give the same ANSWER — "the claim holds". `qualified` is a caveated
+#: `supported`, so a difference between the two is a refinement, not a divergence. Every
+#: other inequality (incl. inconclusive-vs-supported) is still a divergence.
+_HOLDS = frozenset({"supported", "qualified"})
+
 
 # ---------------------------------------------------------------------------
 # Canonical verdict (per study)
@@ -92,7 +116,12 @@ def canonical_verdict(study_spec: dict) -> dict:
 
     verdict = authored or derived
     source = "authored" if authored else "derived"
-    diverges = bool(authored) and authored != derived
+    # A divergence is a genuine disagreement on the ANSWER, not any inequality. `qualified`
+    # refines `supported` (both say "the claim holds"), so authored=qualified vs
+    # derived=supported is NOT a divergence; authored=qualified vs derived=refuted IS, and
+    # so is inconclusive-vs-supported (the author withheld what the gates grant).
+    diverges = bool(authored) and not (authored == derived
+                                       or (authored in _HOLDS and derived in _HOLDS))
 
     if authored:
         rationale = "Authored verdict recorded in study.yaml."

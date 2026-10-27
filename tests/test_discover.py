@@ -106,6 +106,27 @@ def test_persist_cycle_writes_slim_state_without_polluting_authored(tmp_path):
     assert "argument" not in on_disk
 
 
+def test_persist_cycle_renews_resolved_decisions_and_drops_dead_fields(tmp_path):
+    inv_path = tmp_path / "investigation.yaml"
+    inv = {
+        "question": "Q?", "studies": ["a"],
+        "knowledge_cycle": {"stale": "bloat"},          # retired cache
+        "plan_acts": [{"old": 1}],                       # deprecated field
+        "resolutions": [{"kind": "open_decision", "target": "prior A?", "rationale": "[ai-driven] x"}],
+        "executive": {"decisions_needed": [{"question": "prior A?"}, {"question": "prior B?"}]},
+    }
+    save_yaml_atomic(inv_path, inv)
+    out = discover.run_cycle(inv, {"a": _study("a", "PASS", claim="a holds")})
+    discover.persist_cycle(inv_path, inv, out)
+
+    on_disk = load_yaml(inv_path)
+    assert "knowledge_cycle" not in on_disk and "plan_acts" not in on_disk  # dead fields dropped
+    ex = on_disk["executive"]
+    # the resolved decision moved out of the open list and into decisions_resolved
+    assert [d["question"] for d in ex["decisions_needed"]] == ["prior B?"]
+    assert [d["question"] for d in ex["decisions_resolved"]] == ["prior A?"]
+
+
 # ---------------------------------------------------------------------------
 # load_cycle_inputs — read inv + member studies from disk
 # ---------------------------------------------------------------------------
@@ -334,8 +355,12 @@ def test_execute_action_gates_a_consequential_action_until_autonomous(tmp_path):
     save_yaml_atomic(inv / "investigation.yaml", {"studies": ["a"]})
     sdir = tmp_path / "studies" / "a"
     sdir.mkdir(parents=True)
-    # an unassessed study -> an open_question -> a `test` op (run a simulation)
-    save_yaml_atomic(sdir / "study.yaml", {"name": "a", "claim": "a holds"})
+    # an unassessed study -> an open_question -> a `test` op (run a simulation). It is
+    # run-READY (an emitter is declared, and with no behavior tests no observables are
+    # required), so the autonomous deploy proceeds rather than being gated as incomplete.
+    save_yaml_atomic(sdir / "study.yaml",
+                     {"name": "a", "claim": "a holds",
+                      "runs": [{"name": "r1", "status": "completed", "emitter": {"kind": "sqlite"}}]})
 
     calls = []
 
@@ -351,7 +376,8 @@ def test_execute_action_gates_a_consequential_action_until_autonomous(tmp_path):
     # with --autonomous, it invokes the real executor (the runner), records + re-cranks
     ran = discover.execute_action(tmp_path, "og", autonomous=True, runner=fake_runner)
     assert ran["status"] == "executed"
-    assert calls and "run-baseline" in calls[0]
+    # the real headless run command, with the <ws> placeholder filled in (not shelled literally)
+    assert calls and "run study" in calls[0] and "<ws>" not in calls[0]
     log = load_yaml(inv / "investigation.yaml")["executed_actions"]
     assert log[0]["action"] == "test" and log[0]["status"] == "executed"
 
@@ -477,3 +503,58 @@ def test_add_resolution_rejects_unknown_kind():
     from viva_superpowers.discover import add_resolution
     with pytest.raises(ValueError):
         add_resolution({"name": "i"}, "not-a-kind", "claim:x", "r")
+
+
+def test_run_readiness_flags_unemitted_gate_observables(monkeypatch):
+    from viva_superpowers import study_evaluator as SE
+
+    @SE.declares_sources("enrichment_factor")
+    def _log10(reader, test, ws):
+        return 0.0
+
+    monkeypatch.setattr(SE, "load_workspace_derived_scalars", lambda ws: {"log10_enrichment": _log10})
+    study = {"behavior_tests": [{"name": "g", "measure": {"kind": "derived", "path": "log10_enrichment"}}],
+             "observables": None, "runs": [{"emitter": {"kind": "sqlite"}}]}
+    r = discover.run_readiness(study, "/ws")
+    assert not r["ready"] and "enrichment_factor" in r["observables"]["missing"]
+    # declaring the source observable (matched by leaf) makes the run evaluable
+    study["observables"] = ["trap/enrichment_factor"]
+    r2 = discover.run_readiness(study, "/ws")
+    assert r2["ready"] and not r2["observables"]["missing"]
+
+
+def test_advance_cycle_runs_a_run_ready_open_question(tmp_path):
+    # the ADVANCE phase: an unassessed, run-ready study (open_question -> test op) gets run.
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml", {"studies": ["a"]})
+    sd = tmp_path / "studies" / "a"
+    sd.mkdir(parents=True)
+    save_yaml_atomic(sd / "study.yaml", {"name": "a", "claim": "a holds"})  # unassessed, no required observables
+
+    calls = []
+
+    def runner(cmd, ws):
+        calls.append(cmd)
+        return {"ok": True, "returncode": 0, "tail": "done"}
+
+    # dry: reports what it would run, runner untouched
+    dry = discover.advance_cycle(tmp_path, "og", autonomous=False, runner=runner)
+    assert dry["runs"] and "would-run" in dry["runs"][0]["status"] and not calls
+
+    # autonomous: actually runs the run-ready open question
+    res = discover.advance_cycle(tmp_path, "og", autonomous=True, runner=runner)
+    assert res["runs"] and res["runs"][0]["status"] == "executed"
+    assert calls and "run study" in calls[0]
+    assert not res["needs_build"]
+
+
+def test_run_readiness_flags_unevaluable_pathless_measure():
+    # a measure with a kind but no path can't be graded (the evaluator records SKIP) — the
+    # readiness contract must surface it as a build gap.
+    study = {"behavior_tests": [{"name": "t1", "measure": {"kind": "derived_scalar"},
+                                 "pass_if": {"op": "<", "value": 0}}]}
+    r = discover.run_readiness(study, None)
+    assert "t1" in r["unevaluable_tests"]
+    assert any("no measure.path" in g for g in r["gaps"])

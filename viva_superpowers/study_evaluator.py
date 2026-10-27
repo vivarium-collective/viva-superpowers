@@ -314,6 +314,41 @@ def load_workspace_derived_scalars(ws_root: Any) -> dict[str, Callable]:
     return registry
 
 
+def declares_sources(*observables: str) -> Callable:
+    """Decorator for a derived-scalar computer: declare the emitted observables it reads.
+
+    A derived scalar (e.g. ``log10_enrichment``) is computed at evaluation time from one or
+    more run observables (e.g. ``enrichment_factor``). Declaring those sources lets a run be
+    CHECKED and CONFIGURED to emit them --- the run-readiness contract maps a behavior-test's
+    derived measure to the observables the run must emit, instead of the run emitting the
+    (unproduced) derived-scalar name and recording an empty readout."""
+    def _decorate(fn: Callable) -> Callable:
+        fn.source_observables = tuple(observables)  # type: ignore[attr-defined]
+        return fn
+    return _decorate
+
+
+def required_observables_for_measure(measure: Any, ws_root: Any = None) -> set:
+    """The emitted observables a behavior-test ``measure`` needs present in the run store.
+
+    - A direct-observable measure needs its ``path``.
+    - A ``derived``/``derived_scalar`` measure needs the SOURCE observables its registered
+      computer declares (via :func:`declares_sources`), falling back to the path itself when
+      none are declared.
+    - ``config_value`` reads declared params, not the store, so it needs none.
+    Cross-run (``run_delta``) and path-less measures contribute nothing here."""
+    if not isinstance(measure, dict):
+        return set()
+    kind, path = measure.get("kind"), measure.get("path")
+    if kind in ("config_value", "run_delta") or not path:
+        return set()
+    if kind in RUN_DATA_KINDS:
+        fn = load_workspace_derived_scalars(ws_root).get(path)
+        srcs = getattr(fn, "source_observables", ()) if fn is not None else ()
+        return set(srcs) if srcs else {path}
+    return {path}
+
+
 # ---------------------------------------------------------------------------
 # Exceptions
 # ---------------------------------------------------------------------------
@@ -1530,8 +1565,8 @@ def _resolve_run_store(
     if run.get("parquet"):
         candidates.append((str(run["parquet"]), True))
 
-    if not candidates:
-        return None
+    # (No early return on empty candidates: an entry with no explicit store pointer still
+    # falls through to the shared-runs.db fallback below.)
 
     # Bases for relative-path resolution (tried in order)
     bases: list[_Path | None] = [None]  # None = treat path as absolute/cwd-relative
@@ -1572,6 +1607,24 @@ def _resolve_run_store(
             continue
         else:
             return str(resolved)
+
+    # Fallback: the study's shared multi-run store. `vivarium-workbench run study` writes a
+    # run into <study_dir>/runs.db but does not always record a per-run store pointer
+    # (emitter_path can be None in runs_meta), leaving the entry with no candidate above —
+    # so the run's real data is present but unresolvable, and the gate it computes never
+    # gets recorded. If this entry's run_id is in that runs.db, resolve to it (RunReader
+    # opens the shared DB directly). Scoped to a present run_id so stale entries pointing
+    # at a gone per-run store don't all collapse onto the shared DB. (A multi-run DB with
+    # several present ids still resolves them to the same path; selecting by run_id inside
+    # RunReader is a follow-up.)
+    shared = study_dir / "runs.db"
+    if shared.exists() and run.get("name"):
+        try:
+            from . import run_registry
+            if any(r.get("run_id") == run["name"] for r in run_registry.list_runs(shared)):
+                return str(shared)
+        except Exception:  # noqa: BLE001 — a best-effort probe, never block resolution
+            pass
 
     return None
 

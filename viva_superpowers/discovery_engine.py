@@ -294,13 +294,21 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
     clo = closure(cycle_result, inv_spec)
     records = cycle_result.get("validations") or []
 
-    gradeable = [r for r in records
-                 if (r.get("result") or {}).get("execution_status") in ("passed", "failed", "error")]
+    # The validator pass-rate measures ACTIONABLE validators (surfaces=="frontier"), not
+    # `standing` feedback (rigor GAP/WARN, band provenance). A study routinely carries rigor
+    # gaps; counting that feedback as "failed" washed the rate out (island: 1/27 = 3.7% where
+    # only 9 records are actionable). Standing feedback is reported separately so the signal
+    # isn't conflated with it.
+    def _front(r):
+        return r.get("surfaces", "frontier") == "frontier"
+    gradeable = [r for r in records if _front(r)
+                 and (r.get("result") or {}).get("execution_status") in ("passed", "failed", "error")]
     passed = sum(1 for r in gradeable
                  if (r.get("result") or {}).get("execution_status") == "passed")
     pass_rate = (passed / len(gradeable)) if gradeable else None
-    errored = [r for r in records if (r.get("result") or {}).get("execution_status") == "error"]
-    unsupported = [r for r in records if r.get("type") in ("logical", "empirical")
+    standing = sum(1 for r in records if r.get("surfaces") == "standing")
+    errored = [r for r in records if _front(r) and (r.get("result") or {}).get("execution_status") == "error"]
+    unsupported = [r for r in records if _front(r) and r.get("type") in ("logical", "empirical")
                    and (r.get("result") or {}).get("execution_status") == "failed"]
 
     steer = [i for i in f if i["kind"] in _STEER_KINDS]
@@ -329,7 +337,8 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
                             "priority alone)"))
     if pass_rate is not None and pass_rate < 0.5:
         flags.append(_flag("validation_limited",
-                            f"validator pass-rate {passed}/{len(gradeable)}; "
+                            f"actionable validator pass-rate {passed}/{len(gradeable)} "
+                            f"({standing} standing feedback record(s) excluded); "
                             f"{len(unsupported)} ungrounded logical/empirical claim(s)",
                             "strengthen provenance/holdouts (cite bands, back assessed claims, "
                             "fill or waive rigor dimensions)"))
@@ -345,7 +354,8 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
         census[st] = census.get(st, 0) + 1
 
     return {"closed": clo["closed"], "frontier_size": len(f),
-            "validator_pass_rate": pass_rate, "census": census, "flags": flags}
+            "validator_pass_rate": pass_rate, "census": census,
+            "standing_feedback": standing, "flags": flags}
 
 
 # ---------------------------------------------------------------------------
@@ -358,7 +368,12 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
 # w_enable·Enable − w_cost·Cost), NOT a calibrated Bayesian value — it is explainable
 # and tunable, and it reports unknowns rather than inventing them.
 
-_OPP_WEIGHTS = {"info": 0.30, "impact": 0.40, "enable": 0.20, "cost": 0.30}
+_OPP_WEIGHTS = {"info": 0.30, "impact": 0.40, "enable": 0.20, "cost": 0.30, "closure": 0.35}
+# Frontier kinds that block closure (the closure() condition). They sit on the
+# investigation's critical path, so they carry leverage even when the argument graph has
+# no edges to compute downstream `impact` from — otherwise, on an edgeless graph, cost
+# dominates and an expensive-but-closure-blocking criterion ranks below a cheap test.
+_CLOSURE_BLOCKING = ("unaddressed_criterion", "narrative_gap", "open_challenge")
 # Information potential by action: evidence-generating acts (run a test, open a study)
 # can teach something new; reconciling/adjudicating resolves bookkeeping.
 _OPP_INFO = {"test": 1.0, "branch": 1.0, "steer": 0.5, "synthesize": 0.3,
@@ -405,7 +420,9 @@ def opportunities(cycle_result: dict, inv_spec: dict) -> list[dict]:
         op, target = it["op"], it["target"]
         info, cost = _OPP_INFO.get(op, 0.3), _OPP_COST.get(op, 0.3)
         impact, enable = _opp_impact(target, edges), _opp_enable(it, suggestions)
-        score = w["info"] * info + w["impact"] * impact + w["enable"] * enable - w["cost"] * cost
+        closure_leverage = 1.0 if it["kind"] in _CLOSURE_BLOCKING else 0.0
+        score = (w["info"] * info + w["impact"] * impact + w["enable"] * enable
+                 + w["closure"] * closure_leverage - w["cost"] * cost)
         is_claim = str(target).startswith("claim:")
         unknowns = ["competing_predictions", "proposed_validator"]
         if not is_claim:
@@ -421,7 +438,7 @@ def opportunities(cycle_result: dict, inv_spec: dict) -> list[dict]:
             "proposed_validator": None,
             "value": {"info": round(info, 3), "impact": round(impact, 3),
                       "enable": round(enable, 3), "cost": round(cost, 3),
-                      "score": round(score, 3)},
+                      "closure": round(closure_leverage, 3), "score": round(score, 3)},
             "confidence": 0.7 if is_claim else 0.4,
             "state": "open",
             "unknowns": unknowns,
@@ -444,14 +461,21 @@ def _executor_for(op: str, target: str) -> dict:
         return {"executor": "snapshot-validations", "command": "discover snapshot-validations <inv>",
                 "consequence": "safe", "auto_safe": True}
     if op == "test":
-        return {"executor": "run-baseline", "command": f"viva-study run-baseline {study}",
+        return {"executor": "run-study",
+                "command": f"vivarium-workbench run study {study} --workspace <ws>",
                 "consequence": "simulation", "auto_safe": False}
     if op == "branch":
-        return {"executor": "seed-from-followup + run-baseline",
-                "command": f"viva-study seed-from-followup <parent> <proposal>; viva-study run-baseline {study}",
+        return {"executor": "seed-from-followup + run-study",
+                "command": f"viva-study seed-from-followup <parent> <proposal>; "
+                           f"vivarium-workbench run study {study} --workspace <ws>",
                 "consequence": "simulation+study", "auto_safe": False}
     if op == "reconcile":
         return {"executor": "set-verdict", "command": f"discover set-verdict {study} <derived> --rationale '…'",
+                "consequence": "review", "auto_safe": False}
+    if op == "revise":
+        return {"executor": "act-on-validator + resolve",
+                "command": f"<address the validator's recommendation>; "
+                           f"discover resolve <inv> validation_finding {target} --rationale '…'",
                 "consequence": "review", "auto_safe": False}
     if op == "steer":
         return {"executor": "expert", "command": None, "consequence": "human-only", "auto_safe": False}

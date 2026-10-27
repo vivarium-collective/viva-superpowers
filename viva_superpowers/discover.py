@@ -358,12 +358,47 @@ def persist_cycle(inv_path: Path | str, inv_spec: dict, result: dict) -> dict:
     multi-thousand-line dump of the full projection that nothing read); the full
     projection is recomputable via :func:`run_cycle`.
     """
+    from .validation import _DEPRECATED_INV_FIELDS, _RETIRED_INV_CACHES
     path = Path(inv_path)
     on_disk = load_yaml_mapping(path) if path.exists() else dict(inv_spec)
-    on_disk.pop("knowledge_cycle", None)  # retire the bloated derived cache (0 readers)
+    for dead in (*_RETIRED_INV_CACHES, *_DEPRECATED_INV_FIELDS):
+        on_disk.pop(dead, None)  # retire bloat caches + deprecated fields (0 readers)
+    _renew_executive_decisions(on_disk)  # move resolved decisions out of the open list
     on_disk["cycle_state"] = build_cycle_state(result, inv_spec)
     save_yaml_atomic(path, on_disk)
     return on_disk["cycle_state"]
+
+
+def _renew_executive_decisions(on_disk: dict) -> None:
+    """Reconcile the authored ``executive.decisions_needed`` with what the cycle has
+    resolved, in place. A decision whose target appears in ``resolutions`` is no longer
+    open — move it to ``executive.decisions_resolved`` (dedup by question) and drop it from
+    ``decisions_needed`` — so the authored narrative can't drift out of step with the
+    derived state (the drift the ``structural.investigation.hygiene`` guard flags). Leaves
+    the still-open decisions untouched; authored prose elsewhere is not rewritten."""
+    ex = on_disk.get("executive")
+    if not isinstance(ex, dict):
+        return
+    decisions = ex.get("decisions_needed") or []
+    if not decisions:
+        return
+    resolved = {r.get("target") for r in (on_disk.get("resolutions") or []) if isinstance(r, dict)}
+
+    def _q(d):
+        return d.get("question") if isinstance(d, dict) else d
+
+    still_open = [d for d in decisions if _q(d) not in resolved]
+    newly_resolved = [d for d in decisions if _q(d) in resolved]
+    if not newly_resolved:
+        return
+    archived = list(ex.get("decisions_resolved") or [])
+    seen = {_q(d) for d in archived}
+    for d in newly_resolved:
+        if _q(d) not in seen:
+            archived.append(d)
+            seen.add(_q(d))
+    ex["decisions_needed"] = still_open
+    ex["decisions_resolved"] = archived
 
 
 def _parent_in_parens(text: str, members: set) -> str | None:
@@ -438,9 +473,19 @@ def suggest_studies(cycle_result: dict, inv_spec: dict, studies: dict) -> list[d
 
 def _default_runner(command: str, ws_root: Path | str) -> dict:
     """Run a consequential executor command as a subprocess in the workspace, capturing
-    its outcome. This is the real sim/seed invocation the autonomous bridge makes."""
+    its outcome. This is the real sim/seed invocation the autonomous bridge makes.
+
+    The RUNNING interpreter's venv bin is prepended to the subprocess PATH so a bare
+    console script in the command (e.g. ``vivarium-workbench``) resolves to THIS venv's
+    binary — not some other venv earlier on PATH, which would run against a different
+    workspace package and fail to find the composite (observed: a bare ``vivarium-workbench``
+    resolved to a sibling venv and reported the study's composite 'not found')."""
+    import os
     import subprocess
-    proc = subprocess.run(command, shell=True, cwd=str(ws_root),
+    import sys
+    env = dict(os.environ)
+    env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
+    proc = subprocess.run(command, shell=True, cwd=str(ws_root), env=env,
                           capture_output=True, text=True, timeout=3600)
     return {"returncode": proc.returncode,
             "ok": proc.returncode == 0,
@@ -512,8 +557,29 @@ def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = Fal
             rec["status"] = "gated"
             rec["outcome"] = {"ok": None, "detail": "consequential — re-run with --autonomous to execute"}
         else:
-            rec["outcome"] = (runner or _default_runner)(top["command"], ws_root)
-            rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
+            # Run-readiness: refuse to deploy a sim that can't produce an evaluable result
+            # (the run-spec contract). A run whose emitter/observables don't satisfy the
+            # study's behavior-test measures yields an empty, unverifiable readout, so the
+            # result never flows back into the cycle. Gate rather than waste the run.
+            slug = top["source"].split(":", 1)[1] if str(top["source"]).startswith("claim:") else top["source"]
+            study_spec = studies.get(slug)
+            ready = run_readiness(study_spec, ws_root) if study_spec else {"ready": True, "gaps": []}
+            if not ready["ready"]:
+                rec["status"] = "gated"
+                rec["outcome"] = {"ok": None, "detail": f"run not ready — {'; '.join(ready['gaps'])}",
+                                  "readiness": ready}
+            else:
+                # Fill the <ws> placeholder with the real workspace root, then refuse to
+                # shell out a still-templated command (e.g. a branch op's
+                # <parent>/<proposal>) rather than running a broken literal placeholder.
+                command = (top["command"] or "").replace("<ws>", str(ws_root))
+                rec["command"] = command
+                if re.search(r"<[^>]+>", command):
+                    rec["status"] = "gated"
+                    rec["outcome"] = {"ok": None, "detail": f"command needs manual values, run it yourself: {command}"}
+                else:
+                    rec["outcome"] = (runner or _default_runner)(command, ws_root)
+                    rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
     elif top["action_type"] == "steer" and decider is not None and autonomous:
         # AI drives the expert decision: pick the option that maximizes discovery.
         detail = next((i["rationale"] for i in de.frontier(cyc, inv_spec)
@@ -549,6 +615,152 @@ def _append_executed(inv_path: Path | str, record: dict) -> None:
                 "at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")})
     on_disk["executed_actions"] = log
     save_yaml_atomic(path, on_disk)
+
+
+def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
+    """Is a study's run fully specified to yield an evaluable, visualized, contract-checked
+    result that flows back into the cycle? A simulation deployed with an incomplete spec
+    produces an empty / unverifiable run (the readout the gate needs is never emitted), so
+    the result never reaches the models, findings, or workbench.
+
+    Checks the fields a deployed run needs:
+
+    - **observables** --- the run must emit the observables every behavior-test measure
+      needs (a derived-scalar measure resolved to its SOURCE observables via
+      :func:`study_evaluator.required_observables_for_measure`), matched against the study's
+      declared ``observables`` (by full path or leaf name).
+    - **emitter** --- an emitter/store is declared.
+    - **visualizations**, **behavior tests**, **contracts** --- declared.
+
+    Returns ``{ready, complete, gaps, observables{required, declared, missing}, has_*}``.
+    ``ready`` means the run can produce an *evaluable* result (emitter + observables);
+    ``complete`` additionally requires viz + tests + contracts (the full quality bar)."""
+    from .study_evaluator import required_observables_for_measure
+    tests = study_spec.get("behavior_tests") or study_spec.get("tests") or []
+    required: set = set()
+    # A behavior test whose measure declares a KIND that needs a readout but no `path`
+    # cannot be graded — the evaluator records SKIP (agent bucket), so the gate never
+    # resolves to PASS/FAIL even after a run. Surface those so the "build" step (author the
+    # measure's path / its derived-scalar computer) is explicit, not a silent SKIP.
+    unevaluable: list[str] = []
+    for t in tests:
+        if not isinstance(t, dict):
+            continue
+        m = t.get("measure") or {}
+        if m.get("kind") and m.get("kind") not in ("config_value", "cross_run", "run_delta") and not m.get("path"):
+            unevaluable.append(t.get("name") or "<unnamed>")
+        required |= required_observables_for_measure(m, ws_root)
+    declared = [str(o) for o in (study_spec.get("observables") or [])]
+    declared_leaves = {o.split("/")[-1] for o in declared}
+    missing = sorted(o for o in required
+                     if o not in declared and o.split("/")[-1] not in declared_leaves)
+    has_emitter = bool(study_spec.get("emitter")
+                       or any(isinstance(r, dict) and r.get("emitter")
+                              for r in (study_spec.get("runs") or [])))
+    has_viz = bool(study_spec.get("visualizations"))
+    has_tests = bool(tests)
+    has_contracts = bool(study_spec.get("contracts") or study_spec.get("process_contracts"))
+
+    gaps: list[str] = []
+    if missing:
+        gaps.append(f"run must emit observables the gates need: {missing}")
+    if unevaluable:
+        gaps.append(f"behavior tests with no measure.path (will SKIP, gate never resolves): {unevaluable}")
+    if not has_emitter:
+        gaps.append("no emitter declared")
+    if not has_viz:
+        gaps.append("no visualizations declared")
+    if not has_tests:
+        gaps.append("no behavior tests declared")
+    if not has_contracts:
+        gaps.append("no contracts declared")
+
+    # `ready` = the run can produce an EVALUABLE result: every gate's observables are
+    # emittable. A study-level emitter is NOT required — a fresh study's composite declares
+    # its own emitter and the run records it only afterward; demanding a study-level emitter
+    # wrongly blocked never-run studies whose composite self-emits. Emitter/viz/contracts are
+    # `complete` (the quality bar), not `ready`.
+    ready = not missing                           # observables satisfiable → evaluable
+    complete = ready and has_emitter and has_viz and has_tests and has_contracts
+    return {"ready": ready, "complete": complete, "gaps": gaps,
+            "observables": {"required": sorted(required), "declared": sorted(declared),
+                            "missing": missing},
+            "unevaluable_tests": unevaluable,
+            "has_emitter": has_emitter, "has_visualizations": has_viz,
+            "has_tests": has_tests, "has_contracts": has_contracts}
+
+
+def advance_cycle(ws_root: Path | str, inv_slug: str, *, autonomous: bool = False,
+                  runner=None, max_runs: int = 12) -> dict:
+    """The cycle's ADVANCE phase — build-if-needed and RUN the open questions, so turning
+    the crank moves the science forward instead of only describing it.
+
+    Repeatedly: crank, take the top **run-ready** ``test`` op (an ``open_question`` /
+    ``pending_gate`` on an existing study), run it via :func:`execute_action`, re-crank —
+    until no runnable open work remains, a study needs BUILDING (not run-ready: its run
+    spec is incomplete, per :func:`run_readiness`), or only human-gated items are left. A
+    ``test`` op is tried once (``seen``), so a run that only SKIPs its gates doesn't loop.
+
+    This makes "run the open questions" a defined phase of a cycle, not an afterthought.
+    Without ``autonomous`` it reports what it WOULD run (dry). Returns
+    ``{runs, needs_build, frontier_before, frontier_after}``."""
+    from . import discovery_engine as de
+    ran: list[dict] = []
+    needs_build: list[dict] = []
+    seen: set = set()
+    _, inv0, st0 = load_cycle_inputs(ws_root, inv_slug)
+    before = de.closure(run_cycle(inv0, st0), inv0)["open_items"]
+    for _ in range(max_runs):
+        _, inv, studies = load_cycle_inputs(ws_root, inv_slug)
+        plan = de.execute_plan(run_cycle(inv, studies), inv)
+        target = None
+        for p in plan:
+            if p["action_type"] != "test" or p["source"] in seen:
+                continue
+            slug = p["source"].split(":", 1)[1] if str(p["source"]).startswith("claim:") else p["source"]
+            spec = studies.get(slug)
+            if not isinstance(spec, dict):
+                continue
+            if spec.get("runs"):
+                # already ran: a lingering open_question / pending_gate here means the gate
+                # SKIP'd or the verdict is only-by-roll-up — re-running won't resolve it (the
+                # behavior test / evaluation needs attention, not another sim). Don't loop on it.
+                seen.add(p["source"])
+                continue
+            rr = run_readiness(spec, ws_root)
+            if rr["ready"]:
+                target = p["source"]
+                break
+            needs_build.append({"study": slug, "gaps": rr["gaps"]})
+            seen.add(p["source"])
+        if target is None:
+            break                                   # no runnable test op left
+        seen.add(target)
+        if not autonomous:
+            ran.append({"target": target, "status": "would-run (pass --autonomous to execute)"})
+            break
+        rec = execute_action(ws_root, inv_slug, autonomous=True, runner=runner, target=target)
+        ran.append({"target": target, "status": rec["status"],
+                    "outcome": (rec.get("outcome") or {}).get("detail")})
+        if rec["status"] != "executed":
+            break
+    _, inv2, st2 = load_cycle_inputs(ws_root, inv_slug)
+    after = de.closure(run_cycle(inv2, st2), inv2)["open_items"]
+    return {"runs": ran, "needs_build": needs_build,
+            "frontier_before": before, "frontier_after": after}
+
+
+def summarize_advance(result: dict) -> str:
+    """Human-readable advance log: what ran, what needs building, the frontier delta."""
+    L = [f"frontier {result['frontier_before']} → {result['frontier_after']} "
+         f"({len(result['runs'])} run attempt(s))"]
+    for r in result["runs"]:
+        L.append(f"  [{r['status']}] {r['target']}" + (f" — {r['outcome']}" if r.get("outcome") else ""))
+    for b in result["needs_build"]:
+        L.append(f"  [needs build] {b['study']}: {'; '.join(b['gaps'][:2])}")
+    if not result["runs"] and not result["needs_build"]:
+        L.append("  (no runnable open questions — nothing to advance)")
+    return "\n".join(L)
 
 
 def build_completion_map(ws_root: Path | str, inv_slug: str) -> dict:
@@ -744,6 +956,12 @@ def main(argv: list[str] | None = None) -> int:
                             help="the completion map: gates to verify, decisions that gate the next studies, and the ordered next-step commands")
     p_comp.add_argument("investigation", help="investigation slug")
 
+    p_adv = sub.add_parser("advance",
+                           help="the cycle's ADVANCE phase: build-if-needed and run the open questions (run-ready `test` ops), re-cranking after each")
+    p_adv.add_argument("investigation", help="investigation slug")
+    p_adv.add_argument("--autonomous", action="store_true",
+                       help="actually run the runnable open questions (else report what it would run)")
+
     p_exec = sub.add_parser("execute",
                             help="the recommendation→action bridge: show (or, with --execute, run) the next action")
     p_exec.add_argument("investigation", help="investigation slug")
@@ -870,6 +1088,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "complete":
         print(summarize_completion(build_completion_map(ws, args.investigation)))
+        return 0
+
+    if args.cmd == "advance":
+        print(summarize_advance(advance_cycle(ws, args.investigation, autonomous=args.autonomous)))
         return 0
 
     if args.cmd == "execute":
