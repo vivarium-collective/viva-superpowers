@@ -88,7 +88,7 @@ def test_set_verdict_writes_canonical_and_rejects_bad(tmp_path):
 # persist_cycle — regenerable cache, authored blocks untouched
 # ---------------------------------------------------------------------------
 
-def test_persist_cycle_writes_cache_without_polluting_authored(tmp_path):
+def test_persist_cycle_writes_slim_state_without_polluting_authored(tmp_path):
     inv_path = tmp_path / "investigation.yaml"
     inv = {"question": "Q?", "studies": ["a"]}
     save_yaml_atomic(inv_path, inv)
@@ -97,8 +97,10 @@ def test_persist_cycle_writes_cache_without_polluting_authored(tmp_path):
     discover.persist_cycle(inv_path, inv, out)
 
     on_disk = load_yaml(inv_path)
-    assert on_disk["knowledge_cycle"]["verdicts"]["a"]["verdict"] == "supported"
-    assert on_disk["knowledge_cycle"]["narrative"]["units"]
+    # the slim, actionable cycle_state replaces the old 4k-line knowledge_cycle dump
+    assert on_disk["cycle_state"]["closed"] in (True, False)
+    assert "top_opportunities" in on_disk["cycle_state"]
+    assert "knowledge_cycle" not in on_disk
     # derive-first stays sparse: the authored blocks are NOT written by a cycle
     assert "knowledge" not in on_disk
     assert "argument" not in on_disk
@@ -292,6 +294,37 @@ def test_run_cycle_includes_suggestions():
     bundle = discover.run_cycle(inv, {"a": {"name": "a"}})
     assert "suggestions" in bundle
     assert any(s["source"] == "expert_decision" for s in bundle["suggestions"])
+
+
+def test_build_cycle_state_is_slim_and_actionable():
+    inv = {"studies": ["a"], "executive": {"decisions_needed": [
+        {"question": "Prior (a): supply", "context": ""}]}}
+    result = discover.run_cycle(inv, {"a": {"name": "a"}})
+    state = discover.build_cycle_state(result, inv)
+    assert set(state) >= {"closed", "frontier_size", "next_action", "top_opportunities",
+                          "suggestions", "diagnosis", "validator_census", "drift"}
+    assert isinstance(state["top_opportunities"], list)
+    assert isinstance(state["drift"], dict)
+
+
+def test_persist_cycle_writes_slim_state_and_drops_knowledge_cycle(tmp_path):
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    # the existing file carries a bloated knowledge_cycle that the cleanup retires.
+    save_yaml_atomic(inv / "investigation.yaml",
+                     {"studies": ["a"], "knowledge_cycle": {"claims": {"x": 1}, "edges": []}})
+    sdir = tmp_path / "studies" / "a"
+    sdir.mkdir(parents=True)
+    save_yaml_atomic(sdir / "study.yaml", {"name": "a", "claim": "a", "verdict": "supported"})
+
+    inv_path, inv_spec, studies = discover.load_cycle_inputs(tmp_path, "og")
+    discover.persist_cycle(inv_path, inv_spec, discover.run_cycle(inv_spec, studies))
+
+    on_disk = load_yaml(inv / "investigation.yaml")
+    assert "knowledge_cycle" not in on_disk   # the 4,360-line derived cache is gone
+    assert "cycle_state" in on_disk           # replaced by the slim, actionable state
+    assert "studies" in on_disk               # authored fields untouched
 
 
 def test_snapshot_validations_persists_the_accepted_state(tmp_path):

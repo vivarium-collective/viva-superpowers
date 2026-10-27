@@ -228,7 +228,7 @@ same change so the model doc and the code agree.
 ## 8. Non-goals
 
 - Not a new store: records are a derived projection over the RFC-0003/0005 typed
-  store, cached like `knowledge_cycle`, never a source of truth.
+  store, cached in the slim `cycle_state`, never a source of truth.
 - Not a verdict writer: validators never mutate the artifact; `set-verdict` /
   `resolve` / `relate` remain the only writers.
 - Not a hard gate by default: like the rigor scorecard, records are standing

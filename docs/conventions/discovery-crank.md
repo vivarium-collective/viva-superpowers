@@ -64,7 +64,7 @@ top frontier:
 | `suggest <inv>` | new studies to run next, each with the expert input it needs (read-only) |
 | `opportunities <inv>` | the frontier ranked by **value** — what is most valuable to investigate next (read-only) |
 | `status <inv>` | project one cycle, print the summary, no write |
-| `cycle <inv> [--no-write]` | run + persist one cycle as a regenerable `knowledge_cycle` cache |
+| `cycle <inv> [--no-write]` | run + persist one cycle as a slim, regenerable `cycle_state` summary |
 | `set-verdict <study> <verdict> [--rationale …]` | author a canonical verdict (`supported`/`qualified`/`inconclusive`/`refuted`/`unassessed`) |
 | `relate <downstream> <upstream> --relation <rel>` | author one epistemic edge (`builds-on`/`tests`/`refutes`/`alternative-to`/`motivates`) |
 | `connect <inv> --relation builds-on` | enrich every bare prerequisite across the investigation |

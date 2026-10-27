@@ -126,6 +126,12 @@ Back-compat shims kept at the top level so v3-era dashboards still render:
 - `baseline:` — mirrors one entry of `simulation_set:`; the v4 renderer should consume `simulation_set:` directly.
 - `parent_studies:` — superseded by `pipeline_gate.prerequisites`; kept for the v3 dashboard's DAG layout.
 
+**Deprecated — do not author in new studies** (verified unread by both the package and
+the dashboard; harmless where they already exist, but no renderer consumes them):
+`plan_acts`, `consolidation_note`, `split_note`, `program`, `concept`, `gate_reason`. (Note:
+`key_claims`, `handoff`, `experiment`, `result` *are* still rendered by the dashboard and
+remain supported; `plan_id` is a live consolidation-handoff key.)
+
 Minimal example (truncate values to placeholders; the schema accepts the loose shapes below — see [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json)):
 
 ```yaml
