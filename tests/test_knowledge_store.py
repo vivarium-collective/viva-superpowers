@@ -117,6 +117,18 @@ class TestCanonicalVerdictAuthoredWins:
         assert cv["verdict_source"] == "authored"
         assert cv["diverges"] is False
 
+    def test_qualified_refines_supported_is_not_a_divergence(self):
+        # tests pass (derived=supported); the author qualified it — same answer, a caveat,
+        # not a conflict. Must NOT flag a divergence.
+        cv = canonical_verdict(_pass("t1") | {"verdict": "qualified"})
+        assert cv["verdict"] == "qualified" and cv["diverges"] is False
+
+    def test_qualified_vs_refuted_is_a_divergence(self):
+        # tests fail (derived=refuted); the author says it holds-with-caveats — a genuine
+        # conflict on the answer.
+        cv = canonical_verdict(_fail("t1") | {"verdict": "qualified"})
+        assert cv["verdict"] == "qualified" and cv["diverges"] is True
+
 
 class TestProgressVerdictDecoupling:
     def test_failed_execution_does_not_downgrade_authored_verdict(self):

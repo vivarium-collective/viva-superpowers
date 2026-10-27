@@ -91,6 +91,11 @@ _PROGRESS_OK = {"proposed", "planned", "running", "completed", "failed"}
 #: values that never clobber an existing one during a merge
 _EMPTY = (None, "", [], {})
 
+#: verdicts that give the same ANSWER — "the claim holds". `qualified` is a caveated
+#: `supported`, so a difference between the two is a refinement, not a divergence. Every
+#: other inequality (incl. inconclusive-vs-supported) is still a divergence.
+_HOLDS = frozenset({"supported", "qualified"})
+
 
 # ---------------------------------------------------------------------------
 # Canonical verdict (per study)
@@ -111,7 +116,12 @@ def canonical_verdict(study_spec: dict) -> dict:
 
     verdict = authored or derived
     source = "authored" if authored else "derived"
-    diverges = bool(authored) and authored != derived
+    # A divergence is a genuine disagreement on the ANSWER, not any inequality. `qualified`
+    # refines `supported` (both say "the claim holds"), so authored=qualified vs
+    # derived=supported is NOT a divergence; authored=qualified vs derived=refuted IS, and
+    # so is inconclusive-vs-supported (the author withheld what the gates grant).
+    diverges = bool(authored) and not (authored == derived
+                                       or (authored in _HOLDS and derived in _HOLDS))
 
     if authored:
         rationale = "Authored verdict recorded in study.yaml."
