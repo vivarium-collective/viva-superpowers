@@ -63,6 +63,7 @@ top frontier:
 | `diagnose <inv>` | **why** the cycle is/isn't progressing — productivity-bottleneck flags (read-only) |
 | `suggest <inv>` | new studies to run next, each with the expert input it needs (read-only) |
 | `opportunities <inv>` | the frontier ranked by **value** — what is most valuable to investigate next (read-only) |
+| `execute <inv> [--execute]` | the recommendation→action bridge: resolve each next move to its executor + command + consequence; `--execute` runs the top action only if it is side-effect-free, else prints its gated command |
 | `status <inv>` | project one cycle, print the summary, no write |
 | `cycle <inv> [--no-write]` | run + persist one cycle as a slim, regenerable `cycle_state` summary |
 | `set-verdict <study> <verdict> [--rationale …]` | author a canonical verdict (`supported`/`qualified`/`inconclusive`/`refuted`/`unassessed`) |
