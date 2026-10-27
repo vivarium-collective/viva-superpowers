@@ -62,6 +62,7 @@ top frontier:
 | `crank <inv>` | frontier + next action + closure (read-only) — **the one you run most** |
 | `diagnose <inv>` | **why** the cycle is/isn't progressing — productivity-bottleneck flags (read-only) |
 | `suggest <inv>` | new studies to run next, each with the expert input it needs (read-only) |
+| `opportunities <inv>` | the frontier ranked by **value** — what is most valuable to investigate next (read-only) |
 | `status <inv>` | project one cycle, print the summary, no write |
 | `cycle <inv> [--no-write]` | run + persist one cycle as a regenerable `knowledge_cycle` cache |
 | `set-verdict <study> <verdict> [--rationale …]` | author a canonical verdict (`supported`/`qualified`/`inconclusive`/`refuted`/`unassessed`) |
@@ -167,6 +168,40 @@ expert resolves the gate and a seed step (`/viva-study seed-from-followup`) mate
 On a CLOSED investigation the frontier looks finished, but `suggest` shows the real next
 moves: e.g. origins-of-life-vent proposes 5 studies, each blocked on an expert prior,
 dataset, or model choice.
+
+## Opportunities — what is most valuable to investigate next
+
+The frontier is ordered by *fixed priority*, which cannot rank items within a tier — a
+`diagnose` run flags this as `planner_limited` (e.g. 13 divergences all at priority 50).
+`discover opportunities <inv>` re-casts each frontier item as a typed **opportunity** with
+a transparent **value estimate**, shifting the question from *"what is unresolved?"* to
+*"what is most valuable to do next?"* (after *From Unresolved Tasks to Valuable Scientific
+Investigations*, the value-aware spec).
+
+Each opportunity carries `{id, source, action_type, question, competing_predictions,
+proposed_validator, value{info, impact, enable, cost, score}, confidence, state,
+unknowns}`. The score is a transparent, tunable heuristic — **not** a calibrated Bayesian
+value:
+
+```
+score = 0.30·info + 0.40·impact + 0.20·enable − 0.30·cost
+```
+
+- **info** — information potential by action: running a test or opening a study can teach
+  something new (1.0); reconciling/adjudicating resolves bookkeeping (0.3).
+- **impact** — how much of the argument builds on the target (downstream dependents in the
+  claim graph): a foundational claim scores high, a leaf low.
+- **enable** — how many future investigations it unblocks (an expert decision that gates
+  proposed studies).
+- **cost** — a new study + simulation is dear (1.0); a reconcile is cheap (0.2).
+
+Fields the engine cannot derive (`competing_predictions`, `proposed_validator`) are left
+explicit in `unknowns` rather than silently defaulted. On origins-of-life-vent this breaks
+the priority-50 tie: `reconcile og-self-compartmentation` (impact 1.0) ranks top at +0.43,
+far above a leaf divergence at +0.19 — so the crank can say which reconcile matters most.
+This is Stage A/C of the value-aware path; the remaining stages (an opportunity *generator*
+beyond repairs, and a predicted-vs-realized telemetry ledger to recalibrate the weights)
+are the follow-on.
 
 ## Preconditions (checklist)
 
