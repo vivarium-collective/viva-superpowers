@@ -61,6 +61,7 @@ top frontier:
 |---|---|
 | `crank <inv>` | frontier + next action + closure (read-only) — **the one you run most** |
 | `diagnose <inv>` | **why** the cycle is/isn't progressing — productivity-bottleneck flags (read-only) |
+| `suggest <inv>` | new studies to run next, each with the expert input it needs (read-only) |
 | `status <inv>` | project one cycle, print the summary, no write |
 | `cycle <inv> [--no-write]` | run + persist one cycle as a regenerable `knowledge_cycle` cache |
 | `set-verdict <study> <verdict> [--rationale …]` | author a canonical verdict (`supported`/`qualified`/`inconclusive`/`refuted`/`unassessed`) |
@@ -146,6 +147,26 @@ oracle needed:
 The flags are not exclusive. A "CLOSED, frontier 22" investigation routinely diagnoses as
 `input_limited` + `planner_limited` + `validation_limited` at once — the real state the
 bare closure line hides.
+
+## Suggest — new studies to run next, with expert input
+
+The crank recommends a `branch` op but only as a label; `discover suggest <inv>` makes it
+first-class — a unified list of the new studies the cycle thinks should run next, each a
+`{id, title, motivation, parent_study, source, awaiting_expert, status}`. It gathers the
+three sources that were scattered before:
+
+- **`followup_proposal`** — a proposal already authored on a member study.
+- **`narrative_gap`** — a bridging study the audit derived for an unsupported transition.
+- **`expert_decision`** — a `decisions_needed` entry that names a member study as its
+  *subject* (the parenthetical before the first colon). These are **gated on expert
+  input**: `status: awaiting_expert`, carrying the exact decision the expert must answer
+  before the study is seeded.
+
+So a suggestion is a *proposal*, never an execution — nothing is created or run until the
+expert resolves the gate and a seed step (`/viva-study seed-from-followup`) materializes it.
+On a CLOSED investigation the frontier looks finished, but `suggest` shows the real next
+moves: e.g. origins-of-life-vent proposes 5 studies, each blocked on an expert prior,
+dataset, or model choice.
 
 ## Preconditions (checklist)
 

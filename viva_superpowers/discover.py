@@ -31,6 +31,8 @@ from __future__ import annotations
 import argparse
 import copy
 import datetime as _dt
+import hashlib
+import re
 from io import StringIO
 from pathlib import Path
 
@@ -182,7 +184,7 @@ def run_cycle(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
     ctx = ValidationContext(inv_spec=inv_spec, studies=studies_by_slug,
                             argument=argument, narrative=narrative, audit=gaps)
 
-    return {
+    bundle = {
         "knowledge": knowledge,
         "argument": argument,
         "narrative": narrative,
@@ -191,6 +193,9 @@ def run_cycle(inv_spec: dict, studies_by_slug: dict[str, dict]) -> dict:
         "open_calls": calls,
         "validations": run_validators(ctx),
     }
+    # Suggestions for new studies (the branch op, made first-class + expert-gated).
+    bundle["suggestions"] = suggest_studies(bundle, inv_spec, studies_by_slug)
+    return bundle
 
 
 # ---------------------------------------------------------------------------
@@ -325,6 +330,98 @@ def persist_cycle(inv_path: Path | str, inv_spec: dict, result: dict) -> dict:
     return on_disk["knowledge_cycle"]
 
 
+def _parent_in_parens(text: str, members: set) -> str | None:
+    """The member study a decision names as its *subject*, e.g. 'Agent motion model
+    (og-ecology follow-up): …' → 'og-ecology'. Only the parenthetical before the first
+    colon counts (the subject position): a project-scope decision that merely mentions a
+    study mid-sentence ('Publication scope: … (og-vent-environment -> …)') names no
+    subject study and yields None, so it is not turned into a study suggestion."""
+    subject = (text or "").split(":", 1)[0]
+    for group in re.findall(r"\(([^)]+)\)", subject):
+        token = group.strip().split()[0].rstrip(":,.").strip() if group.strip() else ""
+        if token in members:
+            return token
+    return None
+
+
+def suggest_studies(cycle_result: dict, inv_spec: dict, studies: dict) -> list[dict]:
+    """Suggestions for new studies the cycle thinks should run next — the unified,
+    expert-in-the-loop 'what to build' view (RFC-0005 branch op, made first-class).
+
+    Each suggestion is ``{id, title, motivation, parent_study, source,
+    awaiting_expert, status}``. It gathers the three sources that were scattered
+    before: authored ``followup_proposals`` on member studies, the narrative-gap
+    ``followup``s the audit derives, and each ``decisions_needed`` entry that names a
+    member study in parentheses — the last are **gated on expert input** (``status:
+    awaiting_expert``) so a new study is proposed but never seeded until the expert
+    answers. Pure/read-only: it proposes, it does not create or run anything."""
+    members = set(inv_spec.get("studies") or list(studies))
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def add(sid, title, motivation, parent, source, awaiting):
+        if not sid or sid in seen:
+            return
+        seen.add(sid)
+        out.append({"id": sid, "title": title or sid, "motivation": motivation or "",
+                    "parent_study": parent, "source": source,
+                    "awaiting_expert": awaiting,
+                    "status": "awaiting_expert" if awaiting else "ready"})
+
+    # 1. authored followup proposals (an expert/agent already proposed the study)
+    for slug, spec in (studies or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        for fp in spec.get("followup_proposals") or []:
+            if not isinstance(fp, dict) or fp.get("status") in ("seeded", "done", "rejected"):
+                continue
+            add(fp.get("id"), fp.get("title"), fp.get("motivation"), slug, "followup_proposal", [])
+
+    # 2. narrative-gap followups (the audit's auto-generated bridging studies)
+    for g in cycle_result.get("audit") or []:
+        fu = (g.get("followup") or {}) if isinstance(g, dict) else {}
+        if fu.get("id"):
+            add(fu["id"], fu.get("title"), fu.get("motivation"), fu.get("parent_study"),
+                "narrative_gap", [])
+
+    # 3. decisions_needed that name a member study → a study gated on that expert input
+    ex = inv_spec.get("executive") or {}
+    for d in ex.get("decisions_needed") or []:
+        q = d.get("question") if isinstance(d, dict) else (d if isinstance(d, str) else None)
+        if not q:
+            continue
+        parent = _parent_in_parens(q, members)
+        if not parent:
+            continue  # project-scope decision (publication/rule-set scope), not a study
+        sid = f"seed-{parent}-{hashlib.sha256(q.encode()).hexdigest()[:6]}"
+        add(sid, f"Follow-up to {parent} (pending an expert decision)", q, parent,
+            "expert_decision", [q])
+
+    return out
+
+
+def summarize_suggestions(suggestions: list[dict]) -> str:
+    ready = [s for s in suggestions if s["status"] == "ready"]
+    awaiting = [s for s in suggestions if s["status"] == "awaiting_expert"]
+    lines = [f"suggested studies: {len(suggestions)}  ({len(ready)} ready, "
+             f"{len(awaiting)} awaiting expert input)"]
+    if ready:
+        lines.append("ready to seed:")
+        for s in ready:
+            lines.append(f"  {s['id']}  {s['title']}"
+                         + (f"  (builds on {s['parent_study']})" if s.get("parent_study") else "")
+                         + f"  [{s['source']}]")
+    if awaiting:
+        lines.append("awaiting expert input (resolve the decision, then seed):")
+        for s in awaiting:
+            lines.append(f"  {s['id']}  (builds on {s.get('parent_study')})")
+            for q in s["awaiting_expert"]:
+                lines.append(f"      needs: {q}")
+    if not suggestions:
+        lines.append("  none — no new studies proposed this cycle.")
+    return "\n".join(lines)
+
+
 def snapshot_validations(ws_root: Path | str, slug: str) -> dict:
     """Persist the current validation records' signatures as the investigation's
     accepted ``validation_snapshot`` (RFC-0007 Phase 4). Later cycles compare a fresh
@@ -430,6 +527,10 @@ def main(argv: list[str] | None = None) -> int:
                             help="classify the crank's productivity bottlenecks (why it is/isn't progressing)")
     p_diag.add_argument("investigation", help="investigation slug")
 
+    p_sugg = sub.add_parser("suggest",
+                            help="suggest new studies to run next, each with the expert input it needs")
+    p_sugg.add_argument("investigation", help="investigation slug")
+
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
     p_sv.add_argument("verdict", choices=VERDICT_VOCAB)
@@ -528,6 +629,12 @@ def main(argv: list[str] | None = None) -> int:
         result = run_cycle(inv_spec, studies)
         diag = discovery_engine.diagnose(result, inv_spec)
         print(discovery_engine.summarize_diagnosis(diag))
+        return 0
+
+    if args.cmd == "suggest":
+        _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
+        result = run_cycle(inv_spec, studies)
+        print(summarize_suggestions(result["suggestions"]))
         return 0
 
     return 1

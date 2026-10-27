@@ -222,6 +222,7 @@ def crank(cycle_result: dict, inv_spec: dict) -> dict:
         "next_action": next_action(cycle_result, inv_spec),
         "frontier": frontier(cycle_result, inv_spec),
         "invariant_violations": invariants(cycle_result),
+        "suggestions": cycle_result.get("suggestions") or [],
     }
 
 
@@ -242,6 +243,11 @@ def summarize(report: dict) -> str:
     if inv:
         lines.append(f"invariant violations: {len(inv)} "
                      f"({', '.join(sorted({v['invariant'] for v in inv}))})")
+    sugg = report.get("suggestions") or []
+    if sugg:
+        ready = sum(1 for s in sugg if s.get("status") == "ready")
+        lines.append(f"suggested studies: {len(sugg)} ({ready} ready, "
+                     f"{len(sugg) - ready} awaiting expert input) — run `discover suggest`")
     lines.append("top frontier:")
     for i in report["frontier"][:8]:
         lines.append(f"  {i['priority']:>3}  [{i['op']:>10}] {i['kind']:<22} {i['target']}")

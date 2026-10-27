@@ -245,6 +245,55 @@ def test_resolve_accepts_validation_finding(tmp_path):
     assert spec["resolutions"][0]["kind"] == "validation_finding"
 
 
+def _sugg_cycle(audit=None, verdicts=None):
+    return {"audit": audit or [], "knowledge": {"verdicts": verdicts or {}},
+            "argument": {"claims": {}}}
+
+
+def test_suggest_from_authored_followup_proposal():
+    studies = {"a": {"name": "a", "followup_proposals": [
+        {"id": "fu1", "title": "Extend A to higher salinity", "motivation": "why"}]}}
+    sugg = discover.suggest_studies(_sugg_cycle(), {"studies": ["a"]}, studies)
+    s = next(s for s in sugg if s["id"] == "fu1")
+    assert s["status"] == "ready" and s["parent_study"] == "a" and s["source"] == "followup_proposal"
+
+
+def test_suggest_from_narrative_gap_followup():
+    cyc = _sugg_cycle(audit=[{"from": "claim:a", "to": "claim:b",
+                              "followup": {"id": "disc-b", "title": "Discriminate b",
+                                           "motivation": "m", "parent_study": "b"}}])
+    sugg = discover.suggest_studies(cyc, {"studies": ["a", "b"]}, {})
+    assert any(s["id"] == "disc-b" and s["source"] == "narrative_gap" and s["status"] == "ready"
+               for s in sugg)
+
+
+def test_suggest_gated_on_an_expert_decision():
+    inv = {"studies": ["og-ecology"], "executive": {"decisions_needed": [
+        {"question": "Agent motion model (og-ecology follow-up): which model?", "context": "c"}]}}
+    sugg = discover.suggest_studies(_sugg_cycle(), inv, {"og-ecology": {"name": "og-ecology"}})
+    gated = [s for s in sugg if s["source"] == "expert_decision"]
+    assert gated and gated[0]["parent_study"] == "og-ecology"
+    assert gated[0]["status"] == "awaiting_expert" and gated[0]["awaiting_expert"]
+
+
+def test_suggest_ignores_a_project_scope_decision():
+    inv = {"studies": ["a"], "executive": {"decisions_needed": [
+        {"question": "Publication scope: close now or extend?", "context": ""},
+        # a project-scope decision that merely MENTIONS a study mid-sentence (after the
+        # colon) is not a study suggestion — only a subject-position parenthetical counts.
+        {"question": "Scope: close the arc (a -> b) or extend?", "context": ""}]}}
+    sugg = discover.suggest_studies(_sugg_cycle(), inv, {"a": {}})
+    assert not [s for s in sugg if s["source"] == "expert_decision"]
+
+
+def test_run_cycle_includes_suggestions():
+    inv = {"studies": ["a"], "executive": {"decisions_needed": [
+        {"question": "Prior (a): supply it", "context": ""}]}}
+    bundle = discover.run_cycle(inv, {"a": {"name": "a"}})
+    assert "suggestions" in bundle
+    assert any(s["source"] == "expert_decision" for s in bundle["suggestions"])
+
+
 def test_snapshot_validations_persists_the_accepted_state(tmp_path):
     (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
     inv = tmp_path / "investigations" / "og"
