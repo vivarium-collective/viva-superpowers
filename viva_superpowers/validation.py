@@ -27,7 +27,6 @@ enforced at record construction and re-checked each cycle by
 """
 from __future__ import annotations
 
-import datetime as _dt
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -64,7 +63,11 @@ def validation_record(*, type: str, scope: str, target: str,
                       recommendations: list | None = None, evidence: list | None = None,
                       validator_id: str | None = None, validator_version: str = "0.1",
                       evaluated_at: str | None = None) -> dict:
-    """Build one validation record, validating both axes and the two-axis rule."""
+    """Build one validation record, validating both axes and the two-axis rule.
+
+    ``evaluated_at`` is left ``None`` unless supplied: the record is produced inside
+    the pure, deterministic cycle projection (same evidence → same record), so a
+    wall-clock stamp belongs to the persist step, not here."""
     if type not in VALIDATOR_TYPES:
         raise ValueError(f"type must be one of {VALIDATOR_TYPES}, got {type!r}")
     if scope not in VALIDATOR_SCOPES:
@@ -93,7 +96,7 @@ def validation_record(*, type: str, scope: str, target: str,
         "provenance": {
             "validator_id": validator_id,
             "validator_version": validator_version,
-            "evaluated_at": evaluated_at or _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "evaluated_at": evaluated_at,
         },
     }
 

@@ -115,7 +115,8 @@ VERDICT_VOCAB = ("supported", "qualified", "inconclusive", "refuted", "unassesse
 EPISTEMIC_RELATIONS = ("builds-on", "tests", "refutes", "alternative-to", "motivates")
 # The frontier-item kinds a resolution can discharge (mirror discovery_engine priorities).
 RESOLUTION_KINDS = ("unaddressed_criterion", "open_challenge", "narrative_gap",
-                    "open_decision", "divergence", "open_question")
+                    "open_decision", "divergence", "open_question",
+                    "validation_finding")
 
 
 def add_resolution(inv_spec: dict, kind: str, target: str, rationale: str,

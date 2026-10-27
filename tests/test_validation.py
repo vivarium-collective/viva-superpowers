@@ -28,6 +28,14 @@ def test_validation_record_builds_the_two_axis_shape():
     assert r["provenance"]["validator_id"] == "scientific.study.controls"
 
 
+def test_validation_record_is_deterministic_no_wallclock():
+    # the record is produced in the pure cycle projection — no wall-clock stamp,
+    # so the same evidence yields the identical record (Phase-4 staleness needs this).
+    kw = dict(type="empirical", scope="claim", target="c", execution_status="passed")
+    assert V.validation_record(**kw) == V.validation_record(**kw)
+    assert V.validation_record(**kw)["provenance"]["evaluated_at"] is None
+
+
 def test_validation_record_rejects_off_vocabulary_axes():
     with pytest.raises(ValueError):
         V.validation_record(type="bogus", scope="study", target="t", execution_status="passed")

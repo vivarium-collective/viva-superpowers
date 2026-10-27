@@ -237,6 +237,14 @@ def test_connect_preserves_comments_and_minimizes_churn(tmp_path):
     assert "relation: builds-on" in out
 
 
+def test_resolve_accepts_validation_finding(tmp_path):
+    # a validation_finding is a resolvable frontier item — the `resolve` verb must
+    # accept its kind (RFC-0007).
+    assert "validation_finding" in discover.RESOLUTION_KINDS
+    spec = discover.add_resolution({}, "validation_finding", "claim:x", "fixed it")
+    assert spec["resolutions"][0]["kind"] == "validation_finding"
+
+
 def test_run_cycle_includes_validator_records(tmp_path):
     # RFC-0007: run_cycle runs the registered validators and returns their records.
     inv = {"studies": ["a"]}
