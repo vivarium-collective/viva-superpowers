@@ -468,6 +468,33 @@ def suggest_studies(cycle_result: dict, inv_spec: dict, studies: dict) -> list[d
         add(sid, f"Follow-up to {parent} (pending an expert decision)", q, parent,
             "expert_decision", [q])
 
+    # 4. frontier DIVERGENCES and unanswered OPEN QUESTIONS → a proposed discriminating
+    #    study. This is the "build a new model when an open question stands" loop made
+    #    first-class: a divergence is a verdict conflict a better-controlled run could
+    #    settle; an open_question names a behavior no member study yet measures. Both are
+    #    proposed gated on the expert (status: awaiting_expert) — surfaced to seed, never
+    #    auto-created — so the frontier itself, not only authored follow-ups, drives what to
+    #    build next.
+    for oc in cycle_result.get("open_calls") or []:
+        if not isinstance(oc, dict) or oc.get("kind") not in ("divergence", "open_question"):
+            continue
+        title = (oc.get("title") or "").strip()
+        tgt = str(oc.get("target") or oc.get("claim") or oc.get("question") or "")
+        key = title or tgt
+        if not key:
+            continue
+        parent = next((m for m in members if m and m in tgt), None)
+        sid = f"discriminate-{hashlib.sha256(key.encode()).hexdigest()[:8]}"
+        if oc.get("kind") == "divergence":
+            t = f"Discriminating study — resolve divergence: {title[:70]}"
+            m = ("A verdict divergence stands on the current evidence. Propose a controlled "
+                 "run designed to discriminate the competing claims and settle it empirically.")
+        else:
+            t = f"New study — address open question: {title[:70]}"
+            m = ("An open question no member study yet answers. Propose a study that measures "
+                 "the behavior it asks about.")
+        add(sid, t, m, parent, f"frontier_{oc.get('kind')}", [key])
+
     return out
 
 
@@ -654,6 +681,15 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     declared_leaves = {o.split("/")[-1] for o in declared}
     missing = sorted(o for o in required
                      if o not in declared and o.split("/")[-1] not in declared_leaves)
+    # A study that has already RUN and been assessed demonstrably emitted the observables its
+    # gates need (they are in the run store) — even when its declared `observables:` list is
+    # empty, as it routinely is. Readiness must then distinguish "already produced the
+    # readouts" from "never run and can't"; a static-only `missing` check otherwise reports
+    # every already-run study as un-runnable (observed on genesis: all 21 run studies).
+    runs = study_spec.get("runs") or []
+    assessed = bool(study_spec.get("verdict") or study_spec.get("conclusion_verdict")
+                    or any(isinstance(r, dict) and r.get("outcomes") for r in runs))
+    already_run = bool(runs) and assessed
     has_emitter = bool(study_spec.get("emitter")
                        or any(isinstance(r, dict) and r.get("emitter")
                               for r in (study_spec.get("runs") or [])))
@@ -661,8 +697,33 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     has_tests = bool(tests)
     has_contracts = bool(study_spec.get("contracts") or study_spec.get("process_contracts"))
 
+    # Does the baseline composite (the MODEL) actually resolve? A study whose composite does not
+    # exist cannot run, yet observable/emitter/etc. checks would otherwise call it ready (observed
+    # on eukaryogenesis: all 5 baseline composites were ModuleNotFoundError while readiness said
+    # ready). Resolve WITHOUT executing composite code (find_spec), and only when the workspace
+    # package is importable at all, so a missing package isn't misread as a missing model.
+    import importlib.util as _ilu
+    composite_missing: str | None = None
+    _baseline = study_spec.get("baseline") or []
+    comp = (_baseline[0].get("composite")
+            if _baseline and isinstance(_baseline[0], dict) else None) or study_spec.get("composite")
+    if comp and isinstance(comp, str) and "." in comp:
+        top, module = comp.split(".")[0], comp.rsplit(".", 1)[0]
+        try:
+            top_ok = _ilu.find_spec(top) is not None
+        except Exception:  # noqa: BLE001 — a broken intermediate package isn't our assessment
+            top_ok = False
+        if top_ok:
+            try:
+                if _ilu.find_spec(module) is None:
+                    composite_missing = comp
+            except Exception:  # noqa: BLE001 — module (or intermediate) not importable → not built
+                composite_missing = comp
+
     gaps: list[str] = []
-    if missing:
+    if composite_missing and not already_run:
+        gaps.append(f"baseline composite not built / not importable: {composite_missing}")
+    if missing and not already_run:
         gaps.append(f"run must emit observables the gates need: {missing}")
     if unevaluable:
         gaps.append(f"behavior tests with no measure.path (will SKIP, gate never resolves): {unevaluable}")
@@ -680,9 +741,12 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     # its own emitter and the run records it only afterward; demanding a study-level emitter
     # wrongly blocked never-run studies whose composite self-emits. Emitter/viz/contracts are
     # `complete` (the quality bar), not `ready`.
-    ready = not missing                           # observables satisfiable → evaluable
+    # ready = can produce an EVALUABLE result: observables emittable AND the model exists. An
+    # already-run study is ready regardless (it demonstrably did both).
+    ready = already_run or (not missing and not composite_missing)
     complete = ready and has_emitter and has_viz and has_tests and has_contracts
-    return {"ready": ready, "complete": complete, "gaps": gaps,
+    return {"ready": ready, "complete": complete, "gaps": gaps, "already_run": already_run,
+            "composite_resolves": composite_missing is None,
             "observables": {"required": sorted(required), "declared": sorted(declared),
                             "missing": missing},
             "unevaluable_tests": unevaluable,

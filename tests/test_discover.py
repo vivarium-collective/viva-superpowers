@@ -558,3 +558,51 @@ def test_run_readiness_flags_unevaluable_pathless_measure():
     r = discover.run_readiness(study, None)
     assert "t1" in r["unevaluable_tests"]
     assert any("no measure.path" in g for g in r["gaps"])
+
+
+def test_run_readiness_already_run_study_is_ready_despite_empty_observables():
+    # a study that ran and was assessed demonstrably emitted its gate observables (they are
+    # in the run store), so an empty `observables:` block must NOT report it as un-runnable.
+    study = {"behavior_tests": [{"name": "t", "measure": {"kind": "derived_scalar", "path": "foo"}}],
+             "runs": [{"id": "r1"}], "verdict": "supported"}
+    r = discover.run_readiness(study, None)
+    assert r["ready"] is True
+    assert r["already_run"] is True
+    assert not any("must emit observables" in g for g in r["gaps"])
+
+
+def test_run_readiness_never_run_study_still_flags_missing_observables():
+    study = {"behavior_tests": [{"name": "t", "measure": {"kind": "derived_scalar", "path": "foo"}}]}
+    r = discover.run_readiness(study, None)
+    assert r["already_run"] is False
+    assert r["ready"] is False
+    assert any("must emit observables" in g for g in r["gaps"])
+
+
+def test_suggest_studies_proposes_discriminating_study_from_divergence():
+    # a frontier divergence / open_question becomes a proposed (expert-gated) study, so the
+    # frontier itself drives what to build next — not only authored follow-ups.
+    cyc = {"open_calls": [{"kind": "divergence", "title": "A vs B verdict conflict", "target": "claim:x"},
+                          {"kind": "open_question", "title": "Can it divide?", "target": "og-foo"}],
+           "audit": []}
+    out = discover.suggest_studies(cyc, {"studies": ["og-foo"]}, {})
+    div = [s for s in out if s["source"] == "frontier_divergence"]
+    oq = [s for s in out if s["source"] == "frontier_open_question"]
+    assert len(div) == 1 and div[0]["status"] == "awaiting_expert"
+    assert "resolve divergence" in div[0]["title"].lower()
+    assert len(oq) == 1 and oq[0]["parent_study"] == "og-foo"
+
+
+def test_run_readiness_flags_missing_baseline_composite():
+    # the workspace package resolves but the composite module does not → not ready + a build gap.
+    study = {"behavior_tests": [], "baseline": [{"composite": "viva_superpowers.nonexistent_xyz.model"}]}
+    r = discover.run_readiness(study, None)
+    assert r["composite_resolves"] is False
+    assert r["ready"] is False
+    assert any("composite not built" in g for g in r["gaps"])
+
+
+def test_run_readiness_resolves_an_existing_composite_module():
+    study = {"behavior_tests": [], "baseline": [{"composite": "viva_superpowers.discover.run_readiness"}]}
+    r = discover.run_readiness(study, None)
+    assert r["composite_resolves"] is True
