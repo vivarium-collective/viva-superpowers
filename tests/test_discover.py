@@ -356,6 +356,46 @@ def test_execute_action_gates_a_consequential_action_until_autonomous(tmp_path):
     assert log[0]["action"] == "test" and log[0]["status"] == "executed"
 
 
+def _decisions_only_ws(tmp_path):
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml",
+                     {"studies": [],
+                      "executive": {"decisions_needed": [
+                          {"question": "which H2 prior?", "context": "sets the off-gradient floor"}]}})
+    return inv / "investigation.yaml"
+
+
+def test_build_completion_map_surfaces_the_gating_decision_and_next_steps(tmp_path):
+    _decisions_only_ws(tmp_path)
+    cmap = discover.build_completion_map(tmp_path, "og")
+    assert set(cmap) >= {"closed", "pending_gates", "gating_decisions", "suggested_studies", "next_steps"}
+    assert any("which H2 prior?" in d["target"] for d in cmap["gating_decisions"])
+    assert cmap["next_steps"] and cmap["next_steps"][0]["action"] == "steer"
+
+
+def test_execute_action_lets_an_ai_decider_drive_an_expert_decision(tmp_path):
+    inv_path = _decisions_only_ws(tmp_path)
+
+    # with no decider, a steer is human-only — handed back, nothing recorded
+    gated = discover.execute_action(tmp_path, "og", autonomous=True)
+    assert gated["status"] == "gated-human" and gated["action"] == "steer"
+    assert not (load_yaml(inv_path).get("resolutions") or [])
+
+    seen = []
+
+    def ai_decider(target, detail):
+        seen.append((target, detail))
+        return {"choice": "high-H2 prior", "rationale": "opens the largest downstream study set"}
+
+    ran = discover.execute_action(tmp_path, "og", autonomous=True, decider=ai_decider)
+    assert ran["status"] == "executed" and "high-H2 prior" in ran["outcome"]["detail"]
+    assert seen and "which H2 prior?" in seen[0][0]
+    res = load_yaml(inv_path)["resolutions"]
+    assert any(r["kind"] == "open_decision" and "ai-driven" in r["rationale"] for r in res)
+
+
 def test_snapshot_validations_persists_the_accepted_state(tmp_path):
     (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
     inv = tmp_path / "investigations" / "og"

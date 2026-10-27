@@ -227,8 +227,28 @@ def test_frontier_prioritizes_criteria_over_gaps_over_divergence():
     assert f[0]["op"] == "branch"
     # priority order: criterion > narrative_gap > divergence
     assert kinds.index("unaddressed_criterion") < kinds.index("narrative_gap") < kinds.index("divergence")
-    # addressed criterion sok produced no item
-    assert "sok" not in [i["target"] for i in f]
+    # addressed criterion sok is met by its verdict → NOT an unaddressed_criterion, but
+    # its named behavior never ran, so it surfaces as verification debt (a pending_gate).
+    assert "sok" not in [i["target"] for i in f if i["kind"] == "unaddressed_criterion"]
+    assert ("pending_gate", "sok") in {(i["kind"], i["target"]) for i in f}
+
+
+def test_pending_gate_flags_a_criterion_met_by_verdict_with_an_unrun_behavior():
+    # a gate whose study verdict is supported but whose named behavior never passed is
+    # verification debt: a pending_gate on the frontier, but it does NOT block closure.
+    cyc = _cycle(verdicts={"s": {"verdict": "supported"}}, behaviors={"s": {"g": "PENDING"}})
+    inv = {"acceptance_criteria": [{"study": "s", "behavior": "g"}]}
+    items = {(i["kind"], i["target"]): i for i in de.frontier(cyc, inv)}
+    assert ("pending_gate", "s") in items
+    assert items[("pending_gate", "s")]["op"] == "test"
+    assert de.closure(cyc, inv)["closed"] is True  # verification debt doesn't block closure
+
+
+def test_pending_gate_is_resolvable():
+    cyc = _cycle(verdicts={"s": {"verdict": "supported"}}, behaviors={"s": {"g": "PENDING"}})
+    inv = {"acceptance_criteria": [{"study": "s", "behavior": "g"}],
+           "resolutions": [{"kind": "pending_gate", "target": "s"}]}
+    assert ("pending_gate", "s") not in {(i["kind"], i["target"]) for i in de.frontier(cyc, inv)}
 
 
 def test_criterion_met_when_named_behavior_passes_despite_refuted_verdict():

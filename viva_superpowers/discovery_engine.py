@@ -42,6 +42,7 @@ _PRIORITY = {
     "stale_validation": 55,        # a snapshotted validation the world moved past (RFC-0007)
     "divergence": 50,              # authored verdict disagrees with the coded roll-up
     "validation_finding": 45,      # a registered validator (RFC-0007) reported a failing check
+    "pending_gate": 42,            # an acceptance gate met by verdict only — behavior unrun
     "open_question": 40,           # an unassessed / inconclusive claim
 }
 # Recommended operation per item kind (the RFC-0005 op that resolves it).
@@ -53,6 +54,7 @@ _OP = {
     "stale_validation": "revalidate",    # re-check and re-snapshot the drifted judgment
     "divergence": "reconcile",           # reconcile authored vs derived verdict
     "validation_finding": "revise",      # act on the validator's recommendation, then resolve
+    "pending_gate": "test",              # run the gate's behavior — it is met by verdict only
     "open_question": "test",             # evaluate the claim
 }
 # open_calls kinds map straight onto frontier kinds.
@@ -120,6 +122,14 @@ def frontier(cycle_result: dict, inv_spec: dict) -> list[dict]:
                  f"(behavior: {beh_result or 'no-run'}, verdict: {v or 'none'})"
                  if behavior else
                  f"acceptance criterion on {study} not met (verdict: {v or 'none'})"))
+        elif behavior:
+            # Met via the study's verdict, but the NAMED gate behavior never actually
+            # passed (no run / not PASS). The criterion is satisfied on paper but the
+            # specific gate is unverified — surface it as verification debt (it does not
+            # block closure; closure counts the criterion as met).
+            add("pending_gate", study,
+                f"gate '{behavior}' on {study} is met by verdict ({v}) only — "
+                f"behavior {beh_result or 'not run'}; run it to verify the gate on evidence")
 
     # 2. unadjudicated challenge edges (an alternative/refutation left open)
     for e in edges:
