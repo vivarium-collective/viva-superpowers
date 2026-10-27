@@ -108,6 +108,74 @@ def test_provenance_adapter_flags_assessed_claim_without_evidence():
     assert prov[0]["result"]["scientific_judgment"] is None  # logical check asserts no truth
 
 
+def test_run_validators_stamps_surfaces_default_standing_opt_in_frontier():
+    reg: list[dict] = []
+
+    @V.validator(type="scientific", scope="study", id="t.standing", registry=reg)
+    def _s(ctx):
+        return [V.validation_record(type="scientific", scope="study", target="s",
+                                    execution_status="failed", validator_id="t.standing")]
+
+    @V.validator(type="logical", scope="claim", id="t.front", surfaces="frontier", registry=reg)
+    def _f(ctx):
+        return [V.validation_record(type="logical", scope="claim", target="c",
+                                    execution_status="failed", validator_id="t.front")]
+
+    by_id = {r["provenance"]["validator_id"]: r for r in V.run_validators(ctx=None, registry=reg)}
+    assert by_id["t.standing"]["surfaces"] == "standing"  # default
+    assert by_id["t.front"]["surfaces"] == "frontier"
+
+
+def test_validator_rejects_bad_surface():
+    with pytest.raises(ValueError):
+        V.validator(type="logical", scope="claim", id="x", surfaces="loud", registry=[])
+
+
+def test_run_validators_isolates_a_raising_validator():
+    # one bad validator must not crash the cycle — it reports itself as errored.
+    reg: list[dict] = []
+
+    @V.validator(type="structural", scope="study", id="t.boom", registry=reg)
+    def _boom(ctx):
+        raise RuntimeError("kaboom")
+
+    @V.validator(type="logical", scope="claim", id="t.ok", registry=reg)
+    def _ok(ctx):
+        return [V.validation_record(type="logical", scope="claim", target="c",
+                                    execution_status="passed", validator_id="t.ok")]
+
+    recs = V.run_validators(ctx=None, registry=reg)
+    ids = {r["provenance"]["validator_id"] for r in recs}
+    assert {"t.ok", "t.boom"} <= ids  # the good one still ran
+    boom = [r for r in recs if r["provenance"]["validator_id"] == "t.boom"][0]
+    assert boom["result"]["execution_status"] == "error"
+    assert "kaboom" in boom["findings"][0]
+    assert boom["type"] == "structural" and boom["scope"] == "study"
+
+
+def test_rigor_adapter_emits_scientific_study_record_on_a_gap():
+    # a bare hypothesis study has rigor GAPs -> a failed scientific/study record.
+    ctx = V.ValidationContext(studies={"s": {"name": "s", "claim": "X causes Y",
+                                             "behavior_tests": [{"name": "t1"}]}})
+    recs = V.run_validators(ctx=ctx, registry=V.registry())
+    r = [x for x in recs if x["provenance"]["validator_id"] == "scientific.study.rigor"
+         and x["target"] == "s"]
+    assert r and r[0]["type"] == "scientific" and r[0]["scope"] == "study"
+    assert r[0]["result"]["execution_status"] == "failed"
+    assert r[0]["result"]["scientific_judgment"] is None  # rigor measures method, not truth
+
+
+def test_band_provenance_adapter_emits_empirical_claim_record():
+    # a numeric acceptance band with no cited provenance -> a failed empirical/claim record.
+    ctx = V.ValidationContext(studies={"s": {"name": "s", "behavior_tests": [
+        {"name": "t1", "pass_if": {"low": 0.2, "high": 0.5}}]}})
+    recs = V.run_validators(ctx=ctx, registry=V.registry())
+    r = [x for x in recs if x["provenance"]["validator_id"] == "empirical.claim.band_provenance"]
+    assert r and r[0]["type"] == "empirical" and r[0]["scope"] == "claim"
+    assert r[0]["result"]["execution_status"] == "failed"
+    assert "t1" in r[0]["findings"][0]
+
+
 def test_narrative_adapter_reports_gaps_as_one_record():
     ctx_gap = V.ValidationContext(
         inv_spec={}, studies={}, argument={"claims": {}}, narrative={},

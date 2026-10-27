@@ -148,11 +148,15 @@ Three small, additive touch-points — no new control flow:
 - **`#3` — one line in `run_cycle`.** Add `"validations": run_validators(ctx)` to
   the returned bundle. `audit` stays as one registered validator, so `open_calls`
   and existing frontier kinds are unchanged (back-compat).
-- **`#4` — one loop in `frontier()`.** For each validation record whose
-  `execution_status` is failing/inconclusive and whose `(type,target)` is not in
-  `_resolution_keys`, call the existing `add(...)`. Records already surfaced by
-  another path (narrative gaps via `open_calls`) are skipped by identity so they
-  are not double-counted. The record's `recommendations` seed the `op`.
+- **`#4` — one loop in `frontier()`.** For each **frontier-surfacing** validation
+  record whose `execution_status` is `failed`/`error` and whose `(type,target)` is
+  not in `_resolution_keys`, call the existing `add(...)`. A validator declares
+  `surfaces="frontier"` (a real defect) or `surfaces="standing"` (scorecard-style
+  feedback, the default); only the former reaches the actionable crank, so adding
+  standing validators — rigor, band provenance — can never flood the frontier (they
+  stay in the coverage/census view). `inconclusive` records are standing by nature.
+  Records already surfaced by another path (narrative gaps via `open_calls`) are
+  skipped so they are not double-counted. The record's `recommendations` seed the `op`.
 - **`#5` — implement `epistemic_separation`** in `invariants()` over
   `cycle_result["validations"]` (§3).
 

@@ -141,7 +141,14 @@ def frontier(cycle_result: dict, inv_spec: dict) -> list[dict]:
     for rec in cycle_result.get("validations") or []:
         if not isinstance(rec, dict):
             continue
-        if (rec.get("result") or {}).get("execution_status") not in ("failed", "inconclusive", "error"):
+        # Only frontier-surfacing validators reach the actionable crank; "standing"
+        # validators (rigor, band provenance) are feedback, shown elsewhere, and never
+        # flood the frontier. (A record with no surface defaults to frontier.)
+        if rec.get("surfaces", "frontier") != "frontier":
+            continue
+        # Only failed/errored records are actionable; an `inconclusive` record is
+        # standing feedback (e.g. a rigor WARN) and stays off the frontier.
+        if (rec.get("result") or {}).get("execution_status") not in ("failed", "error"):
             continue
         if rec.get("type") == "narrative":
             continue
