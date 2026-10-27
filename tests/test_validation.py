@@ -244,6 +244,34 @@ def test_stale_records_detects_drift_removal_and_ignores_new():
     assert V.stale_records([r, fresh], snap) == []  # a brand-new record is not stale
 
 
+def test_deprecated_study_field_guard_flags_it():
+    ctx = V.ValidationContext(studies={
+        "a": {"name": "a", "gate_reason": "legacy", "program": "x"},
+        "b": {"name": "b"}})  # b is clean
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "structural.study.deprecated_fields"]
+    assert len(recs) == 1 and recs[0]["target"] == "a"
+    assert recs[0]["type"] == "structural" and recs[0]["result"]["scientific_judgment"] is None
+    assert "gate_reason" in recs[0]["findings"][0] and "program" in recs[0]["findings"][0]
+
+
+def test_investigation_hygiene_guard_flags_retired_cache_and_deprecated_field():
+    ctx = V.ValidationContext(inv_spec={"studies": ["a"], "knowledge_cycle": {"x": 1},
+                                        "plan_acts": ["old"]}, studies={})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "structural.investigation.hygiene"]
+    assert len(recs) == 1 and recs[0]["scope"] == "investigation"
+    joined = " ".join(recs[0]["findings"])
+    assert "knowledge_cycle" in joined and "plan_acts" in joined
+
+
+def test_hygiene_guards_are_quiet_on_a_clean_workspace():
+    ctx = V.ValidationContext(inv_spec={"studies": ["a"]}, studies={"a": {"name": "a"}})
+    ids = {r["provenance"]["validator_id"] for r in V.run_validators(ctx=ctx, registry=V.registry())}
+    assert "structural.study.deprecated_fields" not in ids
+    assert "structural.investigation.hygiene" not in ids
+
+
 def test_narrative_adapter_reports_gaps_as_one_record():
     ctx_gap = V.ValidationContext(
         inv_spec={}, studies={}, argument={"claims": {}}, narrative={},
