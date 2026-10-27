@@ -531,6 +531,10 @@ def main(argv: list[str] | None = None) -> int:
                             help="suggest new studies to run next, each with the expert input it needs")
     p_sugg.add_argument("investigation", help="investigation slug")
 
+    p_opp = sub.add_parser("opportunities",
+                           help="rank the frontier by value — what is most valuable to investigate next")
+    p_opp.add_argument("investigation", help="investigation slug")
+
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
     p_sv.add_argument("verdict", choices=VERDICT_VOCAB)
@@ -635,6 +639,14 @@ def main(argv: list[str] | None = None) -> int:
         _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
         result = run_cycle(inv_spec, studies)
         print(summarize_suggestions(result["suggestions"]))
+        return 0
+
+    if args.cmd == "opportunities":
+        from . import discovery_engine
+        _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
+        result = run_cycle(inv_spec, studies)
+        opps = discovery_engine.opportunities(result, inv_spec)
+        print(discovery_engine.summarize_opportunities(opps))
         return 0
 
     return 1

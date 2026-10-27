@@ -125,6 +125,43 @@ def test_diagnose_flags_carry_evidence_and_intervention():
         assert f["evidence"] and f["intervention"]  # every flag is actionable
 
 
+def test_opportunity_carries_value_components_and_explicit_unknowns():
+    cyc = _cycle(open_calls=[{"kind": "open_question", "title": "Q", "refs": ["claim:x"]}])
+    o = de.opportunities(cyc, {})[0]
+    assert set(o["value"]) >= {"info", "impact", "enable", "cost", "score"}
+    assert "competing_predictions" in o          # the field is present (value may be None)
+    assert o["action_type"] == "test"
+    assert o["unknowns"]                          # no silent defaults — unknowns are explicit
+
+
+def test_impact_ranks_a_foundational_target_above_a_leaf():
+    edges = [{"from": "claim:found", "to": f"claim:d{i}", "type": "builds-on"} for i in range(3)]
+    cyc = _cycle(edges=edges, open_calls=[
+        {"kind": "divergence", "title": "f", "refs": ["claim:found"]},
+        {"kind": "divergence", "title": "l", "refs": ["claim:leaf"]}])
+    by = {o["source"]: o for o in de.opportunities(cyc, {})}
+    assert by["claim:found"]["value"]["impact"] > by["claim:leaf"]["value"]["impact"]
+
+
+def test_opportunities_ranked_by_value_break_the_priority_tie():
+    # two divergences, same priority 50; the one more claims depend on ranks first,
+    # regardless of id order — the planner_limited fix.
+    edges = [{"from": "claim:b-high", "to": f"claim:d{i}", "type": "builds-on"} for i in range(4)]
+    cyc = _cycle(edges=edges, open_calls=[
+        {"kind": "divergence", "title": "a", "refs": ["claim:a-low"]},
+        {"kind": "divergence", "title": "b", "refs": ["claim:b-high"]}])
+    srcs = [o["source"] for o in de.opportunities(cyc, {})]
+    assert srcs.index("claim:b-high") < srcs.index("claim:a-low")
+
+
+def test_enable_scores_a_decision_that_unblocks_suggestions():
+    cyc = _cycle(open_calls=[{"kind": "decision", "title": "Prior (og-x): supply", "refs": []}])
+    cyc["suggestions"] = [{"id": "s1", "awaiting_expert": ["Prior (og-x): supply"],
+                           "status": "awaiting_expert"}]
+    dec = [o for o in de.opportunities(cyc, {}) if o["action_type"] == "steer"]
+    assert dec and dec[0]["value"]["enable"] > 0
+
+
 def test_invariants_flags_epistemic_separation_in_validation_records():
     smuggled = _record(type="computational", scope="study", target="s",
                        execution="passed", judgment="supported")

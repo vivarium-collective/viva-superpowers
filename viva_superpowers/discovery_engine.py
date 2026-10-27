@@ -338,6 +338,102 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
             "validator_pass_rate": pass_rate, "census": census, "flags": flags}
 
 
+# ---------------------------------------------------------------------------
+# opportunities — value-aware ranking of the frontier (value-aware discovery)
+# ---------------------------------------------------------------------------
+# The frontier is a list of unresolved items in FIXED priority order; this layer
+# re-casts each as a typed OPPORTUNITY with a transparent value estimate, so the
+# question shifts from "what is unresolved?" to "what is most valuable to do next?".
+# The score is a weighted heuristic (Score = w_info·Info + w_impact·Impact +
+# w_enable·Enable − w_cost·Cost), NOT a calibrated Bayesian value — it is explainable
+# and tunable, and it reports unknowns rather than inventing them.
+
+_OPP_WEIGHTS = {"info": 0.30, "impact": 0.40, "enable": 0.20, "cost": 0.30}
+# Information potential by action: evidence-generating acts (run a test, open a study)
+# can teach something new; reconciling/adjudicating resolves bookkeeping.
+_OPP_INFO = {"test": 1.0, "branch": 1.0, "steer": 0.5, "synthesize": 0.3,
+             "reconcile": 0.3, "revise": 0.3, "revalidate": 0.3}
+# Cost by action: a new study + simulation is dear; a reconcile is cheap.
+_OPP_COST = {"branch": 1.0, "test": 0.6, "steer": 0.3, "synthesize": 0.2,
+             "reconcile": 0.2, "revise": 0.2, "revalidate": 0.2}
+
+
+def _opp_impact(target: str, edges: list) -> float:
+    """Downstream scientific impact: how much of the argument builds on this target
+    (0..1, capped at 5 dependents). A foundational claim scores high, a leaf low."""
+    if not target:
+        return 0.0
+    cid = target if str(target).startswith("claim:") else f"claim:{target}"
+    dependents = sum(1 for e in (edges or []) if e.get("from") == cid)
+    return min(dependents / 5.0, 1.0)
+
+
+def _opp_enable(item: dict, suggestions: list) -> float:
+    """How many future investigations this unblocks: an expert decision that gates
+    proposed studies scores by how many it would release (0..1, capped at 3)."""
+    if item.get("kind") != "open_decision":
+        return 0.0
+    tgt = item.get("target")
+    n = sum(1 for s in (suggestions or []) if tgt in (s.get("awaiting_expert") or []))
+    return min(n / 3.0, 1.0)
+
+
+def opportunities(cycle_result: dict, inv_spec: dict) -> list[dict]:
+    """The frontier re-cast as value-ranked opportunities (value-aware discovery).
+
+    Each is a typed object — ``{id, source, action_type, question,
+    competing_predictions, proposed_validator, value{info,impact,enable,cost,score},
+    confidence, state, unknowns}`` — scored by the transparent heuristic above and
+    sorted by score (then fixed priority, then id, so the ranking is deterministic and
+    not an artifact of list order). Fields the engine cannot derive are left explicit
+    (``None`` / listed in ``unknowns``), never silently defaulted."""
+    edges = (cycle_result.get("argument") or {}).get("edges") or []
+    suggestions = cycle_result.get("suggestions") or []
+    w = _OPP_WEIGHTS
+    opps: list[dict] = []
+    for it in frontier(cycle_result, inv_spec):
+        op, target = it["op"], it["target"]
+        info, cost = _OPP_INFO.get(op, 0.3), _OPP_COST.get(op, 0.3)
+        impact, enable = _opp_impact(target, edges), _opp_enable(it, suggestions)
+        score = w["info"] * info + w["impact"] * impact + w["enable"] * enable - w["cost"] * cost
+        is_claim = str(target).startswith("claim:")
+        unknowns = ["competing_predictions", "proposed_validator"]
+        if not is_claim:
+            unknowns.append("impact (no argument-graph signal for this target)")
+        opps.append({
+            "id": f"{it['kind']}:{target}",
+            "source": target,
+            "action_type": op,
+            "kind": it["kind"],
+            "priority": it["priority"],
+            "question": it.get("rationale") or "",
+            "competing_predictions": None,
+            "proposed_validator": None,
+            "value": {"info": round(info, 3), "impact": round(impact, 3),
+                      "enable": round(enable, 3), "cost": round(cost, 3),
+                      "score": round(score, 3)},
+            "confidence": 0.7 if is_claim else 0.4,
+            "state": "open",
+            "unknowns": unknowns,
+        })
+    opps.sort(key=lambda o: (-o["value"]["score"], -o["priority"], o["id"]))
+    return opps
+
+
+def summarize_opportunities(opps: list[dict], top: int = 10) -> str:
+    lines = [f"opportunities: {len(opps)} ranked by value "
+             f"(score = {_OPP_WEIGHTS['info']}·info + {_OPP_WEIGHTS['impact']}·impact + "
+             f"{_OPP_WEIGHTS['enable']}·enable − {_OPP_WEIGHTS['cost']}·cost)"]
+    for o in opps[:top]:
+        v = o["value"]
+        lines.append(f"  {v['score']:+.2f}  [{o['action_type']:>10}] {o['source']}")
+        lines.append(f"       info {v['info']}  impact {v['impact']}  enable {v['enable']}  "
+                     f"cost {v['cost']}  conf {o['confidence']}")
+    if not opps:
+        lines.append("  none — the frontier is empty.")
+    return "\n".join(lines)
+
+
 def summarize_diagnosis(diag: dict) -> str:
     pr = diag["validator_pass_rate"]
     lines = [
