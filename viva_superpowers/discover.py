@@ -662,20 +662,34 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     Returns ``{ready, complete, gaps, observables{required, declared, missing}, has_*}``.
     ``ready`` means the run can produce an *evaluable* result (emitter + observables);
     ``complete`` additionally requires viz + tests + contracts (the full quality bar)."""
-    from .study_evaluator import required_observables_for_measure
+    from .study_evaluator import load_workspace_derived_scalars, required_observables_for_measure
     tests = study_spec.get("behavior_tests") or study_spec.get("tests") or []
     required: set = set()
+    # The derived-scalar registry THIS environment can see. A non-empty registry means the
+    # workspace evaluator package loaded and defines computers — so a derived measure whose path is
+    # absent from it will SKIP at grade time (the env that runs readiness is the env that grades).
+    # An empty registry means no package / no evaluators here: can't assess, so don't false-flag.
+    _registry = load_workspace_derived_scalars(ws_root) if ws_root is not None else {}
+    _registry_trustworthy = bool(_registry)
     # A behavior test whose measure declares a KIND that needs a readout but no `path`
     # cannot be graded — the evaluator records SKIP (agent bucket), so the gate never
     # resolves to PASS/FAIL even after a run. Surface those so the "build" step (author the
     # measure's path / its derived-scalar computer) is explicit, not a silent SKIP.
     unevaluable: list[str] = []
+    # Derived measures whose computer is NOT registered in this env → they will grade SKIP even
+    # after a run (observed: island/colony/eukaryogenesis tracked runs graded SKIP because the run
+    # env-worker imported a stale venv without the merged `register_derived_scalars` evaluators).
+    unresolved_measures: list[str] = []
     for t in tests:
         if not isinstance(t, dict):
             continue
         m = t.get("measure") or {}
-        if m.get("kind") and m.get("kind") not in ("config_value", "cross_run", "run_delta") and not m.get("path"):
+        kind, path = m.get("kind"), m.get("path")
+        if kind and kind not in ("config_value", "cross_run", "run_delta") and not path:
             unevaluable.append(t.get("name") or "<unnamed>")
+        if kind in ("derived_scalar", "derived") and path and _registry_trustworthy \
+                and _registry.get(path) is None:
+            unresolved_measures.append(t.get("name") or path)
         required |= required_observables_for_measure(m, ws_root)
     declared = [str(o) for o in (study_spec.get("observables") or [])]
     declared_leaves = {o.split("/")[-1] for o in declared}
@@ -741,6 +755,10 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
         gaps.append(f"run must emit observables the gates need: {missing}")
     if unevaluable:
         gaps.append(f"behavior tests with no measure.path (will SKIP, gate never resolves): {unevaluable}")
+    if unresolved_measures:
+        gaps.append(f"derived measures with no registered evaluator in this environment (they will "
+                    f"grade SKIP; the grading env-worker must import the workspace package that "
+                    f"defines register_derived_scalars — editable-install/venv-sync gap): {unresolved_measures}")
     if not has_emitter:
         gaps.append("no emitter declared")
     if not has_viz:
@@ -761,12 +779,15 @@ def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
     # ready = can produce an EVALUABLE result: observables emittable AND the model exists. An
     # already-run study is ready regardless (it demonstrably did both).
     ready = already_run or (not missing and not composite_missing)
-    complete = ready and has_emitter and viz_rendered and has_tests and has_contracts
+    measures_resolvable = not unresolved_measures
+    complete = (ready and has_emitter and viz_rendered and has_tests and has_contracts
+                and measures_resolvable)
     return {"ready": ready, "complete": complete, "gaps": gaps, "already_run": already_run,
             "composite_resolves": composite_missing is None,
+            "measures_resolvable": measures_resolvable,
             "observables": {"required": sorted(required), "declared": sorted(declared),
                             "missing": missing},
-            "unevaluable_tests": unevaluable,
+            "unevaluable_tests": unevaluable, "unresolved_measures": unresolved_measures,
             "has_emitter": has_emitter, "has_visualizations": has_viz,
             "visualizations_rendered": viz_rendered,
             "has_tests": has_tests, "has_contracts": has_contracts}
