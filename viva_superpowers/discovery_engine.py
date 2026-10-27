@@ -358,7 +358,12 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
 # w_enable·Enable − w_cost·Cost), NOT a calibrated Bayesian value — it is explainable
 # and tunable, and it reports unknowns rather than inventing them.
 
-_OPP_WEIGHTS = {"info": 0.30, "impact": 0.40, "enable": 0.20, "cost": 0.30}
+_OPP_WEIGHTS = {"info": 0.30, "impact": 0.40, "enable": 0.20, "cost": 0.30, "closure": 0.35}
+# Frontier kinds that block closure (the closure() condition). They sit on the
+# investigation's critical path, so they carry leverage even when the argument graph has
+# no edges to compute downstream `impact` from — otherwise, on an edgeless graph, cost
+# dominates and an expensive-but-closure-blocking criterion ranks below a cheap test.
+_CLOSURE_BLOCKING = ("unaddressed_criterion", "narrative_gap", "open_challenge")
 # Information potential by action: evidence-generating acts (run a test, open a study)
 # can teach something new; reconciling/adjudicating resolves bookkeeping.
 _OPP_INFO = {"test": 1.0, "branch": 1.0, "steer": 0.5, "synthesize": 0.3,
@@ -405,7 +410,9 @@ def opportunities(cycle_result: dict, inv_spec: dict) -> list[dict]:
         op, target = it["op"], it["target"]
         info, cost = _OPP_INFO.get(op, 0.3), _OPP_COST.get(op, 0.3)
         impact, enable = _opp_impact(target, edges), _opp_enable(it, suggestions)
-        score = w["info"] * info + w["impact"] * impact + w["enable"] * enable - w["cost"] * cost
+        closure_leverage = 1.0 if it["kind"] in _CLOSURE_BLOCKING else 0.0
+        score = (w["info"] * info + w["impact"] * impact + w["enable"] * enable
+                 + w["closure"] * closure_leverage - w["cost"] * cost)
         is_claim = str(target).startswith("claim:")
         unknowns = ["competing_predictions", "proposed_validator"]
         if not is_claim:
@@ -421,7 +428,7 @@ def opportunities(cycle_result: dict, inv_spec: dict) -> list[dict]:
             "proposed_validator": None,
             "value": {"info": round(info, 3), "impact": round(impact, 3),
                       "enable": round(enable, 3), "cost": round(cost, 3),
-                      "score": round(score, 3)},
+                      "closure": round(closure_leverage, 3), "score": round(score, 3)},
             "confidence": 0.7 if is_claim else 0.4,
             "state": "open",
             "unknowns": unknowns,
@@ -454,6 +461,11 @@ def _executor_for(op: str, target: str) -> dict:
                 "consequence": "simulation+study", "auto_safe": False}
     if op == "reconcile":
         return {"executor": "set-verdict", "command": f"discover set-verdict {study} <derived> --rationale '…'",
+                "consequence": "review", "auto_safe": False}
+    if op == "revise":
+        return {"executor": "act-on-validator + resolve",
+                "command": f"<address the validator's recommendation>; "
+                           f"discover resolve <inv> validation_finding {target} --rationale '…'",
                 "consequence": "review", "auto_safe": False}
     if op == "steer":
         return {"executor": "expert", "command": None, "consequence": "human-only", "auto_safe": False}
