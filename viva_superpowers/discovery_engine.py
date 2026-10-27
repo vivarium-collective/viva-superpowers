@@ -420,6 +420,64 @@ def opportunities(cycle_result: dict, inv_spec: dict) -> list[dict]:
     return opps
 
 
+# ---------------------------------------------------------------------------
+# execute_plan — the bridge from a recommendation to a concrete, gated action
+# ---------------------------------------------------------------------------
+# Each value-ranked opportunity resolves to the executor that would carry it out, the
+# exact command, and a consequence class. Only a truly side-effect-free action
+# (re-snapshot) is auto_safe; running a simulation, seeding a study, or overwriting a
+# verdict is consequential and stays gated behind an explicit human/--autonomous step.
+
+def _executor_for(op: str, target: str) -> dict:
+    study = str(target).split(":", 1)[1] if str(target).startswith("claim:") else str(target)
+    if op == "revalidate":
+        return {"executor": "snapshot-validations", "command": "discover snapshot-validations <inv>",
+                "consequence": "safe", "auto_safe": True}
+    if op == "test":
+        return {"executor": "run-baseline", "command": f"viva-study run-baseline {study}",
+                "consequence": "simulation", "auto_safe": False}
+    if op == "branch":
+        return {"executor": "seed-from-followup + run-baseline",
+                "command": f"viva-study seed-from-followup <parent> <proposal>; viva-study run-baseline {study}",
+                "consequence": "simulation+study", "auto_safe": False}
+    if op == "reconcile":
+        return {"executor": "set-verdict", "command": f"discover set-verdict {study} <derived> --rationale '…'",
+                "consequence": "review", "auto_safe": False}
+    if op == "steer":
+        return {"executor": "expert", "command": None, "consequence": "human-only", "auto_safe": False}
+    if op == "synthesize":
+        return {"executor": "author finding + resolve",
+                "command": f"viva-study findings {study} …; discover resolve <inv> open_challenge {target} --rationale …",
+                "consequence": "human-only", "auto_safe": False}
+    return {"executor": op, "command": None, "consequence": "unknown", "auto_safe": False}
+
+
+def execute_plan(cycle_result: dict, inv_spec: dict) -> list[dict]:
+    """The value-ranked frontier, each item resolved to *how to execute it*:
+    ``{source, action_type, score, executor, command, consequence, auto_safe, state}``.
+    This is the recommendation → execution bridge; it proposes the concrete action and
+    its consequence class, it does not run anything (gated)."""
+    out: list[dict] = []
+    for o in opportunities(cycle_result, inv_spec):
+        ex = _executor_for(o["action_type"], o["source"])
+        out.append({"source": o["source"], "action_type": o["action_type"],
+                    "score": o["value"]["score"], "state": "proposed", **ex})
+    return out
+
+
+def summarize_execute_plan(plan: list[dict], top: int = 10) -> str:
+    lines = ["execution plan (value-ranked; nothing runs without --execute / --autonomous):"]
+    for p in plan[:top]:
+        tag = "AUTO-SAFE" if p["auto_safe"] else p["consequence"].upper()
+        tgt = str(p["source"]).replace("claim:", "")
+        lines.append(f"  {p['score']:+.2f}  [{tag:>14}]  {p['action_type']} {tgt}")
+        if p["command"]:
+            lines.append(f"       → {p['command']}")
+    if not plan:
+        lines.append("  none — the frontier is empty.")
+    return "\n".join(lines)
+
+
 def summarize_opportunities(opps: list[dict], top: int = 10) -> str:
     lines = [f"opportunities: {len(opps)} ranked by value "
              f"(score = {_OPP_WEIGHTS['info']}·info + {_OPP_WEIGHTS['impact']}·impact + "

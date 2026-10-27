@@ -162,6 +162,45 @@ def test_enable_scores_a_decision_that_unblocks_suggestions():
     assert dec and dec[0]["value"]["enable"] > 0
 
 
+def test_execute_plan_resolves_each_op_to_an_executor_and_consequence():
+    edges = [{"from": "claim:a", "to": f"claim:d{i}", "type": "builds-on"} for i in range(3)]
+    cyc = _cycle(edges=edges, open_calls=[
+        {"kind": "divergence", "title": "a", "refs": ["claim:a"]},
+        {"kind": "open_question", "title": "q", "refs": ["claim:q"]}])
+    plan = {p["action_type"]: p for p in de.execute_plan(cyc, {})}
+    assert plan["reconcile"]["executor"] and plan["reconcile"]["consequence"] == "review"
+    assert plan["test"]["consequence"] == "simulation"  # running a study is a sim
+    assert plan["test"]["command"] and "run" in plan["test"]["command"]
+    # each item carries its value score + a gate (auto_safe flag)
+    assert "score" in plan["reconcile"] and plan["reconcile"]["auto_safe"] in (True, False)
+
+
+def test_execute_plan_marks_revalidate_auto_safe_and_steer_human_only():
+    cyc = _cycle(validations=[{"type": "logical", "scope": "claim", "target": "claim:x",
+                               "result": {"execution_status": "failed"}, "surfaces": "frontier",
+                               "findings": ["x"]}],
+                 open_calls=[{"kind": "decision", "title": "D (og-x): decide", "refs": []}])
+    # inject a stale_validation by snapshotting a differing record
+    import viva_superpowers.validation as V
+    snap = V.snapshot_of([V.validation_record(type="logical", scope="claim", target="claim:x",
+                                              execution_status="passed", validator_id="v")])
+    cyc["validations"][0]["provenance"] = {"validator_id": "v"}
+    plan = {p["action_type"]: p for p in de.execute_plan(cyc, {"validation_snapshot": snap})}
+    if "revalidate" in plan:
+        assert plan["revalidate"]["auto_safe"] is True
+    if "steer" in plan:
+        assert plan["steer"]["consequence"] == "human-only" and plan["steer"]["auto_safe"] is False
+
+
+def test_execute_plan_is_value_ranked():
+    edges = [{"from": "claim:big", "to": f"claim:d{i}", "type": "builds-on"} for i in range(4)]
+    cyc = _cycle(edges=edges, open_calls=[
+        {"kind": "divergence", "title": "s", "refs": ["claim:small"]},
+        {"kind": "divergence", "title": "b", "refs": ["claim:big"]}])
+    srcs = [p["source"] for p in de.execute_plan(cyc, {})]
+    assert srcs.index("claim:big") < srcs.index("claim:small")
+
+
 def test_invariants_flags_epistemic_separation_in_validation_records():
     smuggled = _record(type="computational", scope="study", target="s",
                        execution="passed", judgment="supported")

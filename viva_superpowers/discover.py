@@ -337,6 +337,12 @@ def build_cycle_state(result: dict, inv_spec: dict) -> dict:
                         "awaiting_expert": sum(1 for s in sugg if s.get("status") == "awaiting_expert")},
         "diagnosis": {"flags": [f["flag"] for f in diag["flags"]],
                       "validator_pass_rate": diag["validator_pass_rate"]},
+        # the recommendation->action bridge: the next moves + how they'd be executed,
+        # for the Decide surface (nothing runs until a human/--autonomous step does).
+        "execution_plan": [{"source": p["source"], "action": p["action_type"],
+                            "score": p["score"], "consequence": p["consequence"],
+                            "command": p["command"]}
+                           for p in de.execute_plan(result, inv_spec)[:8]],
         "validator_census": census,
         "drift": {"divergences": sum(1 for i in frontier if i["kind"] == "divergence"),
                   "stale_validations": len(stale_records(recs, inv_spec.get("validation_snapshot")))},
@@ -565,6 +571,12 @@ def main(argv: list[str] | None = None) -> int:
                            help="rank the frontier by value — what is most valuable to investigate next")
     p_opp.add_argument("investigation", help="investigation slug")
 
+    p_exec = sub.add_parser("execute",
+                            help="the recommendation→action bridge: show (or, with --execute, run) the next action")
+    p_exec.add_argument("investigation", help="investigation slug")
+    p_exec.add_argument("--execute", action="store_true",
+                        help="actually run the top action when it is side-effect-free (else print its gated command)")
+
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
     p_sv.add_argument("verdict", choices=VERDICT_VOCAB)
@@ -677,6 +689,23 @@ def main(argv: list[str] | None = None) -> int:
         result = run_cycle(inv_spec, studies)
         opps = discovery_engine.opportunities(result, inv_spec)
         print(discovery_engine.summarize_opportunities(opps))
+        return 0
+
+    if args.cmd == "execute":
+        from . import discovery_engine
+        _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
+        result = run_cycle(inv_spec, studies)
+        plan = discovery_engine.execute_plan(result, inv_spec)
+        print(discovery_engine.summarize_execute_plan(plan))
+        if args.execute and plan:
+            top = plan[0]
+            if top["auto_safe"]:
+                # the only side-effect-free action: re-snapshot the accepted validations.
+                snap = snapshot_validations(ws, args.investigation)
+                print(f"\nexecuted (auto-safe): snapshot-validations — {len(snap)} records accepted.")
+            else:
+                print(f"\nnot run: the top action is {top['consequence']} (consequential). "
+                      f"Run it explicitly:\n  {top['command']}")
         return 0
 
     return 1
