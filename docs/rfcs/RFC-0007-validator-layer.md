@@ -219,11 +219,23 @@ same change so the model doc and the code agree.
   loop, and the `epistemic_separation` invariant — the smallest step that proves
   the whole path, with the coverage matrix rendering.
 - **Phase 2:** adapt the remaining existing checks (`rigor`, `band_provenance`,
-  `study_contract`, …) into the registry — each a thin wrapper.
-- **Phase 3:** the empty cells the matrix exposes — the `visual` type
-  (plotted-state-vs-output) and `figure` scope are the genuinely-absent ones.
+  `study_contract`, …) into the registry — each a thin wrapper. Phase 2a landed
+  `scientific.study.rigor` + `empirical.claim.band_provenance`; Phase 2b (the
+  `structural`/`semantic`/`computational` wrappers) remains optional.
+- **Phase 3 (landed):** the relationship scope —
+  `logical.relationship.edge_integrity` ("does the asserted relation hold?").
 - **Phase 4 (landed):** re-validation/staleness (`#6`) — `snapshot-validations` +
   the `stale_validation` frontier kind.
+
+> **The `visual` type and `figure` scope are intentionally left unfilled** — the
+> matrix shows those cells empty by design, not as a backlog item. The workbench
+> renders every figure from the run's *actual* emitted data (never a hand-drawn
+> preview — see the "no fabricated viz previews" rule), so "plotted state matches
+> simulation output" is guaranteed at render time rather than something to re-check
+> after the fact; figure fidelity/legibility is handled by the figure-review process,
+> not an executable validator. A post-hoc visual validator would be redundant, so the
+> taxonomy keeps the cells (the axes are complete) while the registry leaves them
+> empty on purpose.
 
 ## 8. Non-goals
 
