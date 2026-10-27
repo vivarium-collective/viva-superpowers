@@ -176,6 +176,45 @@ def test_band_provenance_adapter_emits_empirical_claim_record():
     assert "t1" in r[0]["findings"][0]
 
 
+def test_relationship_validator_flags_dangling_edge():
+    # an epistemic edge to a study that isn't in the investigation -> failed relationship.
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["child"]},
+        studies={"child": {"name": "child", "pipeline_gate": {"prerequisites": [
+            {"study": "ghost", "relation": "builds-on"}]}}},
+        argument={"claims": {}})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "logical.relationship.edge_integrity"]
+    assert recs and recs[0]["type"] == "logical" and recs[0]["scope"] == "relationship"
+    assert recs[0]["result"]["execution_status"] == "failed"
+    assert "ghost" in recs[0]["findings"][0]
+
+
+def test_relationship_validator_quiet_on_a_sound_edge():
+    # an edge to a present, supported parent is sound -> no record.
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["parent", "child"]},
+        studies={"parent": {"name": "parent"},
+                 "child": {"name": "child", "pipeline_gate": {"prerequisites": [
+                     {"study": "parent", "relation": "builds-on"}]}}},
+        argument={"claims": {"claim:parent": {"verdict": "supported"}}})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "logical.relationship.edge_integrity"]
+    assert recs == []
+
+
+def test_relationship_validator_flags_building_on_a_refuted_parent():
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["parent", "child"]},
+        studies={"parent": {"name": "parent"},
+                 "child": {"name": "child", "pipeline_gate": {"prerequisites": [
+                     {"study": "parent", "relation": "builds-on"}]}}},
+        argument={"claims": {"claim:parent": {"verdict": "refuted"}}})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "logical.relationship.edge_integrity"]
+    assert recs and recs[0]["result"]["execution_status"] == "inconclusive"  # weak foundation, informational
+
+
 def test_narrative_adapter_reports_gaps_as_one_record():
     ctx_gap = V.ValidationContext(
         inv_spec={}, studies={}, argument={"claims": {}}, narrative={},

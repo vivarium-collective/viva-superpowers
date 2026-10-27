@@ -279,6 +279,47 @@ def _band_provenance(ctx: ValidationContext) -> list[dict]:
     return recs
 
 
+@validator(type="logical", scope="relationship", id="logical.relationship.edge_integrity",
+           surfaces="frontier")
+def _edge_integrity(ctx: ValidationContext) -> list[dict]:
+    """Does the asserted relation hold? Checks each epistemic edge an investigation
+    declares: a **dangling** edge (to a study not in the investigation) is a hard
+    integrity defect (failed); a `builds-on` edge onto a **refuted** parent is a weak
+    foundation (inconclusive — later work leans on a claim that did not hold). A
+    `tests` edge onto a refuted parent is not flagged: confirming a refutation is
+    normal science, not a broken relation."""
+    from .relations import epistemic_relations  # lazy
+    studies = getattr(ctx, "studies", None) or {}
+    members = set((getattr(ctx, "inv_spec", None) or {}).get("studies") or []) | set(studies)
+    claims = (getattr(ctx, "argument", None) or {}).get("claims") or {}
+    recs: list[dict] = []
+    for slug, spec in studies.items():
+        if not isinstance(spec, dict):
+            continue
+        for rel in epistemic_relations(spec):
+            up, relation = rel.get("study"), rel.get("relation")
+            if not up or not relation:
+                continue
+            target = f"{slug} -{relation}-> {up}"
+            if up not in members:
+                recs.append(validation_record(
+                    type="logical", scope="relationship", target=target,
+                    execution_status="failed", criteria=["edge_integrity"],
+                    findings=[f"relation to unknown study '{up}' (not an investigation member)"],
+                    recommendations=["fix the edge target, or add the study to the investigation"],
+                    validator_id="logical.relationship.edge_integrity"))
+                continue
+            up_verdict = (claims.get(f"claim:{up}") or {}).get("verdict")
+            if relation == "builds-on" and up_verdict == "refuted":
+                recs.append(validation_record(
+                    type="logical", scope="relationship", target=target,
+                    execution_status="inconclusive", criteria=["edge_integrity"],
+                    findings=[f"'{relation}' leans on '{up}', whose claim is refuted"],
+                    recommendations=["re-examine whether the relation still holds"],
+                    validator_id="logical.relationship.edge_integrity"))
+    return recs
+
+
 @validator(type="narrative", scope="narrative", id="narrative.narrative.coherence")
 def _narrative_coherence(ctx: ValidationContext) -> list[dict]:
     """Evidential coherence of the reading — one record summarizing ``audit`` gaps
