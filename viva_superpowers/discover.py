@@ -547,17 +547,29 @@ def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = Fal
             rec["status"] = "gated"
             rec["outcome"] = {"ok": None, "detail": "consequential — re-run with --autonomous to execute"}
         else:
-            # Fill the <ws> placeholder with the real workspace root, then refuse to shell
-            # out a still-templated command (e.g. a branch op's <parent>/<proposal>, which
-            # the cycle can't auto-fill) rather than running a broken literal placeholder.
-            command = (top["command"] or "").replace("<ws>", str(ws_root))
-            rec["command"] = command
-            if re.search(r"<[^>]+>", command):
+            # Run-readiness: refuse to deploy a sim that can't produce an evaluable result
+            # (the run-spec contract). A run whose emitter/observables don't satisfy the
+            # study's behavior-test measures yields an empty, unverifiable readout, so the
+            # result never flows back into the cycle. Gate rather than waste the run.
+            slug = top["source"].split(":", 1)[1] if str(top["source"]).startswith("claim:") else top["source"]
+            study_spec = studies.get(slug)
+            ready = run_readiness(study_spec, ws_root) if study_spec else {"ready": True, "gaps": []}
+            if not ready["ready"]:
                 rec["status"] = "gated"
-                rec["outcome"] = {"ok": None, "detail": f"command needs manual values, run it yourself: {command}"}
+                rec["outcome"] = {"ok": None, "detail": f"run not ready — {'; '.join(ready['gaps'])}",
+                                  "readiness": ready}
             else:
-                rec["outcome"] = (runner or _default_runner)(command, ws_root)
-                rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
+                # Fill the <ws> placeholder with the real workspace root, then refuse to
+                # shell out a still-templated command (e.g. a branch op's
+                # <parent>/<proposal>) rather than running a broken literal placeholder.
+                command = (top["command"] or "").replace("<ws>", str(ws_root))
+                rec["command"] = command
+                if re.search(r"<[^>]+>", command):
+                    rec["status"] = "gated"
+                    rec["outcome"] = {"ok": None, "detail": f"command needs manual values, run it yourself: {command}"}
+                else:
+                    rec["outcome"] = (runner or _default_runner)(command, ws_root)
+                    rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
     elif top["action_type"] == "steer" and decider is not None and autonomous:
         # AI drives the expert decision: pick the option that maximizes discovery.
         detail = next((i["rationale"] for i in de.frontier(cyc, inv_spec)
@@ -593,6 +605,62 @@ def _append_executed(inv_path: Path | str, record: dict) -> None:
                 "at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")})
     on_disk["executed_actions"] = log
     save_yaml_atomic(path, on_disk)
+
+
+def run_readiness(study_spec: dict, ws_root: Path | str | None = None) -> dict:
+    """Is a study's run fully specified to yield an evaluable, visualized, contract-checked
+    result that flows back into the cycle? A simulation deployed with an incomplete spec
+    produces an empty / unverifiable run (the readout the gate needs is never emitted), so
+    the result never reaches the models, findings, or workbench.
+
+    Checks the fields a deployed run needs:
+
+    - **observables** --- the run must emit the observables every behavior-test measure
+      needs (a derived-scalar measure resolved to its SOURCE observables via
+      :func:`study_evaluator.required_observables_for_measure`), matched against the study's
+      declared ``observables`` (by full path or leaf name).
+    - **emitter** --- an emitter/store is declared.
+    - **visualizations**, **behavior tests**, **contracts** --- declared.
+
+    Returns ``{ready, complete, gaps, observables{required, declared, missing}, has_*}``.
+    ``ready`` means the run can produce an *evaluable* result (emitter + observables);
+    ``complete`` additionally requires viz + tests + contracts (the full quality bar)."""
+    from .study_evaluator import required_observables_for_measure
+    tests = study_spec.get("behavior_tests") or study_spec.get("tests") or []
+    required: set = set()
+    for t in tests:
+        if isinstance(t, dict):
+            required |= required_observables_for_measure(t.get("measure"), ws_root)
+    declared = [str(o) for o in (study_spec.get("observables") or [])]
+    declared_leaves = {o.split("/")[-1] for o in declared}
+    missing = sorted(o for o in required
+                     if o not in declared and o.split("/")[-1] not in declared_leaves)
+    has_emitter = bool(study_spec.get("emitter")
+                       or any(isinstance(r, dict) and r.get("emitter")
+                              for r in (study_spec.get("runs") or [])))
+    has_viz = bool(study_spec.get("visualizations"))
+    has_tests = bool(tests)
+    has_contracts = bool(study_spec.get("contracts") or study_spec.get("process_contracts"))
+
+    gaps: list[str] = []
+    if missing:
+        gaps.append(f"run must emit observables the gates need: {missing}")
+    if not has_emitter:
+        gaps.append("no emitter declared")
+    if not has_viz:
+        gaps.append("no visualizations declared")
+    if not has_tests:
+        gaps.append("no behavior tests declared")
+    if not has_contracts:
+        gaps.append("no contracts declared")
+
+    ready = not missing and has_emitter          # can produce an evaluable result
+    complete = ready and has_viz and has_tests and has_contracts
+    return {"ready": ready, "complete": complete, "gaps": gaps,
+            "observables": {"required": sorted(required), "declared": sorted(declared),
+                            "missing": missing},
+            "has_emitter": has_emitter, "has_visualizations": has_viz,
+            "has_tests": has_tests, "has_contracts": has_contracts}
 
 
 def build_completion_map(ws_root: Path | str, inv_slug: str) -> dict:

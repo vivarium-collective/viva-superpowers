@@ -355,8 +355,12 @@ def test_execute_action_gates_a_consequential_action_until_autonomous(tmp_path):
     save_yaml_atomic(inv / "investigation.yaml", {"studies": ["a"]})
     sdir = tmp_path / "studies" / "a"
     sdir.mkdir(parents=True)
-    # an unassessed study -> an open_question -> a `test` op (run a simulation)
-    save_yaml_atomic(sdir / "study.yaml", {"name": "a", "claim": "a holds"})
+    # an unassessed study -> an open_question -> a `test` op (run a simulation). It is
+    # run-READY (an emitter is declared, and with no behavior tests no observables are
+    # required), so the autonomous deploy proceeds rather than being gated as incomplete.
+    save_yaml_atomic(sdir / "study.yaml",
+                     {"name": "a", "claim": "a holds",
+                      "runs": [{"name": "r1", "status": "completed", "emitter": {"kind": "sqlite"}}]})
 
     calls = []
 
@@ -499,3 +503,21 @@ def test_add_resolution_rejects_unknown_kind():
     from viva_superpowers.discover import add_resolution
     with pytest.raises(ValueError):
         add_resolution({"name": "i"}, "not-a-kind", "claim:x", "r")
+
+
+def test_run_readiness_flags_unemitted_gate_observables(monkeypatch):
+    from viva_superpowers import study_evaluator as SE
+
+    @SE.declares_sources("enrichment_factor")
+    def _log10(reader, test, ws):
+        return 0.0
+
+    monkeypatch.setattr(SE, "load_workspace_derived_scalars", lambda ws: {"log10_enrichment": _log10})
+    study = {"behavior_tests": [{"name": "g", "measure": {"kind": "derived", "path": "log10_enrichment"}}],
+             "observables": None, "runs": [{"emitter": {"kind": "sqlite"}}]}
+    r = discover.run_readiness(study, "/ws")
+    assert not r["ready"] and "enrichment_factor" in r["observables"]["missing"]
+    # declaring the source observable (matched by leaf) makes the run evaluable
+    study["observables"] = ["trap/enrichment_factor"]
+    r2 = discover.run_readiness(study, "/ws")
+    assert r2["ready"] and not r2["observables"]["missing"]

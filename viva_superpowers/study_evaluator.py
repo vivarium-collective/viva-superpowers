@@ -314,6 +314,41 @@ def load_workspace_derived_scalars(ws_root: Any) -> dict[str, Callable]:
     return registry
 
 
+def declares_sources(*observables: str) -> Callable:
+    """Decorator for a derived-scalar computer: declare the emitted observables it reads.
+
+    A derived scalar (e.g. ``log10_enrichment``) is computed at evaluation time from one or
+    more run observables (e.g. ``enrichment_factor``). Declaring those sources lets a run be
+    CHECKED and CONFIGURED to emit them --- the run-readiness contract maps a behavior-test's
+    derived measure to the observables the run must emit, instead of the run emitting the
+    (unproduced) derived-scalar name and recording an empty readout."""
+    def _decorate(fn: Callable) -> Callable:
+        fn.source_observables = tuple(observables)  # type: ignore[attr-defined]
+        return fn
+    return _decorate
+
+
+def required_observables_for_measure(measure: Any, ws_root: Any = None) -> set:
+    """The emitted observables a behavior-test ``measure`` needs present in the run store.
+
+    - A direct-observable measure needs its ``path``.
+    - A ``derived``/``derived_scalar`` measure needs the SOURCE observables its registered
+      computer declares (via :func:`declares_sources`), falling back to the path itself when
+      none are declared.
+    - ``config_value`` reads declared params, not the store, so it needs none.
+    Cross-run (``run_delta``) and path-less measures contribute nothing here."""
+    if not isinstance(measure, dict):
+        return set()
+    kind, path = measure.get("kind"), measure.get("path")
+    if kind in ("config_value", "run_delta") or not path:
+        return set()
+    if kind in RUN_DATA_KINDS:
+        fn = load_workspace_derived_scalars(ws_root).get(path)
+        srcs = getattr(fn, "source_observables", ()) if fn is not None else ()
+        return set(srcs) if srcs else {path}
+    return {path}
+
+
 # ---------------------------------------------------------------------------
 # Exceptions
 # ---------------------------------------------------------------------------

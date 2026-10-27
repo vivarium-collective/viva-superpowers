@@ -41,3 +41,20 @@ def test_no_shared_fallback_when_run_id_absent(tmp_path, monkeypatch):
     (tmp_path / "runs.db").write_bytes(b"")
     monkeypatch.setattr(rr, "list_runs", lambda p: [{"run_id": "other"}])
     assert _resolve_run_store({"name": "run-xyz"}, tmp_path) is None
+
+
+def test_declares_sources_and_required_observables(monkeypatch):
+    from viva_superpowers import study_evaluator as SE
+
+    @SE.declares_sources("enrichment_factor")
+    def _log10(reader, test, ws):
+        return 0.0
+
+    assert _log10.source_observables == ("enrichment_factor",)
+    monkeypatch.setattr(SE, "load_workspace_derived_scalars", lambda ws: {"log10_enrichment": _log10})
+    # a derived-scalar measure resolves to its SOURCE observable
+    assert SE.required_observables_for_measure({"kind": "derived", "path": "log10_enrichment"}, "/ws") == {"enrichment_factor"}
+    # a direct run-data observable resolves to its own path
+    assert SE.required_observables_for_measure({"kind": "range_check_per_generation", "path": "mass"}, "/ws") == {"mass"}
+    # config_value reads declared params, not the store -> no emitted observable needed
+    assert SE.required_observables_for_measure({"kind": "config_value", "path": "seed"}, "/ws") == set()
