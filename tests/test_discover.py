@@ -106,6 +106,27 @@ def test_persist_cycle_writes_slim_state_without_polluting_authored(tmp_path):
     assert "argument" not in on_disk
 
 
+def test_persist_cycle_renews_resolved_decisions_and_drops_dead_fields(tmp_path):
+    inv_path = tmp_path / "investigation.yaml"
+    inv = {
+        "question": "Q?", "studies": ["a"],
+        "knowledge_cycle": {"stale": "bloat"},          # retired cache
+        "plan_acts": [{"old": 1}],                       # deprecated field
+        "resolutions": [{"kind": "open_decision", "target": "prior A?", "rationale": "[ai-driven] x"}],
+        "executive": {"decisions_needed": [{"question": "prior A?"}, {"question": "prior B?"}]},
+    }
+    save_yaml_atomic(inv_path, inv)
+    out = discover.run_cycle(inv, {"a": _study("a", "PASS", claim="a holds")})
+    discover.persist_cycle(inv_path, inv, out)
+
+    on_disk = load_yaml(inv_path)
+    assert "knowledge_cycle" not in on_disk and "plan_acts" not in on_disk  # dead fields dropped
+    ex = on_disk["executive"]
+    # the resolved decision moved out of the open list and into decisions_resolved
+    assert [d["question"] for d in ex["decisions_needed"]] == ["prior B?"]
+    assert [d["question"] for d in ex["decisions_resolved"]] == ["prior A?"]
+
+
 # ---------------------------------------------------------------------------
 # load_cycle_inputs — read inv + member studies from disk
 # ---------------------------------------------------------------------------

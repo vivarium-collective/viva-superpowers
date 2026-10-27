@@ -265,6 +265,18 @@ def test_investigation_hygiene_guard_flags_retired_cache_and_deprecated_field():
     assert "knowledge_cycle" in joined and "plan_acts" in joined
 
 
+def test_investigation_hygiene_guard_flags_resolved_decision_still_listed_open():
+    ctx = V.ValidationContext(
+        inv_spec={"studies": ["a"],
+                  "resolutions": [{"kind": "open_decision", "target": "prior A?", "rationale": "x"}],
+                  "executive": {"decisions_needed": [{"question": "prior A?"}, {"question": "prior B?"}]}},
+        studies={})
+    recs = [r for r in V.run_validators(ctx=ctx, registry=V.registry())
+            if r["provenance"]["validator_id"] == "structural.investigation.hygiene"]
+    assert len(recs) == 1
+    assert "already resolved" in " ".join(recs[0]["findings"])
+
+
 def test_hygiene_guards_are_quiet_on_a_clean_workspace():
     ctx = V.ValidationContext(inv_spec={"studies": ["a"]}, studies={"a": {"name": "a"}})
     ids = {r["provenance"]["validator_id"] for r in V.run_validators(ctx=ctx, registry=V.registry())}

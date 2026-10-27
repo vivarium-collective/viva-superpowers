@@ -406,6 +406,19 @@ def _investigation_hygiene(ctx: ValidationContext) -> list[dict]:
     problems = [f"retired bloat cache `{f}` present (re-run `discover cycle` → `cycle_state`)"
                 for f in _RETIRED_INV_CACHES if f in inv]
     problems += [f"deprecated field `{f}` present" for f in _DEPRECATED_INV_FIELDS if f in inv]
+    # decisions_needed that are already resolved — stale narrative drift the persist-time
+    # renewal step clears (moves them to decisions_resolved). Surfaces here so the drift is
+    # visible even before the next persist.
+    ex = inv.get("executive") or {}
+    resolved = {r.get("target") for r in (inv.get("resolutions") or []) if isinstance(r, dict)}
+    stale_decisions = [(d.get("question") if isinstance(d, dict) else d)
+                       for d in (ex.get("decisions_needed") or [])
+                       if (d.get("question") if isinstance(d, dict) else d) in resolved]
+    if stale_decisions:
+        problems.append(
+            f"{len(stale_decisions)} `decisions_needed` entr"
+            f"{'y is' if len(stale_decisions) == 1 else 'ies are'} already resolved but still "
+            f"listed as open (stale — re-run `discover cycle` to renew)")
     if not problems:
         return []
     return [validation_record(

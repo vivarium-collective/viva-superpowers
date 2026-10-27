@@ -358,12 +358,47 @@ def persist_cycle(inv_path: Path | str, inv_spec: dict, result: dict) -> dict:
     multi-thousand-line dump of the full projection that nothing read); the full
     projection is recomputable via :func:`run_cycle`.
     """
+    from .validation import _DEPRECATED_INV_FIELDS, _RETIRED_INV_CACHES
     path = Path(inv_path)
     on_disk = load_yaml_mapping(path) if path.exists() else dict(inv_spec)
-    on_disk.pop("knowledge_cycle", None)  # retire the bloated derived cache (0 readers)
+    for dead in (*_RETIRED_INV_CACHES, *_DEPRECATED_INV_FIELDS):
+        on_disk.pop(dead, None)  # retire bloat caches + deprecated fields (0 readers)
+    _renew_executive_decisions(on_disk)  # move resolved decisions out of the open list
     on_disk["cycle_state"] = build_cycle_state(result, inv_spec)
     save_yaml_atomic(path, on_disk)
     return on_disk["cycle_state"]
+
+
+def _renew_executive_decisions(on_disk: dict) -> None:
+    """Reconcile the authored ``executive.decisions_needed`` with what the cycle has
+    resolved, in place. A decision whose target appears in ``resolutions`` is no longer
+    open — move it to ``executive.decisions_resolved`` (dedup by question) and drop it from
+    ``decisions_needed`` — so the authored narrative can't drift out of step with the
+    derived state (the drift the ``structural.investigation.hygiene`` guard flags). Leaves
+    the still-open decisions untouched; authored prose elsewhere is not rewritten."""
+    ex = on_disk.get("executive")
+    if not isinstance(ex, dict):
+        return
+    decisions = ex.get("decisions_needed") or []
+    if not decisions:
+        return
+    resolved = {r.get("target") for r in (on_disk.get("resolutions") or []) if isinstance(r, dict)}
+
+    def _q(d):
+        return d.get("question") if isinstance(d, dict) else d
+
+    still_open = [d for d in decisions if _q(d) not in resolved]
+    newly_resolved = [d for d in decisions if _q(d) in resolved]
+    if not newly_resolved:
+        return
+    archived = list(ex.get("decisions_resolved") or [])
+    seen = {_q(d) for d in archived}
+    for d in newly_resolved:
+        if _q(d) not in seen:
+            archived.append(d)
+            seen.add(_q(d))
+    ex["decisions_needed"] = still_open
+    ex["decisions_resolved"] = archived
 
 
 def _parent_in_parens(text: str, members: set) -> str | None:
