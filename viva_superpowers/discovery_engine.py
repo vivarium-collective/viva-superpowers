@@ -444,11 +444,13 @@ def _executor_for(op: str, target: str) -> dict:
         return {"executor": "snapshot-validations", "command": "discover snapshot-validations <inv>",
                 "consequence": "safe", "auto_safe": True}
     if op == "test":
-        return {"executor": "run-baseline", "command": f"viva-study run-baseline {study}",
+        return {"executor": "run-study",
+                "command": f"vivarium-workbench run study {study} --workspace <ws>",
                 "consequence": "simulation", "auto_safe": False}
     if op == "branch":
-        return {"executor": "seed-from-followup + run-baseline",
-                "command": f"viva-study seed-from-followup <parent> <proposal>; viva-study run-baseline {study}",
+        return {"executor": "seed-from-followup + run-study",
+                "command": f"viva-study seed-from-followup <parent> <proposal>; "
+                           f"vivarium-workbench run study {study} --workspace <ws>",
                 "consequence": "simulation+study", "auto_safe": False}
     if op == "reconcile":
         return {"executor": "set-verdict", "command": f"discover set-verdict {study} <derived> --rationale '…'",
