@@ -294,13 +294,21 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
     clo = closure(cycle_result, inv_spec)
     records = cycle_result.get("validations") or []
 
-    gradeable = [r for r in records
-                 if (r.get("result") or {}).get("execution_status") in ("passed", "failed", "error")]
+    # The validator pass-rate measures ACTIONABLE validators (surfaces=="frontier"), not
+    # `standing` feedback (rigor GAP/WARN, band provenance). A study routinely carries rigor
+    # gaps; counting that feedback as "failed" washed the rate out (island: 1/27 = 3.7% where
+    # only 9 records are actionable). Standing feedback is reported separately so the signal
+    # isn't conflated with it.
+    def _front(r):
+        return r.get("surfaces", "frontier") == "frontier"
+    gradeable = [r for r in records if _front(r)
+                 and (r.get("result") or {}).get("execution_status") in ("passed", "failed", "error")]
     passed = sum(1 for r in gradeable
                  if (r.get("result") or {}).get("execution_status") == "passed")
     pass_rate = (passed / len(gradeable)) if gradeable else None
-    errored = [r for r in records if (r.get("result") or {}).get("execution_status") == "error"]
-    unsupported = [r for r in records if r.get("type") in ("logical", "empirical")
+    standing = sum(1 for r in records if r.get("surfaces") == "standing")
+    errored = [r for r in records if _front(r) and (r.get("result") or {}).get("execution_status") == "error"]
+    unsupported = [r for r in records if _front(r) and r.get("type") in ("logical", "empirical")
                    and (r.get("result") or {}).get("execution_status") == "failed"]
 
     steer = [i for i in f if i["kind"] in _STEER_KINDS]
@@ -329,7 +337,8 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
                             "priority alone)"))
     if pass_rate is not None and pass_rate < 0.5:
         flags.append(_flag("validation_limited",
-                            f"validator pass-rate {passed}/{len(gradeable)}; "
+                            f"actionable validator pass-rate {passed}/{len(gradeable)} "
+                            f"({standing} standing feedback record(s) excluded); "
                             f"{len(unsupported)} ungrounded logical/empirical claim(s)",
                             "strengthen provenance/holdouts (cite bands, back assessed claims, "
                             "fill or waive rigor dimensions)"))
@@ -345,7 +354,8 @@ def diagnose(cycle_result: dict, inv_spec: dict) -> dict:
         census[st] = census.get(st, 0) + 1
 
     return {"closed": clo["closed"], "frontier_size": len(f),
-            "validator_pass_rate": pass_rate, "census": census, "flags": flags}
+            "validator_pass_rate": pass_rate, "census": census,
+            "standing_feedback": standing, "flags": flags}
 
 
 # ---------------------------------------------------------------------------
