@@ -473,9 +473,19 @@ def suggest_studies(cycle_result: dict, inv_spec: dict, studies: dict) -> list[d
 
 def _default_runner(command: str, ws_root: Path | str) -> dict:
     """Run a consequential executor command as a subprocess in the workspace, capturing
-    its outcome. This is the real sim/seed invocation the autonomous bridge makes."""
+    its outcome. This is the real sim/seed invocation the autonomous bridge makes.
+
+    The RUNNING interpreter's venv bin is prepended to the subprocess PATH so a bare
+    console script in the command (e.g. ``vivarium-workbench``) resolves to THIS venv's
+    binary — not some other venv earlier on PATH, which would run against a different
+    workspace package and fail to find the composite (observed: a bare ``vivarium-workbench``
+    resolved to a sibling venv and reported the study's composite 'not found')."""
+    import os
     import subprocess
-    proc = subprocess.run(command, shell=True, cwd=str(ws_root),
+    import sys
+    env = dict(os.environ)
+    env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
+    proc = subprocess.run(command, shell=True, cwd=str(ws_root), env=env,
                           capture_output=True, text=True, timeout=3600)
     return {"returncode": proc.returncode,
             "ok": proc.returncode == 0,
