@@ -10,7 +10,7 @@ from __future__ import annotations
 from viva_superpowers import discovery_engine as de
 
 
-def _cycle(open_calls=None, edges=None, verdicts=None, behaviors=None):
+def _cycle(open_calls=None, edges=None, verdicts=None, behaviors=None, validations=None):
     return {
         "knowledge": {"verdicts": verdicts or {}, "behaviors": behaviors or {}},
         "argument": {"claims": {}, "edges": edges or []},
@@ -18,7 +18,48 @@ def _cycle(open_calls=None, edges=None, verdicts=None, behaviors=None):
         "audit": [],
         "gates": [],
         "open_calls": open_calls or [],
+        "validations": validations or [],
     }
+
+
+def _record(type="logical", scope="claim", target="claim:x", execution="failed",
+            judgment=None, findings=None):
+    return {"type": type, "scope": scope, "target": target,
+            "result": {"execution_status": execution, "scientific_judgment": judgment},
+            "findings": findings or ["something failed"],
+            "recommendations": ["fix it"], "provenance": {"validator_id": f"{type}.{scope}.t"}}
+
+
+def test_frontier_projects_a_failing_validation_record():
+    rec = _record(target="claim:unbacked", findings=["claim is supported but no evidence"])
+    cyc = _cycle(validations=[rec])
+    items = {(i["kind"], i["target"]): i for i in de.frontier(cyc, {})}
+    assert ("validation_finding", "claim:unbacked") in items
+    assert "supported but no evidence" in items[("validation_finding", "claim:unbacked")]["rationale"]
+
+
+def test_frontier_skips_passing_and_narrative_validation_records():
+    passing = _record(execution="passed")
+    narrative = _record(type="narrative", scope="narrative", target="narrative")  # surfaced via open_calls
+    cyc = _cycle(validations=[passing, narrative])
+    kinds = {i["kind"] for i in de.frontier(cyc, {})}
+    assert "validation_finding" not in kinds
+
+
+def test_frontier_validation_finding_is_resolvable():
+    rec = _record(target="claim:unbacked")
+    cyc = _cycle(validations=[rec])
+    inv = {"resolutions": [{"kind": "validation_finding", "target": "claim:unbacked"}]}
+    kinds = {(i["kind"], i["target"]) for i in de.frontier(cyc, inv)}
+    assert ("validation_finding", "claim:unbacked") not in kinds
+
+
+def test_invariants_flags_epistemic_separation_in_validation_records():
+    smuggled = _record(type="computational", scope="study", target="s",
+                       execution="passed", judgment="supported")
+    cyc = _cycle(validations=[smuggled])
+    inv = de.invariants(cyc)
+    assert any(v["invariant"] == "epistemic_separation" and v["target"] == "s" for v in inv)
 
 
 def test_frontier_prioritizes_criteria_over_gaps_over_divergence():

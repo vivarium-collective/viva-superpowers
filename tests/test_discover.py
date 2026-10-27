@@ -237,6 +237,18 @@ def test_connect_preserves_comments_and_minimizes_churn(tmp_path):
     assert "relation: builds-on" in out
 
 
+def test_run_cycle_includes_validator_records(tmp_path):
+    # RFC-0007: run_cycle runs the registered validators and returns their records.
+    inv = {"studies": ["a"]}
+    # an assessed claim with NO evidence (no runs/findings/tests) -> provenance fires.
+    studies = {"a": {"name": "a", "claim": "a holds", "verdict": "supported"}}
+    bundle = discover.run_cycle(inv, studies)
+    assert "validations" in bundle
+    ids = {r["provenance"]["validator_id"] for r in bundle["validations"]}
+    assert "logical.claim.provenance" in ids
+    assert "narrative.narrative.coherence" in ids
+
+
 def test_load_cycle_inputs_reads_inv_and_studies(tmp_path):
     (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
     inv_dir = tmp_path / "investigations" / "og"
