@@ -71,6 +71,20 @@ def test_frontier_validation_finding_is_resolvable():
     assert ("validation_finding", "claim:unbacked") not in kinds
 
 
+def test_frontier_flags_stale_validation_against_snapshot():
+    from viva_superpowers import validation as V
+    old = V.validation_record(type="logical", scope="claim", target="c",
+                              execution_status="failed", findings=["x"], validator_id="v")
+    snap = V.snapshot_of([old])
+    # the fresh record for the same validator|target now reads differently -> stale
+    new = V.validation_record(type="logical", scope="claim", target="c",
+                              execution_status="passed", validator_id="v")
+    cyc = _cycle(validations=[new])
+    items = {(i["kind"], i["target"]): i for i in de.frontier(cyc, {"validation_snapshot": snap})}
+    assert ("stale_validation", "c") in items
+    assert items[("stale_validation", "c")]["op"] == "revalidate"
+
+
 def test_invariants_flags_epistemic_separation_in_validation_records():
     smuggled = _record(type="computational", scope="study", target="s",
                        execution="passed", judgment="supported")

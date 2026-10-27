@@ -27,6 +27,8 @@ enforced at record construction and re-checked each cycle by
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -187,6 +189,55 @@ def coverage_matrix(registry: list | None = None) -> dict[str, dict[str, list[st
     for v in reg:
         cells[v["type"]][v["scope"]].append(v["id"])
     return cells
+
+
+# ---------------------------------------------------------------------------
+# Re-validation / staleness (RFC-0007 Phase 4)
+# ---------------------------------------------------------------------------
+
+def _record_key(record: dict) -> str:
+    """Identity of what a record evaluated: its validator and target."""
+    vid = (record.get("provenance") or {}).get("validator_id")
+    return f"{vid}|{record.get('target')}"
+
+
+def record_signature(record: dict) -> str:
+    """A stable content hash of a record's *meaning* — type/scope/target, the two
+    result statuses, and its findings. Provenance (validator_version, evaluated_at)
+    is excluded, so the signature changes only when the evaluation's content does."""
+    res = record.get("result") or {}
+    payload = {
+        "type": record.get("type"), "scope": record.get("scope"),
+        "target": record.get("target"),
+        "execution_status": res.get("execution_status"),
+        "scientific_judgment": res.get("scientific_judgment"),
+        "findings": sorted(str(f) for f in (record.get("findings") or [])),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def snapshot_of(records: list[dict]) -> dict[str, str]:
+    """``{validator|target: signature}`` — an accepted validation state to re-check
+    later. Persist it on the investigation; drift from it is staleness."""
+    return {_record_key(r): record_signature(r) for r in (records or [])}
+
+
+def stale_records(fresh_records: list[dict], snapshot: dict | None) -> list[dict]:
+    """Snapshotted evaluations a fresh re-derivation no longer matches — an accepted
+    judgment the world moved past. A record whose signature drifted is ``changed``;
+    one that is gone (its study/target removed) is ``removed``. A brand-new record
+    not in the snapshot is not stale (it is just new)."""
+    snapshot = snapshot or {}
+    fresh_by_key = {_record_key(r): r for r in (fresh_records or [])}
+    out: list[dict] = []
+    for key, stored_sig in snapshot.items():
+        vid, _, target = key.partition("|")
+        r = fresh_by_key.get(key)
+        if r is None:
+            out.append({"key": key, "validator_id": vid, "target": target, "change": "removed"})
+        elif record_signature(r) != stored_sig:
+            out.append({"key": key, "validator_id": vid, "target": target, "change": "changed"})
+    return out
 
 
 def epistemic_separation_violations(records: list[dict]) -> list[dict]:

@@ -245,6 +245,20 @@ def test_resolve_accepts_validation_finding(tmp_path):
     assert spec["resolutions"][0]["kind"] == "validation_finding"
 
 
+def test_snapshot_validations_persists_the_accepted_state(tmp_path):
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml", {"studies": ["a"]})
+    sdir = tmp_path / "studies" / "a"
+    sdir.mkdir(parents=True)
+    save_yaml_atomic(sdir / "study.yaml", {"name": "a", "claim": "a", "verdict": "supported"})
+
+    snap = discover.snapshot_validations(tmp_path, "og")
+    assert snap  # the provenance record (assessed claim, no evidence) was snapshotted
+    assert load_yaml(inv / "investigation.yaml")["validation_snapshot"] == snap
+
+
 def test_run_cycle_includes_validator_records(tmp_path):
     # RFC-0007: run_cycle runs the registered validators and returns their records.
     inv = {"studies": ["a"]}
