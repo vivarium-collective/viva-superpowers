@@ -327,6 +327,35 @@ def test_persist_cycle_writes_slim_state_and_drops_knowledge_cycle(tmp_path):
     assert "studies" in on_disk               # authored fields untouched
 
 
+def test_execute_action_gates_a_consequential_action_until_autonomous(tmp_path):
+    (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
+    inv = tmp_path / "investigations" / "og"
+    inv.mkdir(parents=True)
+    save_yaml_atomic(inv / "investigation.yaml", {"studies": ["a"]})
+    sdir = tmp_path / "studies" / "a"
+    sdir.mkdir(parents=True)
+    # an unassessed study -> an open_question -> a `test` op (run a simulation)
+    save_yaml_atomic(sdir / "study.yaml", {"name": "a", "claim": "a holds"})
+
+    calls = []
+
+    def fake_runner(cmd, ws):
+        calls.append(cmd)
+        return {"ok": True, "returncode": 0, "tail": "sim complete"}
+
+    # without --autonomous, a consequential action is gated — the runner is NOT called
+    gated = discover.execute_action(tmp_path, "og", autonomous=False, runner=fake_runner)
+    assert gated["consequence"] == "simulation" and gated["status"] == "gated"
+    assert not calls
+
+    # with --autonomous, it invokes the real executor (the runner), records + re-cranks
+    ran = discover.execute_action(tmp_path, "og", autonomous=True, runner=fake_runner)
+    assert ran["status"] == "executed"
+    assert calls and "run-baseline" in calls[0]
+    log = load_yaml(inv / "investigation.yaml")["executed_actions"]
+    assert log[0]["action"] == "test" and log[0]["status"] == "executed"
+
+
 def test_snapshot_validations_persists_the_accepted_state(tmp_path):
     (tmp_path / "workspace.yaml").write_text("name: t\n", encoding="utf-8")
     inv = tmp_path / "investigations" / "og"

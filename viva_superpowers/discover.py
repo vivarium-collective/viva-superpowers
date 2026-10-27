@@ -436,6 +436,80 @@ def suggest_studies(cycle_result: dict, inv_spec: dict, studies: dict) -> list[d
     return out
 
 
+def _default_runner(command: str, ws_root: Path | str) -> dict:
+    """Run a consequential executor command as a subprocess in the workspace, capturing
+    its outcome. This is the real sim/seed invocation the autonomous bridge makes."""
+    import subprocess
+    proc = subprocess.run(command, shell=True, cwd=str(ws_root),
+                          capture_output=True, text=True, timeout=3600)
+    return {"returncode": proc.returncode,
+            "ok": proc.returncode == 0,
+            "tail": (proc.stdout or proc.stderr or "")[-400:]}
+
+
+def execute_action(ws_root: Path | str, inv_slug: str, *, autonomous: bool = False,
+                   runner=None) -> dict:
+    """The bridge's execution step: take the top value-ranked action and carry it out,
+    gated by consequence.
+
+    - A side-effect-free action (``auto_safe``, e.g. re-snapshot) always runs.
+    - A consequential action (``simulation`` / ``simulation+study`` — run a study, seed
+      one) runs **only** with ``autonomous=True``, by invoking its real executor command
+      as a subprocess (``runner``, injectable for tests); the outcome is recorded.
+    - A ``review`` (verdict overwrite) or ``human-only`` (expert decision / adjudication)
+      action never auto-runs — it is handed back.
+
+    Executed actions are appended to the investigation's ``executed_actions`` log and the
+    frontier is re-derived so the caller sees the change. Returns a record of what
+    happened."""
+    from . import discovery_engine as de
+    inv_path, inv_spec, studies = load_cycle_inputs(ws_root, inv_slug)
+    before = de.closure(run_cycle(inv_spec, studies), inv_spec)["open_items"]
+    plan = de.execute_plan(run_cycle(inv_spec, studies), inv_spec)
+    if not plan:
+        return {"status": "nothing-to-do", "frontier": before}
+    top = plan[0]
+    rec = {"action": top["action_type"], "source": top["source"], "command": top["command"],
+           "consequence": top["consequence"], "score": top["score"]}
+
+    if top["auto_safe"]:
+        snap = snapshot_validations(ws_root, inv_slug)
+        rec["status"] = "executed"
+        rec["outcome"] = {"ok": True, "detail": f"snapshot-validations: {len(snap)} records accepted"}
+    elif top["consequence"] in ("simulation", "simulation+study"):
+        if not autonomous:
+            rec["status"] = "gated"
+            rec["outcome"] = {"ok": None, "detail": "consequential — re-run with --autonomous to execute"}
+        else:
+            rec["outcome"] = (runner or _default_runner)(top["command"], ws_root)
+            rec["status"] = "executed" if rec["outcome"].get("ok") else "failed"
+    else:  # review / human-only
+        rec["status"] = "gated-human"
+        rec["outcome"] = {"ok": None, "detail": f"{top['consequence']} — needs a human decision"}
+
+    if rec["status"] == "executed":
+        _append_executed(inv_path, rec)
+        _, inv2, studies2 = load_cycle_inputs(ws_root, inv_slug)
+        rec["frontier_before"] = before
+        rec["frontier_after"] = de.closure(run_cycle(inv2, studies2), inv2)["open_items"]
+    return rec
+
+
+def _append_executed(inv_path: Path | str, record: dict) -> None:
+    """Append an execution record to the investigation's ``executed_actions`` log (an
+    audit trail of what the bridge ran). Re-reads on disk, writes only this field."""
+    path = Path(inv_path)
+    on_disk = load_yaml_mapping(path) if path.exists() else {}
+    log = list(on_disk.get("executed_actions") or [])
+    log.append({"action": record["action"], "source": record["source"],
+                "command": record["command"], "status": record["status"],
+                "outcome": (record.get("outcome") or {}).get("detail")
+                or ("ok" if (record.get("outcome") or {}).get("ok") else "see runner output"),
+                "at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")})
+    on_disk["executed_actions"] = log
+    save_yaml_atomic(path, on_disk)
+
+
 def summarize_suggestions(suggestions: list[dict]) -> str:
     ready = [s for s in suggestions if s["status"] == "ready"]
     awaiting = [s for s in suggestions if s["status"] == "awaiting_expert"]
@@ -576,6 +650,8 @@ def main(argv: list[str] | None = None) -> int:
     p_exec.add_argument("investigation", help="investigation slug")
     p_exec.add_argument("--execute", action="store_true",
                         help="actually run the top action when it is side-effect-free (else print its gated command)")
+    p_exec.add_argument("--autonomous", action="store_true",
+                        help="also run a CONSEQUENTIAL top action (seed a study / run a simulation) and record the outcome")
 
     p_sv = sub.add_parser("set-verdict", help="author a canonical verdict on a study")
     p_sv.add_argument("study", help="study slug")
@@ -694,18 +770,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "execute":
         from . import discovery_engine
         _, inv_spec, studies = load_cycle_inputs(ws, args.investigation)
-        result = run_cycle(inv_spec, studies)
-        plan = discovery_engine.execute_plan(result, inv_spec)
+        plan = discovery_engine.execute_plan(run_cycle(inv_spec, studies), inv_spec)
         print(discovery_engine.summarize_execute_plan(plan))
-        if args.execute and plan:
-            top = plan[0]
-            if top["auto_safe"]:
-                # the only side-effect-free action: re-snapshot the accepted validations.
-                snap = snapshot_validations(ws, args.investigation)
-                print(f"\nexecuted (auto-safe): snapshot-validations — {len(snap)} records accepted.")
-            else:
-                print(f"\nnot run: the top action is {top['consequence']} (consequential). "
-                      f"Run it explicitly:\n  {top['command']}")
+        if (args.execute or args.autonomous) and plan:
+            rec = execute_action(ws, args.investigation, autonomous=args.autonomous)
+            print(f"\n[{rec['status']}] {rec['action']} on {rec['source']}: "
+                  f"{(rec.get('outcome') or {}).get('detail') or (rec.get('outcome') or {})}")
+            if rec.get("status") == "executed" and "frontier_after" in rec:
+                print(f"  frontier: {rec['frontier_before']} → {rec['frontier_after']} (re-cranked)")
         return 0
 
     return 1
