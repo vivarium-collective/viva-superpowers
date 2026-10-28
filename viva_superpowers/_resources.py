@@ -1,31 +1,14 @@
-"""Resolve resource directories (`templates/`, `server/`) under either an
-editable or a wheel install.
+"""Back-compat shim — moved to :mod:`discovery_engine._resources`.
 
-In an editable install the source layout has these dirs at the repo root,
-so they live one level above the package: `<repo>/templates/`, `<repo>/server/`.
-
-In a wheel install, `pyproject.toml`'s `[tool.hatch.build.targets.wheel.force-include]`
-maps them inside the package as `viva_superpowers/_templates/`, `viva_superpowers/_server/`.
-
-This helper picks whichever exists.
+This module now lives in the standalone ``discovery-engine`` package. Prefer
+importing from ``discovery_engine._resources`` directly; this re-export is kept so
+existing ``viva_superpowers._resources`` imports (and the skills) keep working.
 """
-from __future__ import annotations
-from pathlib import Path
+import sys as _sys
 
-
-_PKG_DIR = Path(__file__).resolve().parent
-_REPO_ROOT_GUESS = _PKG_DIR.parent
-
-
-def resource_dir(name: str) -> Path:
-    """Return the path to a resource dir, preferring the wheel layout."""
-    bundled = _PKG_DIR / f"_{name}"
-    if bundled.is_dir():
-        return bundled
-    fallback = _REPO_ROOT_GUESS / name
-    if fallback.is_dir():
-        return fallback
-    raise RuntimeError(
-        f"pbg-superpowers resource '{name}' not found at {bundled} or {fallback}; "
-        "is the plugin installed correctly?"
-    )
+if __name__ == "__main__":  # `python -m viva_superpowers._resources` → the real CLI
+    import runpy
+    runpy.run_module("discovery_engine._resources", run_name="__main__", alter_sys=True)
+else:
+    from discovery_engine import _resources as _m  # noqa: E402
+    _sys.modules[__name__] = _m
