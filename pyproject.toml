@@ -82,11 +82,7 @@ build-backend = "hatchling.build"
 # shim/) depends on this one so existing `pbg-superpowers` PyPI deps keep
 # resolving to the renamed package.
 packages = ["viva_superpowers", "pbg_superpowers"]
-# templates/ lives outside the package but is required at runtime (report
-# renderer, scaffold helper). Force-include it in the wheel so non-editable
-# installs still work.
 [tool.hatch.build.targets.wheel.force-include]
-"templates" = "viva_superpowers/_templates"
 # Ship the /viva-* Agent Skills (SKILL.md folders) inside the installed package
 # so a non-editable install carries them. A dependent (e.g. vivarium-workbench's
 # chat) can then discover the skills from the installed package, rather than only
