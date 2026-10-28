@@ -1,4 +1,4 @@
-"""Helpers shared by pbg-superpowers skills."""
+"""Helpers shared by viva-superpowers skills."""
 __version__ = "0.24.0"
 
 # Light, import-safe contract (no process_bigraph): eager.
