@@ -1,34 +1,14 @@
-"""Read, write, validate workspace.yaml.
+"""Back-compat shim — moved to :mod:`discovery_engine.workspace_yaml`.
 
-Thin wrapper over :mod:`viva_workspace.workspace_yaml`, which holds the shared
-load/validate/save logic. The only plugin-specific part is where the schema
-lives: a copy bundled in the package.
+This module now lives in the standalone ``discovery-engine`` package. Prefer
+importing from ``discovery_engine.workspace_yaml`` directly; this re-export is kept so
+existing ``viva_superpowers.workspace_yaml`` imports (and the skills) keep working.
 """
-from __future__ import annotations
+import sys as _sys
 
-from pathlib import Path
-
-from viva_workspace.workspace_yaml import (
-    WorkspaceValidationError,
-    load_workspace as _load,
-    save_workspace as _save,
-    validate_workspace as _validate,
-)
-
-__all__ = ["WorkspaceValidationError", "validate_workspace", "load_workspace", "save_workspace"]
-
-
-def _schema_path() -> Path:
-    return Path(__file__).parent / "schemas" / "workspace.schema.json"
-
-
-def validate_workspace(data: dict) -> None:
-    _validate(data, _schema_path())
-
-
-def load_workspace(path: Path | str) -> dict:
-    return _load(path, _schema_path())
-
-
-def save_workspace(path: Path | str, data: dict) -> None:
-    _save(path, data, _schema_path())
+if __name__ == "__main__":  # `python -m viva_superpowers.workspace_yaml` → the real CLI
+    import runpy
+    runpy.run_module("discovery_engine.workspace_yaml", run_name="__main__", alter_sys=True)
+else:
+    from discovery_engine import workspace_yaml as _m  # noqa: E402
+    _sys.modules[__name__] = _m

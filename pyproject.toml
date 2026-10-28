@@ -26,6 +26,9 @@ dependencies = [
     # back-compat import shim, so the `from pbg_emitters import ...` call sites in
     # study_evaluator / study_outcomes keep working during the deprecation window.
     "viva-emitters>=0.2.3",
+    # The investigation/study framework + discovery cycle, extracted to its own
+    # repo. viva-superpowers is skills-first; the engine logic lives here.
+    "discovery-engine",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +47,7 @@ events = ["investigation-contracts"]
 
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
+discovery-engine = { git = "https://github.com/vivarium-collective/discovery-engine.git", branch = "main" }
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
 viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }

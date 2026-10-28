@@ -1,27 +1,14 @@
-"""Small shared text helpers.
+"""Back-compat shim — moved to :mod:`discovery_engine.text_utils`.
 
-Extracted from the copies in ``report.py`` and ``seed_from_followup.py``
-(framework streamlining screening, Theme 3).
+This module now lives in the standalone ``discovery-engine`` package. Prefer
+importing from ``discovery_engine.text_utils`` directly; this re-export is kept so
+existing ``viva_superpowers.text_utils`` imports (and the skills) keep working.
 """
-from __future__ import annotations
+import sys as _sys
 
-import re
-
-
-def first_sentence(text: str, *, max_chars: int | None = None) -> str:
-    """Return the first sentence (or first line) of ``text`` as a one-liner.
-
-    Collapses internal whitespace, then splits on the first sentence
-    terminator (``. ! ?``) followed by whitespace or end-of-string. When
-    ``max_chars`` is given and the result is longer (e.g. terse prose with no
-    terminator), it is truncated with an ellipsis. ``max_chars=None`` (the
-    default) never truncates.
-    """
-    if not text:
-        return ""
-    flat = re.sub(r"\s+", " ", text.strip())
-    m = re.search(r"(?<=[.!?])\s", flat)
-    s = (flat[: m.start() + 1] if m else flat).rstrip()
-    if max_chars is not None and len(s) > max_chars:
-        s = s[: max_chars - 1].rstrip() + "…"
-    return s
+if __name__ == "__main__":  # `python -m viva_superpowers.text_utils` → the real CLI
+    import runpy
+    runpy.run_module("discovery_engine.text_utils", run_name="__main__", alter_sys=True)
+else:
+    from discovery_engine import text_utils as _m  # noqa: E402
+    _sys.modules[__name__] = _m
