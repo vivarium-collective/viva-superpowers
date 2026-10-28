@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Maintainer-facing CLI for auditing a single pbg-* repo.
+"""Maintainer-facing CLI for auditing a single viva-* repo.
 
 Replaces the user-invocable /pbg-package skill (removed in v0.9.0). The
 underlying audit logic still lives in viva_superpowers.package_audit; this
@@ -9,9 +9,9 @@ Usage:
     python scripts/audit-pbg-repo.py <repo-path-or-name> [--no-install]
 
 Forms accepted for <repo-path-or-name>:
-    pbg-smoldyn          shallow-clone vivarium-collective/pbg-smoldyn to a tmp dir, audit, clean up
-    ~/code/pbg-cobra     audit a local checkout in-place
-    ./pbg-cobra          relative path; audited in-place
+    viva-smoldyn          shallow-clone vivarium-collective/viva-smoldyn to a tmp dir, audit, clean up
+    ~/code/viva-cobra     audit a local checkout in-place
+    ./viva-cobra          relative path; audited in-place
 
 Exit code:
     0  no FAIL checks (WARN is OK)

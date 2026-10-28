@@ -1,4 +1,4 @@
-"""Audit a pbg-* repo for compliance with the bigraph-schema discovery convention."""
+"""Audit a viva-* repo for compliance with the bigraph-schema discovery convention."""
 from __future__ import annotations
 import re
 import subprocess
@@ -222,7 +222,7 @@ def main(argv: list[str]) -> int:
         repo_path = Path(target).expanduser().resolve()
     else:
         # Treat as vivarium-collective repo name
-        tmp = Path(tempfile.mkdtemp(prefix="pbg-audit-"))
+        tmp = Path(tempfile.mkdtemp(prefix="viva-audit-"))
         tmp_to_clean = tmp
         repo_path = tmp / target
         url = f"https://github.com/vivarium-collective/{target}.git"
