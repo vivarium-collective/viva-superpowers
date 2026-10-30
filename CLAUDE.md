@@ -81,6 +81,39 @@ viva-superpowers/
 └── scripts/               # ops scripts (audit-pbg-repo, update-scaffold-snapshot)
 ```
 
+## The discovery-engine seam
+
+The investigation/study framework and the discovery cycle were **extracted to the
+standalone [`discovery-engine`](https://github.com/vivarium-collective/discovery-engine)
+package** (`discovery_engine.*`). It is the single source of truth for that logic —
+study audit/evaluation/verdict/status, rigor, the report linter, the
+argument/knowledge/narrative/synthesis projections, post-sim steps, `viz_freshness`,
+`workspace_paths`, the `discover` cycle, and more. viva-superpowers depends on it (a
+hard dependency in `pyproject.toml`); discovery-engine never imports back (no circular
+edge).
+
+**viva-superpowers is a skills-first facade over the engine.** For every moved module
+it keeps a **back-compat shim** — not a fork — that re-exports the engine:
+
+```python
+from discovery_engine import hypotheses as _m
+sys.modules[__name__] = _m   # viva_superpowers.hypotheses IS discovery_engine.hypotheses
+```
+
+So `viva_superpowers.<m>` *is the same module object* as `discovery_engine.<m>`; there
+is **one implementation and zero divergence**. `tests/test_discovery_engine_facade.py`
+asserts that object identity across the whole shim set — treat the facade as permanent
+public surface (skills, console scripts, and external consumers import through it).
+The genuinely viva-superpowers-only modules (the ones that are NOT shims) are the
+skills/plugin helpers: `catalog`, `feedback_import`, `feedback_tracking`, `chart_store`,
+`run_params`, `loop_state`, `test_audit`, plus the benchmarking / model-build-loop /
+publishing / packaging helpers.
+
+**Keeping it decoupled but in sync:** the engine lives once (in discovery-engine), so
+the shims can never drift. New engine logic goes into discovery-engine, not here; a new
+shim here only re-exports it. Don't re-implement an engine module in this repo — that
+would recreate a fork the facade test is designed to forbid.
+
 ## When in doubt
 
 - **What does this concept mean?** → `docs/concepts/vivarium-workbench-model.md`.
