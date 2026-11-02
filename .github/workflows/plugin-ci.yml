@@ -26,11 +26,19 @@ jobs:
           python-version: "3.11"
       - name: Install uv
         run: pip install uv
-      - name: Set up venv and install plugin
-        run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install -e ".[dev,evaluator,processes,events]"
+      - name: Install plugin (frozen — from uv.lock)
+        # Install from the committed lockfile, NOT a live re-resolve. The four
+        # first-party deps are git `branch=main` sources (discovery-engine,
+        # viva-workspace, viva-basic-processes, investigation-contracts); a plain
+        # `uv pip install -e .` resolves them to each branch tip at install time,
+        # so an unrelated upstream merge silently breaks this repo's CI on the next
+        # push. `uv sync --frozen` pins them to uv.lock instead, so main stays green
+        # against the engine it was tested with, and the ONLY place a new engine is
+        # exercised is the intentional lock-bump PR (Renovate's weekly
+        # lockFileMaintenance, or a manual `uv lock --upgrade-package …`). That is
+        # the consumption half of the "decoupled but in sync" seam (#391 added the
+        # propagation half). See docs/specs for the cross-repo version-coordination design.
+        run: uv sync --frozen --extra dev --extra evaluator --extra processes --extra events
       - name: Run L1 tests
         env:
           # The integration tests skip cleanly when ~/code/pbg-template isn't
