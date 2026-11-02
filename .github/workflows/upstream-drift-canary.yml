@@ -1,0 +1,62 @@
+name: upstream-drift-canary
+
+# Detection leg of the "decoupled but in sync" seam (the stability leg is plugin-ci's
+# frozen install). The regular CI installs FROZEN from uv.lock, so main stays green
+# against the engine it was tested with and never ambushes an unrelated PR. The cost of
+# that is CI no longer notices when an upstream `branch=main` dep advances. This canary
+# fills that gap: on a schedule it installs the deps LIVE (current upstream tips, NOT the
+# lock) and runs the suite, so drift between this repo and current upstream main is
+# visible the same day it lands — turning "red on some unrelated PR weeks later" into a
+# dated, attributable signal. It only DETECTS; the actual bump stays an intentional
+# lock-bump PR (Renovate's lockFileMaintenance, or a manual `uv lock --upgrade-package`),
+# so this never duplicates Renovate even if the app is enabled. A red run means: current
+# upstream main breaks this repo — do not bump the lock until it is reconciled.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"      # daily, 06:17 UTC
+  workflow_dispatch: {}        # manual: run before cutting an engine lock-bump PR
+
+# A red canary is expected while a known upstream drift is being reconciled; it should
+# not spam — one concurrent run, latest wins.
+concurrency:
+  group: upstream-drift-canary
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    # Scheduled workflows run only on the default branch, so no PR noise.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        run: pip install uv
+      - name: Install against CURRENT upstream main (LIVE — deliberately not --frozen)
+        # The whole point of the canary: resolve the branch=main deps (discovery-engine,
+        # viva-workspace, viva-basic-processes, investigation-contracts) to their tips so
+        # we test against what downstream consumers will actually pick up on the next bump.
+        run: |
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install -e ".[dev,evaluator,processes,events]"
+      - name: Run L1 tests
+        # Pin pbg-template the same way plugin-ci does, so a template drift does not
+        # masquerade as a Python-dep drift in this canary.
+        env:
+          PBG_TEMPLATE_REPO: https://github.com/vivarium-collective/pbg-template.git
+        run: |
+          mkdir -p ~/code
+          PBG_TEMPLATE_REF="$(cat tests/fixtures/workspace-baseline/PBG_TEMPLATE_REF)"
+          if [ ! -d ~/code/pbg-template ]; then
+            git clone "$PBG_TEMPLATE_REPO" ~/code/pbg-template
+          fi
+          git -C ~/code/pbg-template fetch --depth 1 origin "$PBG_TEMPLATE_REF"
+          git -C ~/code/pbg-template checkout --detach "$PBG_TEMPLATE_REF"
+          echo "pinned pbg-template @ $(git -C ~/code/pbg-template rev-parse HEAD)"
+          source .venv/bin/activate
+          echo "::notice::Canary resolved upstream deps LIVE. A failure here means current"
+          echo "::notice::upstream main breaks this repo — do not bump uv.lock until reconciled."
+          pytest -v

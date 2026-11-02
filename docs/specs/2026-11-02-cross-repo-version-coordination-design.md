@@ -60,10 +60,14 @@ the lock and pins `discovery_engine` to the locked commit, not `main`.
 
 ## Follow-ups (staged — need owner sign-off, not built here)
 
-1. **Enable the trigger.** The seam assumes the Renovate GitHub App is enabled on the org
-   (per `#391`). If it is not, add a scheduled fallback workflow that runs
-   `uv lock --upgrade-package discovery-engine` and opens the bump PR, so the engine can
-   never silently lag more than a week. Owner: org admin (Eran).
+1. **Detection trigger — built.** `upstream-drift-canary.yml` runs the suite daily against
+   *live* upstream main (deliberately not frozen), so drift surfaces the same day with a
+   dated, attributable signal instead of ambushing an unrelated PR. It only detects — the
+   bump stays an intentional lock-bump PR — so it never duplicates Renovate even if the app
+   is on. Remaining open question (owner: org admin / Eran): is the Renovate GitHub App
+   actually enabled for the *auto*-bump PR? If not, the bump is a manual
+   `uv lock --upgrade-package discovery-engine` whenever the canary (or a release) says it is
+   time — the seam does not depend on the app being on.
 2. **Generalize to the other consumers.** `vivarium-workbench` (and any repo that installs
    these `branch=main` deps live) has the same exposure — apply frozen installs + a
    maintained lock + Renovate there too. Owner: per-repo.
