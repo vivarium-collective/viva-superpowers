@@ -438,31 +438,6 @@ wheels = [
 ]
 
 [[package]]
-name = "discovery-engine"
-version = "0.1.0"
-source = { git = "https://github.com/vivarium-collective/discovery-engine.git?branch=main#69aa76684cab2fcde0028de4e5082d8dc1f8f998" }
-dependencies = [
-    { name = "bigraph-schema" },
-    { name = "click" },
-    { name = "filelock" },
-    { name = "jinja2" },
-    { name = "jsonschema", extra = ["format-nongpl"] },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "polars" },
-    { name = "process-bigraph" },
-    { name = "psutil" },
-    { name = "pyyaml" },
-    { name = "rich" },
-    { name = "ruamel-yaml" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "typer" },
-    { name = "viva-emitters", extra = ["parquet"] },
-    { name = "viva-workspace" },
-]
-
-[[package]]
 name = "duckdb"
 version = "1.5.5"
 source = { registry = "https://pypi.org/simple" }
@@ -2331,6 +2306,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "viva-discovery-engine"
+version = "0.1.0"
+source = { git = "https://github.com/vivarium-collective/discovery-engine.git?branch=main#ff7cad0cb6f91328c98be1e1e26cc363c7621864" }
+dependencies = [
+    { name = "bigraph-schema" },
+    { name = "click" },
+    { name = "filelock" },
+    { name = "jinja2" },
+    { name = "jsonschema", extra = ["format-nongpl"] },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "polars" },
+    { name = "process-bigraph" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "rich" },
+    { name = "ruamel-yaml" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "typer" },
+    { name = "viva-emitters", extra = ["parquet"] },
+    { name = "viva-workspace" },
+]
+
+[[package]]
 name = "viva-emitters"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2361,7 +2361,6 @@ source = { editable = "." }
 dependencies = [
     { name = "bigraph-schema" },
     { name = "click" },
-    { name = "discovery-engine" },
     { name = "filelock" },
     { name = "jinja2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
@@ -2370,6 +2369,7 @@ dependencies = [
     { name = "pypdf" },
     { name = "pyyaml" },
     { name = "ruamel-yaml" },
+    { name = "viva-discovery-engine" },
     { name = "viva-emitters" },
     { name = "viva-workspace" },
 ]
@@ -2394,7 +2394,6 @@ processes = [
 requires-dist = [
     { name = "bigraph-schema", specifier = ">=1.8.2" },
     { name = "click", specifier = ">=8.1" },
-    { name = "discovery-engine", git = "https://github.com/vivarium-collective/discovery-engine.git?branch=main" },
     { name = "filelock", specifier = ">=3.12" },
     { name = "investigation-contracts", marker = "extra == 'events'", git = "https://github.com/vivarium-collective/investigation-contracts.git?branch=main" },
     { name = "jinja2", specifier = ">=3.1" },
@@ -2408,6 +2407,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "viva-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/viva-basic-processes.git?branch=main" },
+    { name = "viva-discovery-engine", git = "https://github.com/vivarium-collective/discovery-engine.git?branch=main" },
     { name = "viva-emitters", specifier = ">=0.2.3" },
     { name = "viva-emitters", extras = ["parquet"], marker = "extra == 'evaluator'" },
     { name = "viva-workspace", git = "https://github.com/vivarium-collective/viva-workspace.git?branch=main" },
