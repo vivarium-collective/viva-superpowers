@@ -29,8 +29,9 @@ dependencies = [
     # The investigation/study framework + discovery cycle, extracted to its own
     # repo. viva-superpowers is skills-first; the engine logic lives here.
     # PyPI distribution is `viva-discovery-engine`; the import package stays
-    # `discovery_engine`.
-    "viva-discovery-engine",
+    # `discovery_engine`. Pinned to a PyPI semver range (not git branch=main) so
+    # installs are coherent and bumps are visible Renovate PRs, not silent drift.
+    "viva-discovery-engine>=0.1,<0.2",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +50,7 @@ events = ["investigation-contracts"]
 
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
-viva-discovery-engine = { git = "https://github.com/vivarium-collective/discovery-engine.git", branch = "main" }
+# viva-discovery-engine needs no source override — it resolves from PyPI (>=0.1,<0.2).
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
 viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }
