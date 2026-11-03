@@ -455,7 +455,7 @@ native_investigations:            # investigations authored in THIS workspace
   Wire into CI with a two-line pytest:
 
   ```python
-  from viva_superpowers.investigation_import import assert_selection_ok
+  from discovery_engine.investigation_import import assert_selection_ok
   def test_investigation_selection():
       assert_selection_ok(WORKSPACE_ROOT)
   ```
@@ -466,7 +466,7 @@ native_investigations:            # investigations authored in THIS workspace
   pulled. `--upstream-src PATH` uses an existing local checkout instead of a cache clone;
   `--rev SHA` overrides the pinned rev.
 
-Both are thin wrappers over `python -m viva_superpowers.investigation_import {check|sync}`.
+Both are thin wrappers over `python -m discovery_engine.investigation_import {check|sync}`.
 Excluding a future upstream investigation is just: leave it off the allowlist; `check`
 keeps it out for good.
 

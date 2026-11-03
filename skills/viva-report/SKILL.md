@@ -44,7 +44,7 @@ These are reviewer-readiness issues: lint says "the YAML is well-formed"; the au
 Set `WORKSPACE_ROOT` to the workspace root (the directory holding `workspace.yaml`; `.` for the common case where the skill runs from the workspace root). Then resolve the workspace dirs (honors `workspace.yaml` `layout:` — works for flat or nested workspaces):
 
 ```bash
-eval "$(python -m viva_superpowers.paths --env --workspace "$WORKSPACE_ROOT")"
+eval "$(python -m discovery_engine.paths --env --workspace "$WORKSPACE_ROOT")"
 ```
 
 This exports `$INVESTIGATIONS_DIR`, `$STUDIES_DIR`, `$REPORTS_DIR`, etc. (each = absolute path). Use these variables for the studies/investigations/references/reports paths below — do NOT hardcode `investigations/`, `studies/`, `reports/`. (The hidden `.pbg/` machine-state dir stays at the workspace root by default — use it literally.)
@@ -61,7 +61,7 @@ absent) — `$WORKSPACE_ROOT` is already resolved above:
 INFO="$WORKSPACE_ROOT/.pbg/server/server-info"
 [ -f "$INFO" ] || { echo "ERROR: dashboard server not running. Run /viva-workbench start"; exit 1; }
 URL="$(python3 -c "import json; print(json.load(open('$INFO'))['url'])")"
-python3 -m viva_superpowers.server_preflight --url "$URL" || true  # version-skew preflight (warns; never fails)
+python3 -m discovery_engine.integration.server_preflight --url "$URL" || true  # version-skew preflight (warns; never fails)
 ```
 
 ## Pass A — Reviewer-readiness audit (NEW)
@@ -272,7 +272,7 @@ print(f"\nreadout migration: {needs_human_total} needs_human readout(s) remain a
 PY
 ```
 
-`write: true` (or its synonym `apply: true`) is meaning-preserving, comment-safe, idempotent, and leaves every `needs_human` readout untouched — the endpoint only rewrites the resolvable ones (it wraps `viva_superpowers.readout_migration.migrate_study_file` server-side). It is a **true no-op** on an already-canonical study (the file is left byte-identical — `changed=False`/`written=False`), so re-running `/viva-report` never reflows a clean readouts block. Note: inline comments on an *individual readout entry* are not preserved across canonicalization (the readout dict is rebuilt from its resolved selector); comments on non-readout content survive. Report the total `needs_human` count as a (non-blocking) finding: these can't be auto-fixed and must be re-authored against the composite's real observables via `/viva-study migrate-readouts <slug>` (which uses `/viva-study check-observables` + `/api/observables`). The skill never writes to `study.yaml` directly — the endpoint does, server-side.
+`write: true` (or its synonym `apply: true`) is meaning-preserving, comment-safe, idempotent, and leaves every `needs_human` readout untouched — the endpoint only rewrites the resolvable ones (it wraps `discovery_engine.readout_migration.migrate_study_file` server-side). It is a **true no-op** on an already-canonical study (the file is left byte-identical — `changed=False`/`written=False`), so re-running `/viva-report` never reflows a clean readouts block. Note: inline comments on an *individual readout entry* are not preserved across canonicalization (the readout dict is rebuilt from its resolved selector); comments on non-readout content survive. Report the total `needs_human` count as a (non-blocking) finding: these can't be auto-fixed and must be re-authored against the composite's real observables via `/viva-study migrate-readouts <slug>` (which uses `/viva-study check-observables` + `/api/observables`). The skill never writes to `study.yaml` directly — the endpoint does, server-side.
 
 ## Render
 

@@ -28,7 +28,7 @@ Subagent (general-purpose):
 
     (Resolve $INVESTIGATIONS_DIR yourself first, from the workspace root, the
     same way /viva-report does:
-    `eval "$(python -m viva_superpowers.paths --env --workspace [WORKSPACE_ROOT])"`.)
+    `eval "$(python -m discovery_engine.paths --env --workspace [WORKSPACE_ROOT])"`.)
 
     ## What to run
 
