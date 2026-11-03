@@ -23,7 +23,7 @@ def test_scaffold_matches_manifest(tmp_path, plugin_root, fixtures_dir):
     # Review the diff and commit.
     target = tmp_path / "ws"
     subprocess.run(
-        [sys.executable, "-m", "discovery_engine.scaffold", "workspace",
+        [sys.executable, "-m", "discovery_engine.integration.scaffold", "workspace",
          "--name", "snap", "--target", str(target),
          "--template-source", str(PBG_TEMPLATE)],
         check=True, cwd=plugin_root,

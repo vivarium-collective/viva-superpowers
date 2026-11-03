@@ -42,7 +42,7 @@ def test_full_flow_scaffold_to_reports(tmp_path, plugin_root, fixtures_dir):
     ws = tmp_path / "ws"
 
     # 1. Scaffold workspace + git init
-    _run([sys.executable, "-m", "discovery_engine.scaffold", "workspace",
+    _run([sys.executable, "-m", "discovery_engine.integration.scaffold", "workspace",
           "--name", "demo", "--target", str(ws),
           "--template-source", str(PBG_TEMPLATE)], cwd=plugin_root)
     _git("init", "-q", cwd=ws)
@@ -51,7 +51,7 @@ def test_full_flow_scaffold_to_reports(tmp_path, plugin_root, fixtures_dir):
 
     # 2. Scaffold model + git init
     model = ws / "models" / "m"
-    _run([sys.executable, "-m", "discovery_engine.scaffold", "model",
+    _run([sys.executable, "-m", "discovery_engine.integration.scaffold", "model",
           "--model-name", "m", "--model-slug", "m",
           "--target", str(model)], cwd=plugin_root)
 

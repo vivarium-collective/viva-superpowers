@@ -182,11 +182,11 @@ def test_requires_at_least_one_generator(tmp_path):
 
 
 def test_cli_subcommand_smoke(tmp_path, plugin_root):
-    """End-to-end via `python -m discovery_engine.scaffold investigation-from-wrapper`."""
+    """End-to-end via `python -m discovery_engine.integration.scaffold investigation-from-wrapper`."""
     ws = _ws(tmp_path)
     subprocess.run(
         [
-            sys.executable, "-m", "discovery_engine.scaffold",
+            sys.executable, "-m", "discovery_engine.integration.scaffold",
             "investigation-from-wrapper",
             "--name", "cli-demo",
             "--studies", ",".join(FAKE_GENERATORS),

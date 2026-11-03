@@ -88,7 +88,7 @@ def test_bootstrap_call_sites_untouched(skill_text):
     # shim — Stage A of retiring the facade: skills depend on discovery_engine
     # for engine modules, not on the re-export.
     assert "python -m discovery_engine.paths --env" in skill_text
-    assert "python -m discovery_engine.paths --env" not in skill_text
+    assert "python -m viva_superpowers.paths --env" not in skill_text
     # Phase 2.1j rewired the dashboard-restart site to the vwb CLI (the plugin's
     # server manager viva_superpowers.workbench was deleted).
     assert "vwb server-restart" in skill_text
