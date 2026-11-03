@@ -12,5 +12,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.workspace_lint` → th
     import runpy
     runpy.run_module("discovery_engine.workspace_lint", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.workspace_lint is a back-compat shim; import "
+        "discovery_engine.workspace_lint directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import workspace_lint as _m  # noqa: E402
     _sys.modules[__name__] = _m

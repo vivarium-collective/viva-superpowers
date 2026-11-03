@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.band_provenance` → t
     import runpy
     runpy.run_module("discovery_engine.band_provenance", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.band_provenance is a back-compat shim; import "
+        "discovery_engine.band_provenance directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import band_provenance as _m  # noqa: E402
     _sys.modules[__name__] = _m

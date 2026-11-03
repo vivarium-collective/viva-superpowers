@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.viz_freshness` → the
     import runpy
     runpy.run_module("discovery_engine.viz_freshness", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.viz_freshness is a back-compat shim; import "
+        "discovery_engine.viz_freshness directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import viz_freshness as _m  # noqa: E402
     _sys.modules[__name__] = _m
