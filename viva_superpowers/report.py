@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.report` → the real C
     import runpy
     runpy.run_module("discovery_engine.report", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.report is a back-compat shim; import "
+        "discovery_engine.report directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import report as _m  # noqa: E402
     _sys.modules[__name__] = _m

@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.relations` → the rea
     import runpy
     runpy.run_module("discovery_engine.relations", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.relations is a back-compat shim; import "
+        "discovery_engine.relations directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import relations as _m  # noqa: E402
     _sys.modules[__name__] = _m

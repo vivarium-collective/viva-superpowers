@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.workspace_catalog` →
     import runpy
     runpy.run_module("discovery_engine.workspace_catalog", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.workspace_catalog is a back-compat shim; import "
+        "discovery_engine.workspace_catalog directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import workspace_catalog as _m  # noqa: E402
     _sys.modules[__name__] = _m

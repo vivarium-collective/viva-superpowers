@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.test_vocab` → the re
     import runpy
     runpy.run_module("discovery_engine.test_vocab", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.test_vocab is a back-compat shim; import "
+        "discovery_engine.test_vocab directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import test_vocab as _m  # noqa: E402
     _sys.modules[__name__] = _m

@@ -102,17 +102,24 @@ sys.modules[__name__] = _m   # viva_superpowers.hypotheses IS discovery_engine.h
 
 So `viva_superpowers.<m>` *is the same module object* as `discovery_engine.<m>`; there
 is **one implementation and zero divergence**. `tests/test_discovery_engine_facade.py`
-asserts that object identity across the whole shim set — treat the facade as permanent
-public surface (skills, console scripts, and external consumers import through it).
-The genuinely viva-superpowers-only modules (the ones that are NOT shims) are the
-skills/plugin helpers: `catalog`, `feedback_import`, `feedback_tracking`, `chart_store`,
-`run_params`, `loop_state`, `test_audit`, plus the benchmarking / model-build-loop /
-publishing / packaging helpers.
+asserts that object identity across the whole shim set.
+
+**The facade is deprecated and being retired.** The goal is a clean split —
+viva-superpowers = the agent plugin (skills + its own non-engine modules);
+discovery-engine = the headless engine that every consumer imports **directly**.
+Each shim now emits a `DeprecationWarning` on import. **New or edited code — skills,
+plugin helpers, and external consumers — must import `discovery_engine.<m>` directly,
+not `viva_superpowers.<m>`.** The shims remain only until first-party consumers
+(`sms-ecoli`, `sms-modules`, `v2ecoli`, `viva-casebook`, …) are migrated, then they are
+deleted in a major bump. The genuinely viva-superpowers-only modules (NOT shims — keep
+importing these from `viva_superpowers`) are the skills/plugin helpers: `catalog`,
+`feedback_import`, `feedback_tracking`, `chart_store`, `run_params`, `loop_state`,
+`test_audit`, plus the benchmarking / model-build-loop / publishing / packaging helpers.
 
 **Keeping it decoupled but in sync:** the engine lives once (in discovery-engine), so
-the shims can never drift. New engine logic goes into discovery-engine, not here; a new
-shim here only re-exports it. Don't re-implement an engine module in this repo — that
-would recreate a fork the facade test is designed to forbid.
+the shims can never drift. New engine logic goes into discovery-engine, not here; don't
+add new shims and don't re-implement an engine module in this repo — that would recreate
+a fork the facade test is designed to forbid.
 
 ## When in doubt
 

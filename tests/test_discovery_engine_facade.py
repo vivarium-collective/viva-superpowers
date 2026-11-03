@@ -2,16 +2,20 @@
 
 The investigation/study framework and the derive-first discovery cycle moved to
 the standalone ``discovery-engine`` package. viva-superpowers keeps thin
-re-export shims so ``viva_superpowers.<module>`` imports — and the ``/viva-*``
-skills that use them — keep working. That facade is intentionally permanent
-public surface.
+re-export shims so ``viva_superpowers.<module>`` imports keep working. That
+facade is now **deprecated and being retired** (the engine is the single source;
+import ``discovery_engine.<module>`` directly). Each shim emits a
+``DeprecationWarning`` on import to make the coupling visible and time-bounded
+before the shims are deleted.
 
 Each shim does ``from discovery_engine import <module> as _m`` then
 ``sys.modules[__name__] = _m``, so ``viva_superpowers.<module>`` IS the identical
 module object as ``discovery_engine.<module>``. This test discovers every such
-shim and asserts that identity, guarding the facade against a broken, copied, or
-stale re-export. (The behavioural tests for this code live in discovery-engine's
-own suite; this file is the facade contract that stays here.)
+shim and asserts (a) that identity — guarding against a broken, copied, or stale
+re-export — and (b) that every shim carries the deprecation warning, so the
+retirement signal can't silently regress. (The behavioural tests for this code
+live in discovery-engine's own suite; this file is the facade contract that
+stays here.)
 """
 from __future__ import annotations
 
@@ -56,4 +60,17 @@ def test_shim_is_the_identical_discovery_engine_module(shim_name, de_target):
     assert shim is real, (
         f"viva_superpowers.{shim_name} is not discovery_engine.{de_target} "
         "— the facade re-export is broken or stale"
+    )
+
+
+@pytest.mark.parametrize("shim_name,de_target", _PAIRS, ids=[p[0] for p in _PAIRS])
+def test_shim_emits_deprecation_warning(shim_name, de_target):
+    # The facade is being retired: every shim must announce the deprecation so
+    # the coupling is visible and time-bounded before the shims are deleted.
+    # Source-level contract (runtime is unreliable — a shim imported once is
+    # cached in sys.modules and won't re-warn).
+    src = (_PKG / f"{shim_name}.py").read_text()
+    assert "_warnings.warn(" in src and "DeprecationWarning" in src, (
+        f"viva_superpowers.{shim_name} does not emit a DeprecationWarning "
+        "— re-run the shim-warning pass so the facade retirement signal holds"
     )

@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.test_diff` → the rea
     import runpy
     runpy.run_module("discovery_engine.test_diff", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.test_diff is a back-compat shim; import "
+        "discovery_engine.test_diff directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import test_diff as _m  # noqa: E402
     _sys.modules[__name__] = _m

@@ -10,5 +10,12 @@ if __name__ == "__main__":  # `python -m viva_superpowers.investigation_canonica
     import runpy
     runpy.run_module("discovery_engine.investigation_canonicalize", run_name="__main__", alter_sys=True)
 else:
+    import warnings as _warnings
+    _warnings.warn(
+        "viva_superpowers.investigation_canonicalize is a back-compat shim; import "
+        "discovery_engine.investigation_canonicalize directly (the facade is being retired).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     from discovery_engine import investigation_canonicalize as _m  # noqa: E402
     _sys.modules[__name__] = _m
