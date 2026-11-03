@@ -507,7 +507,7 @@ This command does NOT modify acceptance_criteria or narrative that reference the
 
 Reconcile an investigation after a **structural edit** — studies removed, added, or merged — so its membership, cross-references, and narrative stay consistent. Run it after any `add-study` / `remove-study` / study-set change. It is the systematic answer to the dangling-reference gap that `remove-study` leaves manual, and it splits into deterministic detection (AI-free) + agent-authored prose, mirroring the helper split used elsewhere in viva-superpowers.
 
-1. **Detect (AI-free, no writes):** `python -m viva_superpowers.investigation_reconcile <inv-slug> --ws "$WORKSPACE_ROOT"` prints a grouped drift report:
+1. **Detect (AI-free, no writes):** `python -m discovery_engine.investigation_reconcile <inv-slug> --ws "$WORKSPACE_ROOT"` prints a grouped drift report:
    - `member_missing_on_disk` — a declared member whose study was removed;
    - `orphan_on_disk` — a study on disk not listed as a member;
    - `structured_ref_to_removed` — a removed study still named in `members`/`studies`, `at_a_glance`, `acceptance_criteria`, or a surviving study's `pipeline_gate.prerequisites`;

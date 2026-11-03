@@ -14,7 +14,7 @@ Overview tab.
 
 Adding a new behavioral test is a YAML edit only — no new test code required.
 
-> **Canonical engine: `pass_if` (`viva_superpowers.study_evaluator`).** There is
+> **Canonical engine: `pass_if` (`discovery_engine.study_evaluator`).** There is
 > **one** assertion engine — the plugin's `study_evaluator`, which grades
 > `behavior_tests[].pass_if`, runs offline, and gates `study_audit`. It is what
 > `auto_evaluate` / `compute_outcomes` / the Tests tab / the default Behavior-Tests
@@ -296,7 +296,7 @@ The evaluator calls `evaluate(entry, history)`, which:
 
 ## Config-selection (`pass_if` grammar) — #98
 
-The plugin evaluator (`viva_superpowers.study_evaluator`, the closed-op `pass_if`
+The plugin evaluator (`discovery_engine.study_evaluator`, the closed-op `pass_if`
 grammar that gates `study_audit`) can assert against a run's **declared config**,
 not just its run-data series. The config source is the run's params from the
 study's condition block (`conditions.baseline.params`, a variant's `params`

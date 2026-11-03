@@ -20,7 +20,7 @@ import pytest
 PAIRS = [
     ("viva_superpowers.composite_generator", "process_bigraph.composite_generator"),
     ("viva_superpowers.composite_discovery", "process_bigraph.composite_discovery"),
-    ("viva_superpowers.core_introspection", "process_bigraph.core_introspection"),
+    ("discovery_engine.core_introspection", "process_bigraph.core_introspection"),
     ("viva_superpowers.config_helpers", "process_bigraph.config_helpers"),
     ("viva_superpowers.visualization", "process_bigraph.visualization"),
     ("viva_superpowers.visualizations", "process_bigraph.visualizations"),

@@ -26,7 +26,7 @@ import yaml
 
 pytest.importorskip("viva_emitters")
 
-from viva_superpowers import study_evaluator as se
+from discovery_engine import study_evaluator as se
 
 # ---------------------------------------------------------------------------
 # Paths to real data (read-only — never modified)

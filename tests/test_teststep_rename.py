@@ -1,6 +1,6 @@
 import warnings
 import viva_superpowers as vsp
-from viva_superpowers import post_sim
+from discovery_engine import post_sim
 
 
 def test_teststep_and_aliases_exist():

@@ -202,7 +202,7 @@ their absence). What viva-study emits:
 
 ## Run the readiness linter as a build step (not just at report time)
 
-The readiness linter (`viva_superpowers.report_linter.lint_workspace_report`) is
+The readiness linter (`discovery_engine.report_linter.lint_workspace_report`) is
 the same gate that `/viva-report --lint` and `/viva-harden-investigation` run. It
 is cheap, needs no server, and catches the gaps this skill is responsible for —
 `gate_class_missing`, `missing_provenance`, `visualization_address_unresolved` /
@@ -212,7 +212,7 @@ you call the study done — not only when rendering a report.**
 
 ```bash
 # whole workspace, or scope to the study you just edited
-python -c "from pathlib import Path; from viva_superpowers.report_linter import \
+python -c "from pathlib import Path; from discovery_engine.report_linter import \
 lint_workspace_report, format_findings; \
 print(format_findings([f for f in lint_workspace_report(Path('.')) if f.level!='info']))"
 # or, with the dashboard conventions:  /viva-report --lint

@@ -43,7 +43,7 @@ def _init_git_repo(root: Path) -> None:
 
 def _scaffold_in_place(root: Path, plugin_root: Path, name: str) -> None:
     subprocess.run(
-        [sys.executable, "-m", "viva_superpowers.scaffold", "workspace",
+        [sys.executable, "-m", "discovery_engine.integration.scaffold", "workspace",
          "--name", name, "--target", str(root), "--in-place",
          "--template-source", str(PBG_TEMPLATE)],
         check=True, cwd=plugin_root,

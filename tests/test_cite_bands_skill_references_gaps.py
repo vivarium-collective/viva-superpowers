@@ -34,11 +34,11 @@ def test_skill_has_no_direct_viva_superpowers_compute_imports():
     the workbench server backing the API, not this client-side skill."""
     text = SKILL.read_text(encoding="utf-8")
     banned = [
-        "viva_superpowers.band_provenance",
+        "discovery_engine.band_provenance",
         "viva_superpowers.citation_gaps",
         "viva_superpowers.expert_search",
-        "viva_superpowers.report_linter",
-        "viva_superpowers.study_io",
+        "discovery_engine.report_linter",
+        "discovery_engine.study_io",
     ]
     for module in banned:
         assert module not in text, f"skill still imports {module} directly — should call the API instead"

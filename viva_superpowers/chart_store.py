@@ -39,7 +39,7 @@ import json
 import time
 from pathlib import Path
 
-from . import study_io, study_outcomes, run_registry, viz_freshness
+from discovery_engine import study_io, study_outcomes, run_registry, viz_freshness
 
 # Sidecar manifest filename, written inside the study's charts/ dir.
 MANIFEST_NAME = ".chart-runs.json"
@@ -352,7 +352,7 @@ def prune(study_dir: Path | str, *, dry_run: bool = True) -> dict:
 
 def main(argv=None) -> int:
     import argparse
-    from .workspace_paths import WorkspacePaths
+    from discovery_engine.workspace_paths import WorkspacePaths
 
     ap = argparse.ArgumentParser(
         description="List or prune superseded-run charts in a study.")

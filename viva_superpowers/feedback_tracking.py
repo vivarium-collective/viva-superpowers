@@ -20,7 +20,7 @@ from typing import Any
 import yaml
 
 from viva_superpowers.feedback_import import _feedback_files
-from viva_superpowers.workspace_paths import WorkspacePaths
+from discovery_engine.workspace_paths import WorkspacePaths
 
 # Status sets ─────────────────────────────────────────────────────────────────
 

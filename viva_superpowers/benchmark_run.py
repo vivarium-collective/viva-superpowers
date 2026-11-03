@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import yaml
 
-from viva_superpowers import benchmark_score, loop_state, paths, test_audit
+from discovery_engine import paths
+from viva_superpowers import benchmark_score, loop_state, test_audit
 
 
 def collect_trial_artifacts(ws_root, study: str) -> dict:

@@ -38,8 +38,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
-from viva_superpowers.paths import find_workspace_root
-from viva_superpowers.workspace_paths import WorkspacePaths
+from discovery_engine.paths import find_workspace_root
+from discovery_engine.workspace_paths import WorkspacePaths
 
 
 # ---------------------------------------------------------------------------

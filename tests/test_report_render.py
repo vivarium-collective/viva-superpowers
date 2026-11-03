@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from viva_superpowers.report import render_workspace_report, render_model_report
-from viva_superpowers.workspace_paths import WorkspacePaths
+from discovery_engine.report import render_workspace_report, render_model_report
+from discovery_engine.workspace_paths import WorkspacePaths
 
 
 PBG_TEMPLATE = Path(os.environ.get("PBG_TEMPLATE", "~/code/pbg-template")).expanduser().resolve()
@@ -21,7 +21,7 @@ def _check_template_exists():
 
 def _scaffold_workspace(target: Path, plugin_root: Path):
     subprocess.run(
-        [sys.executable, "-m", "viva_superpowers.scaffold", "workspace",
+        [sys.executable, "-m", "discovery_engine.integration.scaffold", "workspace",
          "--name", "demo-ws", "--target", str(target),
          "--template-source", str(PBG_TEMPLATE)],
         check=True, cwd=plugin_root,
@@ -56,7 +56,7 @@ def test_render_model_report_with_registry(tmp_path, plugin_root):
     }
     (ws / "workspace.yaml").write_text(yaml.safe_dump(wsdata, sort_keys=False))
     subprocess.run(
-        [sys.executable, "-m", "viva_superpowers.scaffold", "model",
+        [sys.executable, "-m", "discovery_engine.integration.scaffold", "model",
          "--model-name", "ecoli-rep", "--model-slug", "ecoli_rep",
          "--target", str(ws / "models" / "ecoli-rep")],
         check=True, cwd=plugin_root,

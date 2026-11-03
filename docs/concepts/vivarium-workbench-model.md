@@ -74,7 +74,7 @@ Investigations aggregate over their constituent studies: an Investigation card s
 
 A recurring reviewer complaint is "I can't tell which studies ran, whether the tests ran, or whether the study passed." The fix is **derive-on-read + single-sourced**, not hand-set fields:
 
-- **`viva_superpowers.study_status.study_clarity_summary(spec, runs)`** is the single source of truth. It returns one normalized object — `{ran, tests, verdict, ambiguities}` — that every renderer reads, so the run/test/verdict markers are computed **once** and shown consistently.
+- **`discovery_engine.study_status.study_clarity_summary(spec, runs)`** is the single source of truth. It returns one normalized object — `{ran, tests, verdict, ambiguities}` — that every renderer reads, so the run/test/verdict markers are computed **once** and shown consistently.
 - **The test markers mirror the renderer exactly.** A study's per-test pill is derived from the **latest run's `outcomes[test_name].result`** (PASS/FAIL/SKIP), **not** from the test's own `status:` field. A test with `status: passed` but no recorded run-outcome renders **⏳ pending**. So to make a passing test *show* as passing, record `runs[].outcomes: {<test_name>: {result: PASS}}` on the latest run — see [handling investigation feedback](../conventions/handling-investigation-feedback.md).
 - **`simulation_status` / `evaluation_status` are derived from `runs`**, never trusted from the stored field; a study that declares `status: completed` but records no `runs:` derives `not_run` and renders as "pending" despite the headline.
 - **The downloadable report** (`walkthrough.js` `_buildInvestigationReportHtml`) renders a per-study **"Ran · Tests · Verdict" strip** from `study_clarity_summary` (server-injected as `spec.clarity_summary`, with an equivalent client-side fallback).
@@ -511,7 +511,7 @@ discovery_implications:
       motivation: <text>
 ```
 
-It is **optional and unenforced** — absent → the section is simply omitted (which is why minimal/programmatic studies often lack it). The **rigor scorecard** (`viva_superpowers.rigor`) flags a study that declares neither `discovery_implications` nor `follow_up_studies` with a `next_steps` gap, so the Decide phase is surfaced as feedback without becoming a hard gate.
+It is **optional and unenforced** — absent → the section is simply omitted (which is why minimal/programmatic studies often lack it). The **rigor scorecard** (`discovery_engine.rigor`) flags a study that declares neither `discovery_implications` nor `follow_up_studies` with a `next_steps` gap, so the Decide phase is surfaced as feedback without becoming a hard gate.
 
 ### Baseline
 
@@ -567,7 +567,7 @@ An Investigation slug is also a **git branch name** and a **worktree directory n
 - **`/viva-investigation open <slug>`** creates (or reuses) a worktree at the standard location `<workspace>/.pbg/worktrees/<slug>/` checked out to branch `<slug>`. By default it also boots a per-worktree dashboard server. (`--no-server` skips that.) The standard location keeps worktrees discoverable next to the parent checkout and inside `.pbg/`, which is conventionally git-ignored.
 - **One dashboard server per worktree** — intentional. Each worktree has its own runtime state (`.pbg/composite-runs.db`, server log, ports). The server self-registers in `~/.pbg/servers/<name>.<hash>.json` on boot, with `path` set to the worktree (not the parent checkout).
 - **Sidebar = cross-worktree switcher.** The left-rail Investigation dropdown queries `/api/investigation-registry`, which fans out across every record under `~/.pbg/servers/*.json` (except its own) to surface their `current` Investigation. Rows for OTHER worktrees are clickable → opens that server's URL in a new tab.
-- **Dedup is per-worktree path.** Starting the workbench (`/viva-workbench start`) removes only records that point at the SAME worktree path (after prompting if the PID is still alive). Records at different worktree paths coexist — that's how parallel agents work. `python -m viva_superpowers.workspace_catalog cleanup-servers` removes orphaned records (PID dead OR worktree path missing).
+- **Dedup is per-worktree path.** Starting the workbench (`/viva-workbench start`) removes only records that point at the SAME worktree path (after prompting if the PID is still alive). Records at different worktree paths coexist — that's how parallel agents work. `python -m discovery_engine.workspace_catalog cleanup-servers` removes orphaned records (PID dead OR worktree path missing).
 
 **Known migration note (v2ecoli).** The `dnaa-replication` investigation in v2ecoli was created before this convention, on a branch named `dnaa-replication-studies` (slug-vs-branch mismatch). To bring it into compliance, run `git branch -m dnaa-replication-studies dnaa-replication` on the relevant worktree's checkout, then `/viva-investigation open dnaa-replication` to materialize it at the standard worktree location.
 
@@ -652,7 +652,7 @@ A named visualization config attached to a study. Renders run output to HTML.
 
 Every `visualizations[]` entry may declare an optional `render:` command string. When present, `/viva-study refresh-viz` (and the auto-refresh that fires after a successful `run-baseline` / `run-variant` / `run-script`) uses it to regenerate the chart against the latest run.
 
-**`runs.db` as the authoritative run↔study record.** Each study's `runs.db` (SQLite) holds a `runs_meta` table that is the single source of truth for run provenance: `run_id`, `started_at`, `completed_at`, `composite`, `variant`, `emitter_path`, and `generation_id`. `viva_superpowers.run_registry.latest_run(runs_db_path)` returns the most-recently-completed row; `refresh-viz` queries it before every invocation.
+**`runs.db` as the authoritative run↔study record.** Each study's `runs.db` (SQLite) holds a `runs_meta` table that is the single source of truth for run provenance: `run_id`, `started_at`, `completed_at`, `composite`, `variant`, `emitter_path`, and `generation_id`. `discovery_engine.run_registry.latest_run(runs_db_path)` returns the most-recently-completed row; `refresh-viz` queries it before every invocation.
 
 **`visualizations[].render` contract.** `render:` is a shell command run with `cwd` = the study directory. Two substitutions happen before execution:
 
@@ -1016,7 +1016,7 @@ rather than guessing at a shape mismatch.
 `/viva-report`'s structural lint (Pass B) warns on common empty-field gaps in
 `studies/<slug>/study.yaml` so a study card isn't half-blank. The check ids
 below are the literal `check=` values emitted by
-`viva_superpowers.report_linter`; the field set + enum values themselves are
+`discovery_engine.report_linter`; the field set + enum values themselves are
 defined by [`study.schema.json`](https://github.com/vivarium-collective/viva-template/blob/main/template/.pbg/schemas/study.schema.json)
 (see the [multi-axis status](#multi-axis-status) table for the status enums).
 **All of these are non-blocking except `missing_visualizations`** — the rest

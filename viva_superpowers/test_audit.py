@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import re
 
-from viva_superpowers.test_contract import TestBuilder, check, value
-from viva_superpowers import band_provenance
+from discovery_engine.test_contract import TestBuilder, check, value
+from discovery_engine import band_provenance
 
 
 def _tests(spec: dict) -> list:

@@ -38,7 +38,8 @@ the run is disposable/reproducible):
    ```bash
    python - "$STUDY" <<'PY'
    import sys, json
-   from viva_superpowers import benchmark_run, paths
+   from discovery_engine import paths
+   from viva_superpowers import benchmark_run
    art = benchmark_run.collect_trial_artifacts(paths.workspace_root(), sys.argv[1])
    print(json.dumps(art))   # loop_state + audit_gate + behavior_tests
    PY

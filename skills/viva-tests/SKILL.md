@@ -170,7 +170,8 @@ STUDY="${1:?usage: /viva-tests audit <study-slug>}"
 python - "$STUDY" <<'PY'
 import sys, json, yaml
 from pathlib import Path
-from viva_superpowers import paths, test_audit
+from discovery_engine import paths
+from viva_superpowers import test_audit
 ws = paths.workspace_root()
 sf = paths.workspace_dir("studies", root=ws) / sys.argv[1] / "study.yaml"
 spec = yaml.safe_load(sf.read_text()) if sf.is_file() else {}
@@ -191,7 +192,8 @@ audit (skips cleanly when absent — most studies have no `sourcing:` block):
 ```bash
 python - "$STUDY" <<'PY'
 import sys, json, yaml
-from viva_superpowers import paths, module_sourcing as ms
+from discovery_engine import paths
+from viva_superpowers import module_sourcing as ms
 ws = paths.workspace_root()
 spec = yaml.safe_load((paths.workspace_dir("studies", root=ws) / sys.argv[1] / "study.yaml").read_text())
 if not spec.get("sourcing"):
