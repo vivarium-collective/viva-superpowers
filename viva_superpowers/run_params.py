@@ -199,7 +199,7 @@ def write_run_params(
     from ruamel.yaml import YAML
     from ruamel.yaml.comments import CommentedMap
 
-    from . import study_io
+    from discovery_engine import study_io
 
     study_yaml = _study_yaml_path(study)
 

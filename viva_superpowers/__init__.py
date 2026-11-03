@@ -1,12 +1,12 @@
 """Helpers shared by viva-superpowers skills."""
-__version__ = "0.24.0"
+__version__ = "0.25.0"
 
 # Light, import-safe contract (no process_bigraph): eager.
 from discovery_engine.test_contract import (  # noqa: E402,F401
     Expected, value, band, predicate, check, TestBuilder, sanitize,
 )
 from discovery_engine.test_diff import diff_reports  # noqa: E402,F401
-from viva_superpowers import test_vocab  # noqa: E402,F401
+from discovery_engine import test_vocab  # noqa: E402,F401
 # Reference-driven card grading (typed criteria → report_card_verdict/v1).
 # Light: stdlib + scipy-at-call-time only, no process_bigraph.
 from discovery_engine.card_criteria import grade_axis  # noqa: E402,F401
@@ -29,7 +29,7 @@ _POST_SIM_NAMES = frozenset({
 
 def __getattr__(name):
     if name in _POST_SIM_NAMES:
-        from viva_superpowers import post_sim
+        from discovery_engine import post_sim
         return getattr(post_sim, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

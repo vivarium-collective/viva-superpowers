@@ -4,7 +4,7 @@ def test_foundation_reexports():
                  "TestBuilder", "diff_reports"):
         assert hasattr(vsp, name), name
     # vocab still reachable via submodule
-    from viva_superpowers import test_vocab
+    from discovery_engine import test_vocab
     assert test_vocab.CANONICAL[0] == "within_tol"
 
 def test_foundation_has_no_heavy_imports():

@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from viva_superpowers import chart_store, viz_freshness
+from discovery_engine import viz_freshness
+from viva_superpowers import chart_store
 
 
 def _study(tmp_path: Path, runs: list[dict],

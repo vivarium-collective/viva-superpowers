@@ -162,6 +162,6 @@ def test_build_composite_from_spec_uses_unified_substitution():
 
 
 def test_substitute_parameters_delegates():
-    from viva_superpowers import composite_spec as legacy
+    from discovery_engine import composite_spec as legacy
     out = legacy.substitute_parameters({"a": "${x}"}, {"x": {"type": "int", "default": 0}}, {"x": 5})
     assert out == {"a": 5}

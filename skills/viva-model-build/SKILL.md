@@ -95,7 +95,8 @@ MAX_ITERS="${MAX_ITERS:-12}"      # from --max-iterations, if given
 # is passed as an argv token — NOT interpolated into the quoted heredoc body.
 python - "$STUDY" "$QUESTION" "$MAX_ITERS" <<'PY'
 import sys, yaml
-from viva_superpowers import loop_state as ls, paths
+from discovery_engine import paths
+from viva_superpowers import loop_state as ls
 ws = paths.workspace_root()
 study, question, max_iters = sys.argv[1], sys.argv[2], int(sys.argv[3])
 st = ls.load(ws, study)
@@ -117,7 +118,8 @@ Advance a state and persist (example — LOCK after a passing audit):
 ```bash
 python - "$STUDY" <<'PY'
 import sys, yaml
-from viva_superpowers import loop_state as ls, paths
+from discovery_engine import paths
+from viva_superpowers import loop_state as ls
 ws, study = paths.workspace_root(), sys.argv[1]
 st = ls.load(ws, study)
 spec = yaml.safe_load((paths.workspace_dir("studies", root=ws) / study / "study.yaml").read_text())
@@ -132,7 +134,8 @@ SELECT — record + grade the sourcing decision before locking (gate `fail` bloc
 ```bash
 python - "$STUDY" <<'PY'
 import sys, yaml
-from viva_superpowers import loop_state as ls, module_sourcing as ms, paths
+from discovery_engine import paths
+from viva_superpowers import loop_state as ls, module_sourcing as ms
 ws, study = paths.workspace_root(), sys.argv[1]
 st = ls.load(ws, study)
 spec = yaml.safe_load((paths.workspace_dir("studies", root=ws) / study / "study.yaml").read_text())
