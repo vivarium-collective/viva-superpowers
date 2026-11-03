@@ -83,8 +83,12 @@ def test_server_preflight_documented(skill_text):
 
 
 def test_bootstrap_call_sites_untouched(skill_text):
-    # paths --env stays OUT of scope for the report rewire (bootstrap/deferred).
-    assert "python -m viva_superpowers.paths --env" in skill_text
+    # The paths bootstrap now imports the engine module directly
+    # (discovery_engine.paths) rather than through the viva_superpowers facade
+    # shim — Stage A of retiring the facade: skills depend on discovery_engine
+    # for engine modules, not on the re-export.
+    assert "python -m discovery_engine.paths --env" in skill_text
+    assert "python -m viva_superpowers.paths --env" not in skill_text
     # Phase 2.1j rewired the dashboard-restart site to the vwb CLI (the plugin's
     # server manager viva_superpowers.workbench was deleted).
     assert "vwb server-restart" in skill_text
