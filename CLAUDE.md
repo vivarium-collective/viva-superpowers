@@ -92,34 +92,23 @@ argument/knowledge/narrative/synthesis projections, post-sim steps, `viz_freshne
 hard dependency in `pyproject.toml`); discovery-engine never imports back (no circular
 edge).
 
-**viva-superpowers is a skills-first facade over the engine.** For every moved module
-it keeps a **back-compat shim** — not a fork — that re-exports the engine:
+**The facade is gone — import `discovery_engine.<m>` directly.** The back-compat shims
+that used to re-export the engine under the `viva_superpowers.<m>` name have been
+**deleted**. The split is now clean: viva-superpowers = the agent plugin (skills + its
+own non-engine modules); discovery-engine = the headless engine that every consumer
+imports **directly**. So `from discovery_engine.card_grade import ...`,
+`python -m discovery_engine.discover`, etc. — never `viva_superpowers.<engine-module>`.
 
-```python
-from discovery_engine import hypotheses as _m
-sys.modules[__name__] = _m   # viva_superpowers.hypotheses IS discovery_engine.hypotheses
-```
+The modules that genuinely belong to viva-superpowers (import these from
+`viva_superpowers`) are the skills/plugin helpers: `catalog`, `feedback_import`,
+`feedback_tracking`, `chart_store`, `run_params`, `loop_state`, `test_audit`, plus the
+benchmarking / model-build-loop / publishing / packaging helpers. The test-authoring DSL
+is still re-exported at the top level (`from viva_superpowers import check, band,
+TestBuilder, grade_axis`), but it is now sourced from `discovery_engine.*`, not a shim.
 
-So `viva_superpowers.<m>` *is the same module object* as `discovery_engine.<m>`; there
-is **one implementation and zero divergence**. `tests/test_discovery_engine_facade.py`
-asserts that object identity across the whole shim set.
-
-**The facade is deprecated and being retired.** The goal is a clean split —
-viva-superpowers = the agent plugin (skills + its own non-engine modules);
-discovery-engine = the headless engine that every consumer imports **directly**.
-Each shim now emits a `DeprecationWarning` on import. **New or edited code — skills,
-plugin helpers, and external consumers — must import `discovery_engine.<m>` directly,
-not `viva_superpowers.<m>`.** The shims remain only until first-party consumers
-(`sms-ecoli`, `sms-modules`, `v2ecoli`, `viva-casebook`, …) are migrated, then they are
-deleted in a major bump. The genuinely viva-superpowers-only modules (NOT shims — keep
-importing these from `viva_superpowers`) are the skills/plugin helpers: `catalog`,
-`feedback_import`, `feedback_tracking`, `chart_store`, `run_params`, `loop_state`,
-`test_audit`, plus the benchmarking / model-build-loop / publishing / packaging helpers.
-
-**Keeping it decoupled but in sync:** the engine lives once (in discovery-engine), so
-the shims can never drift. New engine logic goes into discovery-engine, not here; don't
-add new shims and don't re-implement an engine module in this repo — that would recreate
-a fork the facade test is designed to forbid.
+**New engine logic goes into discovery-engine, not here.** Don't re-add a
+`viva_superpowers.<engine-module>` re-export and don't re-implement an engine module in
+this repo — that would recreate the fork the extraction removed.
 
 ## When in doubt
 

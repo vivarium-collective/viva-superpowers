@@ -1,9 +1,9 @@
-"""Tests for viva_superpowers.composite_spec + composite_discovery."""
+"""Tests for discovery_engine.composite_spec + composite_discovery."""
 from pathlib import Path
 
 import pytest
 
-from viva_superpowers.composite_spec import (
+from discovery_engine.composite_spec import (
     load_spec, validate_spec, substitute_parameters, build_composite_from_spec,
 )
 
@@ -153,7 +153,7 @@ def test_discovery_finds_workspace_local_specs(tmp_path):
 
 
 def test_build_composite_from_spec_uses_unified_substitution():
-    from viva_superpowers.composite_spec import build_composite_from_spec
+    from discovery_engine.composite_spec import build_composite_from_spec
     spec = {"name": "c", "parameters": {"seed": {"type": "int", "default": 2}},
             "state": {"v": "${seed}"}}
     comp = build_composite_from_spec(spec, overrides={"seed": 9})

@@ -40,7 +40,7 @@ the engine **re-projects** and advances. The crank does not do the science; it p
 ## The entrypoint
 
 ```bash
-python -m viva_superpowers.discover --workspace <WS> crank <investigation-slug>
+python -m discovery_engine.discover --workspace <WS> crank <investigation-slug>
 ```
 
 `crank` prints the closure line, the single next action, and the top of the frontier:
@@ -219,7 +219,7 @@ are the follow-on.
      print('engine present:', (d/'discover.py').exists() and (d/'discovery_engine.py').exists())"
    ```
    If `False`: refresh the install (`uv pip install -U` the superpowers git `main` into that
-   venv), or shadow a checkout that has it via `PYTHONPATH=<superpowers-checkout> <WS>/.venv/bin/python -m viva_superpowers.discover …`.
+   venv), or shadow a checkout that has it via `PYTHONPATH=<superpowers-checkout> <WS>/.venv/bin/python -m discovery_engine.discover …`.
 2. If a crank dies with `TypeError: '>' not supported between instances of 'str' and 'float'`,
    the installed `viva_workspace.canonical_run` is mixing run-timestamp types — shadow a
    fixed `viva-workspace` checkout on `PYTHONPATH` alongside superpowers.

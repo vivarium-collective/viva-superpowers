@@ -39,7 +39,7 @@ It is the deterministic engine behind this skill's whole premise ("find the one 
 weakens the headline claim"):
 
 ```bash
-python -m viva_superpowers.discover --workspace <WS> crank <investigation-slug>
+python -m discovery_engine.discover --workspace <WS> crank <investigation-slug>
 ```
 
 It prints `closure` (CLOSED / OPEN), the single `next` action, and the top frontier — each item

@@ -138,7 +138,7 @@ state:
 
 ```python
 from pathlib import Path
-from viva_superpowers.composite_spec import load_spec, build_composite_from_spec
+from discovery_engine.composite_spec import load_spec, build_composite_from_spec
 
 spec = load_spec(Path("my_package/composites/baseline.composite.yaml"))
 

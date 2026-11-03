@@ -8,7 +8,7 @@ The LLM axes (question_comprehension, model_plausibility) are filled by the
 from __future__ import annotations
 
 from viva_superpowers import loop_state
-from viva_superpowers.test_contract import TestBuilder, check, sanitize, value
+from discovery_engine.test_contract import TestBuilder, check, sanitize, value
 
 
 def score_test_sufficiency(audit_gate: str) -> dict:

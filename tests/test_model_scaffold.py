@@ -9,7 +9,7 @@ import pytest
 def _scaffold_model(target: Path, plugin_root: Path,
                     name: str = "ecoli-replication", slug: str = "ecoli_replication"):
     subprocess.run(
-        [sys.executable, "-m", "viva_superpowers.scaffold", "model",
+        [sys.executable, "-m", "discovery_engine.scaffold", "model",
          "--model-name", name, "--model-slug", slug,
          "--target", str(target)],
         check=True, cwd=plugin_root,

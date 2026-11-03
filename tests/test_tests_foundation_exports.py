@@ -10,8 +10,8 @@ def test_foundation_reexports():
 def test_foundation_has_no_heavy_imports():
     # the contract must be importable without process_bigraph / vivarium_workbench
     import sys, importlib
-    for mod in ("viva_superpowers.test_vocab", "viva_superpowers.test_contract",
-                "viva_superpowers.test_diff"):
+    for mod in ("discovery_engine.test_vocab", "discovery_engine.test_contract",
+                "discovery_engine.test_diff"):
         importlib.import_module(mod)
     # importing the pure modules must not have pulled workbench in
     assert "vivarium_workbench" not in sys.modules

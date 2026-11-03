@@ -5,7 +5,7 @@
 below pin the re-exported ``LAYOUT_DEFAULTS`` and the canonical ``viva_<slug>``
 package naming so the shim keeps exposing the expected public surface.
 """
-from viva_superpowers.workspace_paths import (
+from discovery_engine.workspace_paths import (
     WorkspacePaths, LAYOUT_DEFAULTS, package_slug,
 )
 
@@ -60,7 +60,7 @@ def test_layout_overrides(tmp_path):
 
 def test_workspace_dir_cli(tmp_path, capsys):
     """The paths CLI resolves a dir name honoring layout (skills rely on this)."""
-    from viva_superpowers.paths import _main, workspace_dir
+    from discovery_engine.paths import _main, workspace_dir
     (tmp_path / "workspace.yaml").write_text(
         "name: w\nlayout:\n  investigations: workspace/investigations\n"
     )
@@ -78,7 +78,7 @@ def test_workspace_dir_cli(tmp_path, capsys):
 
 
 def test_iter_study_dirs_toplevel_wins_collision(tmp_path):
-    from viva_superpowers.workspace_paths import WorkspacePaths
+    from discovery_engine.workspace_paths import WorkspacePaths
     (tmp_path / "workspace.yaml").write_text("name: t\n")
     top = tmp_path / "studies" / "dup"; top.mkdir(parents=True)
     (top / "study.yaml").write_text("name: dup-TOP\n")

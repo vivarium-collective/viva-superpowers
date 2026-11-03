@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from viva_superpowers.readout_migration import (
+from discovery_engine.readout_migration import (
     migrate_readouts,
     migrate_study_file,
     readout_migration_status,
 )
-from viva_superpowers.readout_resolver import (
+from discovery_engine.readout_resolver import (
     ResolvedReadout,
     UnresolvedReadout,
     resolve_readout,

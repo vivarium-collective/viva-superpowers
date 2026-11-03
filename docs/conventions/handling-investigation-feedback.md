@@ -174,4 +174,4 @@ reading, record FAIL, and start diagnosing a non-problem.
 
 - [Reviewer-facing status clarity](../concepts/vivarium-workbench-model.md#reviewer-facing-status-clarity) — the `study_clarity_summary` backbone + the report-linter clarity checks.
 - `/viva-report` skill — the pre-send audit + lint + render.
-- `viva_superpowers.study_status` — derive-on-read status (the single source of truth for run/test/verdict markers).
+- `discovery_engine.study_status` — derive-on-read status (the single source of truth for run/test/verdict markers).

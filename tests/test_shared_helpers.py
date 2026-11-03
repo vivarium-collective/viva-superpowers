@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from viva_superpowers import study_io
-from viva_superpowers.paths import find_workspace_root
-from viva_superpowers.text_utils import first_sentence
+from discovery_engine.paths import find_workspace_root
+from discovery_engine.text_utils import first_sentence
 
 
 # --- study_io ---------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 A skeptical reviewer of a simulation-based investigation asks the same questions
 every time. The dashboard now answers them deterministically with the **evidence
-& rigor scorecard** (`viva_superpowers.rigor`): it reads declared fields and
+& rigor scorecard** (`discovery_engine.rigor`): it reads declared fields and
 reports, per study, `ok` / `warn` / `gap` on each dimension below, plus an
 investigation roll-up. **A missing field is a `gap`** — that is the feedback.
 

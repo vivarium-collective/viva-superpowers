@@ -16,7 +16,7 @@ subset-match rule (``requires ⊆ capabilities``, same as
 """
 from __future__ import annotations
 
-from viva_superpowers.test_contract import TestBuilder, check, value
+from discovery_engine.test_contract import TestBuilder, check, value
 
 _BUILD = {"build-new", "build_new", "build", "new"}
 

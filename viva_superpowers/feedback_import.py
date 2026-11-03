@@ -24,7 +24,7 @@ from pathlib import Path
 import click
 import yaml
 
-from viva_superpowers.workspace_paths import WorkspacePaths
+from discovery_engine.workspace_paths import WorkspacePaths
 
 
 def _read_feedback_yaml(path: Path) -> dict:

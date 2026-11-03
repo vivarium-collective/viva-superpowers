@@ -10,7 +10,7 @@ v, kd's, hydrolysis rate"*. The framework already has two adjacent pieces:
   they were applied; and
 * ``runs[].params`` — a *sparse* mechanical mirror of a run's recorded
   ``runs_meta.params_json`` overrides, owned and overwritten by
-  :mod:`viva_superpowers.study_outcomes` on every reconcile.
+  :mod:`discovery_engine.study_outcomes` on every reconcile.
 
 Neither answers the reviewer's question on its own: ``enforced_params`` is only
 the few knobs the author chose to enforce, and ``runs[].params`` is the sparse
@@ -29,7 +29,7 @@ Design:
   The dashboard runner / run-registry record path calls it once per run.
 * :func:`write_run_params` stores the captured dict via a ruamel round-trip
   (comments / prose / sibling runs preserved), mirroring
-  :func:`viva_superpowers.study_outcomes._write_runs_preserving_comments`.
+  :func:`discovery_engine.study_outcomes._write_runs_preserving_comments`.
 * :func:`render_run_params_rows` turns a captured dict (or a whole run record)
   into table-ready rows for the report, flagging the ``enforced`` subset so the
   reviewer sees enforcement status inline. :func:`render_run_params_table_html`
@@ -177,9 +177,9 @@ def write_run_params(
 
     Uses a ruamel round-trip so YAML comments, prose, and every other run are
     preserved (mirrors
-    :func:`viva_superpowers.study_outcomes._write_runs_preserving_comments`).
+    :func:`discovery_engine.study_outcomes._write_runs_preserving_comments`).
     ``provenance`` is intentionally NOT one of
-    :data:`viva_superpowers.study_outcomes._MECHANICAL`, so a later
+    :data:`discovery_engine.study_outcomes._MECHANICAL`, so a later
     ``study_outcomes.sync()`` will not clobber it.
 
     Args:

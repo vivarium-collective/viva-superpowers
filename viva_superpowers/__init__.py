@@ -2,15 +2,15 @@
 __version__ = "0.24.0"
 
 # Light, import-safe contract (no process_bigraph): eager.
-from viva_superpowers.test_contract import (  # noqa: E402,F401
+from discovery_engine.test_contract import (  # noqa: E402,F401
     Expected, value, band, predicate, check, TestBuilder, sanitize,
 )
-from viva_superpowers.test_diff import diff_reports  # noqa: E402,F401
+from discovery_engine.test_diff import diff_reports  # noqa: E402,F401
 from viva_superpowers import test_vocab  # noqa: E402,F401
 # Reference-driven card grading (typed criteria → report_card_verdict/v1).
 # Light: stdlib + scipy-at-call-time only, no process_bigraph.
-from viva_superpowers.card_criteria import grade_axis  # noqa: E402,F401
-from viva_superpowers.card_grade import (  # noqa: E402,F401
+from discovery_engine.card_criteria import grade_axis  # noqa: E402,F401
+from discovery_engine.card_grade import (  # noqa: E402,F401
     dig, grade_card, verdict_json, render_verdict_html,
 )
 

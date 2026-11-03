@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from viva_superpowers.scaffold import scaffold_investigation_from_wrapper
+from discovery_engine.scaffold import scaffold_investigation_from_wrapper
 
 
 def _ws(tmp_path: Path, name: str = "demo-ws") -> Path:
@@ -182,11 +182,11 @@ def test_requires_at_least_one_generator(tmp_path):
 
 
 def test_cli_subcommand_smoke(tmp_path, plugin_root):
-    """End-to-end via `python -m viva_superpowers.scaffold investigation-from-wrapper`."""
+    """End-to-end via `python -m discovery_engine.scaffold investigation-from-wrapper`."""
     ws = _ws(tmp_path)
     subprocess.run(
         [
-            sys.executable, "-m", "viva_superpowers.scaffold",
+            sys.executable, "-m", "discovery_engine.scaffold",
             "investigation-from-wrapper",
             "--name", "cli-demo",
             "--studies", ",".join(FAKE_GENERATORS),
