@@ -58,6 +58,8 @@ investigation-contracts = { git = "https://github.com/vivarium-collective/invest
 [project.scripts]
 # viva-* CLI entry points (pbg→viva rebrand complete; the pbg-* aliases were dropped).
 viva-scaffold = "discovery_engine.integration.scaffold:cli"
+# $VIVA_FILLER_CMD filler for the AI-drivable discovery cycle (request JSON in -> result JSON out).
+viva-fill = "viva_superpowers.filler:main"
 viva-feedback-import = "viva_superpowers.feedback_import:cli"
 viva-migrate-nested = "discovery_engine.migrate_nested:main"
 viva-migrate-inputs = "discovery_engine.migrate_inputs:main"
