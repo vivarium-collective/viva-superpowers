@@ -2307,8 +2307,8 @@ dependencies = [
 
 [[package]]
 name = "viva-discovery-engine"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.2.0"
+source = { git = "https://github.com/vivarium-collective/discovery-engine.git?tag=v0.2.0#c64577f4a09f0d38f596b09e405bcd1215c4f158" }
 dependencies = [
     { name = "bigraph-schema" },
     { name = "click" },
@@ -2328,10 +2328,6 @@ dependencies = [
     { name = "typer" },
     { name = "viva-emitters", extra = ["parquet"] },
     { name = "viva-workspace" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/82/46/123fb96912b553e8265b0afd43d1233a8c2da6c65435e16dfb9c22b7e08f/viva_discovery_engine-0.1.0.tar.gz", hash = "sha256:1584b78de990b930f584b5a526466d00bd72e48d424e7c02a0c558f147d4d86f", size = 3289466, upload-time = "2026-11-02T19:04:02.136Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/2e/830107c72614384bf56497fa8e26c50b13408d961a2b49738ad1f27db2c9/viva_discovery_engine-0.1.0-py3-none-any.whl", hash = "sha256:d4d114d7243de21cdd5a143693678632e91692c766142ce54dd56455a0255ea6", size = 479754, upload-time = "2026-11-02T19:04:00.165Z" },
 ]
 
 [[package]]
@@ -2360,7 +2356,7 @@ parquet = [
 
 [[package]]
 name = "viva-superpowers"
-version = "0.24.0"
+version = "0.25.0"
 source = { editable = "." }
 dependencies = [
     { name = "bigraph-schema" },
@@ -2411,7 +2407,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "viva-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/viva-basic-processes.git?branch=main" },
-    { name = "viva-discovery-engine", specifier = ">=0.1,<0.2" },
+    { name = "viva-discovery-engine", git = "https://github.com/vivarium-collective/discovery-engine.git?tag=v0.2.0" },
     { name = "viva-emitters", specifier = ">=0.2.3" },
     { name = "viva-emitters", extras = ["parquet"], marker = "extra == 'evaluator'" },
     { name = "viva-workspace", git = "https://github.com/vivarium-collective/viva-workspace.git?branch=main" },
