@@ -31,7 +31,7 @@ dependencies = [
     # PyPI distribution is `viva-discovery-engine`; the import package stays
     # `discovery_engine`. Pinned to a PyPI semver range (not git branch=main) so
     # installs are coherent and bumps are visible Renovate PRs, not silent drift.
-    "viva-discovery-engine>=0.1,<0.2",
+    "viva-discovery-engine>=0.2,<0.3",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +50,10 @@ events = ["investigation-contracts"]
 
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
-# viva-discovery-engine needs no source override — it resolves from PyPI (>=0.1,<0.2).
+# viva-discovery-engine: pinned to git tag v0.2.0 — the generation contract the
+# filler consumes (generation / generation_apply) is released as v0.2.0 but not yet
+# on PyPI (the engine's distribution model is git tags; see its release.yml).
+viva-discovery-engine = { git = "https://github.com/vivarium-collective/discovery-engine.git", tag = "v0.2.0" }
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
 viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }
@@ -58,6 +61,8 @@ investigation-contracts = { git = "https://github.com/vivarium-collective/invest
 [project.scripts]
 # viva-* CLI entry points (pbg→viva rebrand complete; the pbg-* aliases were dropped).
 viva-scaffold = "discovery_engine.integration.scaffold:cli"
+# $VIVA_FILLER_CMD filler for the AI-drivable discovery cycle (request JSON in -> result JSON out).
+viva-fill = "viva_superpowers.filler:main"
 viva-feedback-import = "viva_superpowers.feedback_import:cli"
 viva-migrate-nested = "discovery_engine.migrate_nested:main"
 viva-migrate-inputs = "discovery_engine.migrate_inputs:main"
