@@ -1,6 +1,6 @@
 # Skills catalog
 
-16 user-facing skills (plus `/viva-init` machine setup and one internal dashboard callback). Each entry links to the skill's `SKILL.md` for the full contract (front-matter, args, side effects).
+17 user-facing skills (plus `/viva-init` machine setup and one internal dashboard callback). Each entry links to the skill's `SKILL.md` for the full contract (front-matter, args, side effects).
 
 ## Wrap & compose
 
@@ -48,6 +48,7 @@ from a viva-superpowers checkout. (Replaces the v0.8 `/pbg-package` skill.)
 | [`/viva-viz <study> <viz-name> '<description>'`](../skills/viva-viz/SKILL.md) | Generate a `Visualization` subclass from a natural-language description and attach it to a Study. |
 | [`/viva-report [model\|--all]`](../skills/viva-report/SKILL.md) | Regenerate `reports/index.html` after manual state changes. |
 | [`/viva-navigate <status\|ac-gaps\|source\|finding-by-observable\|dag> …`](../skills/viva-navigate/SKILL.md) | **Read-only** query of the workspace linkage index (SP4a) — the AC→study gating matrix + unlinked-AC gaps, source↔study, finding-by-observable, study-DAG. Pure deterministic derive (`linkage_index` / `/api/linkage-index`), no writes, no AI. `status` is a quick workspace/server/git status check that works even without the dashboard server. |
+| [`/viva-fill [request.json]`](../skills/viva-fill/SKILL.md) | The **AI filler** for the discovery engine's generation contract: read one typed `GenerationRequest` (propose_study / acquire_model / author_tests / interpret_finding / resolve_decision / explain / visualize), produce the `GenerationResult` the engine applies. The generative half of the AI-drivable cycle (the engine emits + applies; this fills), wired as `$VIVA_FILLER_CMD` for `discover requests --fill`. Honors the honesty rules (no fabricated numbers, provided-mechanisms-only, interpretation ≠ evidence). |
 
 For the read/write surface each skill touches (which API endpoints, which on-disk files), see the [Skill ↔ concept map](concepts/vivarium-workbench-model.md#skill--concept-map).
 
