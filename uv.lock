@@ -2307,8 +2307,8 @@ dependencies = [
 
 [[package]]
 name = "viva-discovery-engine"
-version = "0.2.0"
-source = { git = "https://github.com/vivarium-collective/discovery-engine.git?tag=v0.2.0#c64577f4a09f0d38f596b09e405bcd1215c4f158" }
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bigraph-schema" },
     { name = "click" },
@@ -2328,6 +2328,10 @@ dependencies = [
     { name = "typer" },
     { name = "viva-emitters", extra = ["parquet"] },
     { name = "viva-workspace" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6b/c4/bdf88a7d08363e03f6116c60e92f3f181e5a8cf54ae30bfed0a467702647/viva_discovery_engine-0.2.1.tar.gz", hash = "sha256:bcaccc94c6cbf77c34943e336d9d8a1317f0bb9210d2e98f54288e3fe3ac9a37", size = 3304324, upload-time = "2026-11-06T00:10:19.923Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/e8/a3606453ac8dad586a9f1910f5c7ae78e528ee59c46e9d0a3e02edd93d87/viva_discovery_engine-0.2.1-py3-none-any.whl", hash = "sha256:47355a3cf88a43887d84ff1007e0c4fb71b0f352e116c868e8e1020df616e483", size = 492324, upload-time = "2026-11-06T00:10:18.126Z" },
 ]
 
 [[package]]
@@ -2407,7 +2411,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "viva-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/viva-basic-processes.git?branch=main" },
-    { name = "viva-discovery-engine", git = "https://github.com/vivarium-collective/discovery-engine.git?tag=v0.2.0" },
+    { name = "viva-discovery-engine", specifier = ">=0.2,<0.3" },
     { name = "viva-emitters", specifier = ">=0.2.3" },
     { name = "viva-emitters", extras = ["parquet"], marker = "extra == 'evaluator'" },
     { name = "viva-workspace", git = "https://github.com/vivarium-collective/viva-workspace.git?branch=main" },
