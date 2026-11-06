@@ -50,10 +50,9 @@ events = ["investigation-contracts"]
 
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
-# viva-discovery-engine: pinned to git tag v0.2.0 — the generation contract the
-# filler consumes (generation / generation_apply) is released as v0.2.0 but not yet
-# on PyPI (the engine's distribution model is git tags; see its release.yml).
-viva-discovery-engine = { git = "https://github.com/vivarium-collective/discovery-engine.git", tag = "v0.2.0" }
+# viva-discovery-engine: resolves from PyPI (>=0.2,<0.3 -> 0.2.1). The generation
+# contract (generation / generation_apply) the filler consumes, plus the
+# consistent_with_zero evidence grading (DE #43), are published there.
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
 viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }
