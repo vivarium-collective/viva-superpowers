@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from discovery_engine.scaffold import scaffold_investigation_from_wrapper
+from discovery_engine.integration.scaffold import scaffold_investigation_from_wrapper
 
 
 def _ws(tmp_path: Path, name: str = "demo-ws") -> Path:

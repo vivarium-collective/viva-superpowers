@@ -4,7 +4,7 @@ report_card_verdict/v1 contract stays stable for every consumer (v2ecoli shims,
 pbg_v2ecoli evaluators). Ported from v2ecoli tests/test_status_criterion.py,
 test_report_card_verdict_json.py, test_render_verdict_html.py."""
 from viva_superpowers import grade_axis, verdict_json, render_verdict_html
-from discovery_engine.card_grade import grade_card
+from discovery_engine.reporting.card_grade import grade_card
 
 
 # --- grade_axis: status (verdict carried by the measured node) -------------

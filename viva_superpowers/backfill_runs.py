@@ -178,7 +178,7 @@ def backfill_study_runs(study_dir, spec_id: str, *, emitter_subdir: str = "out")
     """
     import sqlite3
     from pathlib import Path
-    from discovery_engine.run_registry import RUNS_META_DDL
+    from discovery_engine.study.run_registry import RUNS_META_DDL
 
     study_dir = Path(study_dir)
     emitter_root = study_dir / emitter_subdir

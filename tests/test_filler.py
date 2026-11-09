@@ -46,8 +46,8 @@ def test_fills_interpretation_from_evidence(tmp_path):
 
 def test_applies_through_the_engine_without_touching_evidence(tmp_path):
     ws = _ws(tmp_path)
-    from discovery_engine.generation import GenerationRequest, GenerationResult
-    from discovery_engine.generation_apply import apply_result
+    from discovery_engine.phases.generation import GenerationRequest, GenerationResult
+    from discovery_engine.phases.generation_apply import apply_result
     res = filler.fill(_req(), ws_root=ws)
     out = apply_result(GenerationRequest(**_req()),
                        GenerationResult(request_id=res["request_id"], artifact=res["artifact"]),

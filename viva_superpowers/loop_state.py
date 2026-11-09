@@ -12,8 +12,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from discovery_engine import paths, study_io
-
+from discovery_engine import paths
+from discovery_engine.study import io as study_io
 SCHEMA = "model_build_loop/v1"
 STATES = ("AUTHOR", "AUDIT", "SELECT", "SPIKE", "LOCK", "BUILD", "RUN", "EVALUATE",
           "DECIDE", "NAVIGATE", "DONE", "GIVE_UP")

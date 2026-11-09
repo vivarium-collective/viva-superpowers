@@ -1,8 +1,6 @@
 import warnings
 import viva_superpowers as vsp
-from discovery_engine import post_sim
-
-
+from discovery_engine.integration import post_sim
 def test_teststep_and_aliases_exist():
     assert vsp.TestStep is post_sim.TestStep
     assert vsp.ReportCardStep is vsp.TestStep            # alias

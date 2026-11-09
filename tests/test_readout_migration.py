@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from discovery_engine.readout_migration import (
+from discovery_engine.study.readout_migration import (
     migrate_readouts,
     migrate_study_file,
     readout_migration_status,
 )
-from discovery_engine.readout_resolver import (
+from discovery_engine.study.readout_resolver import (
     ResolvedReadout,
     UnresolvedReadout,
     resolve_readout,
@@ -280,7 +280,7 @@ def test_migrate_study_file_write_preserves_comments_and_other_content(tmp_path)
     assert "PD03831[c] (apo)" in text
 
     # and the rewritten file still parses + its migrated readout re-resolves
-    from discovery_engine import study_io
+    from discovery_engine.study import io as study_io
     spec2 = study_io.load_yaml_mapping(sy)
     r = resolve_readout(_by_name(spec2["readouts"], "DnaA monomer total"))
     assert isinstance(r, ResolvedReadout)
@@ -489,8 +489,7 @@ def _find_real_dnaa_study():
     """Locate a real dnaa study.yaml *with readouts* under a v2e-invest
     workspace, if present.  Returns the one with the most readouts so the e2e
     actually exercises migration (read-only scan; the test copies to tmp)."""
-    from discovery_engine import study_io
-
+    from discovery_engine.study import io as study_io
     candidates = [
         Path.home() / "code" / "v2e-invest",
         Path.home() / "v2e-invest",
@@ -533,7 +532,7 @@ def test_e2e_migrate_real_dnaa_study_on_tmp_copy(tmp_path):
     # the chosen study genuinely has readouts to migrate
     assert report["migrated"] or report["needs_human"]
 
-    from discovery_engine import study_io
+    from discovery_engine.study import io as study_io
     spec2 = study_io.load_yaml_mapping(study_dir / "study.yaml")
     assert spec2.get("readouts"), "migrated study should still have readouts"
     # every migrated readout re-resolves (the unresolved ones stay unresolved)
@@ -553,8 +552,7 @@ def test_status_golden_real_dnaa_study_read_only():
     study returns the three buckets with the prose/`derived` readouts in
     `needs_human` (matching SP2b-i's `unresolved` set), and is byte-for-byte
     PURE — the real study.yaml is never written."""
-    from discovery_engine import study_io
-
+    from discovery_engine.study import io as study_io
     real = _find_real_dnaa_study()  # the real file, NOT a copy
     before = real.read_bytes()
 

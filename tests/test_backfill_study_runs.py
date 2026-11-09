@@ -1,5 +1,5 @@
 import sqlite3
-from discovery_engine.run_registry import RUNS_META_DDL, latest_run
+from discovery_engine.study.run_registry import RUNS_META_DDL, latest_run
 from viva_superpowers.backfill_runs import backfill_study_runs
 
 def test_backfill_registers_discovered_parquet(tmp_path):

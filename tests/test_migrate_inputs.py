@@ -1,6 +1,6 @@
 from pathlib import Path
 import yaml
-from discovery_engine.migrate_inputs import plan_inputs_migration
+from discovery_engine.migrations.inputs import plan_inputs_migration
 
 def _ws(tmp):
     (tmp / "workspace.yaml").write_text("name: demo\n", encoding="utf-8")
