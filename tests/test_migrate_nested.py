@@ -3,7 +3,7 @@ import subprocess
 
 import yaml
 
-from discovery_engine.migrate_nested import plan_migration, migrate
+from discovery_engine.migrations.nested import plan_migration, migrate
 
 
 def _flat_ws(tmp):

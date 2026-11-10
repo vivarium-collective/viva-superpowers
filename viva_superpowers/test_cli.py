@@ -25,7 +25,7 @@ _SUITE = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}
 def _load_report(ctx, rebuild: bool):
     """The study's test_report/v1 — read report.json, else reassemble from the
     on-disk report-card verdict.json files via build_report."""
-    from discovery_engine.post_sim import build_report, tests_dir
+    from discovery_engine.integration.post_sim import build_report, tests_dir
     rp = tests_dir(ctx) / "report.json"
     if rp.is_file() and not rebuild:
         try:
@@ -102,8 +102,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     from discovery_engine.paths import workspace_root
-    from discovery_engine.post_sim import StudyContext
-    from discovery_engine.study_verdict import severity_gate
+    from discovery_engine.integration.post_sim import StudyContext
+    from discovery_engine.study.verdict import severity_gate
 
     try:
         ws = workspace_root(args.workspace)

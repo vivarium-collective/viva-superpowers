@@ -111,7 +111,7 @@ def test_full_flow_scaffold_to_reports(tmp_path, plugin_root, fixtures_dir):
     venv_python = str(ws / ".venv" / "bin" / "python")
     _run([venv_python, "-c",
           "import json; from viva_m.core import build_core; "
-          "from discovery_engine.core_introspection import registry_snapshot; "
+          "from process_bigraph.core_introspection import registry_snapshot; "
           "open('tests/registry-snapshot.json','w').write(json.dumps(registry_snapshot(build_core())))"],
          cwd=model)
     snap = json.loads((model / "tests" / "registry-snapshot.json").read_text())
@@ -120,8 +120,8 @@ def test_full_flow_scaffold_to_reports(tmp_path, plugin_root, fixtures_dir):
     # 7. Render reports (simulates /viva-report step)
     _run([venv_python, "-c",
           "from pathlib import Path; "
-          "from discovery_engine.report import render_workspace_report, render_model_report; "
-          "from discovery_engine.core_introspection import registry_snapshot; "
+          "from discovery_engine.reporting.report import render_workspace_report, render_model_report; "
+          "from process_bigraph.core_introspection import registry_snapshot; "
           "from viva_m.core import build_core; "
           "render_workspace_report(Path('.'), today='2026-05-09'); "
           "render_model_report(Path('.'), 'm', registry_snapshot(build_core()), today='2026-05-09')"],

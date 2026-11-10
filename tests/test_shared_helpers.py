@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from discovery_engine import study_io
+from discovery_engine.study import io as study_io
 from discovery_engine.paths import find_workspace_root
 from discovery_engine.text_utils import first_sentence
 
@@ -131,7 +131,7 @@ def _run_under_ascii_locale(code: str, tmp_path: Path):
 def test_atomic_write_is_utf8_whatever_the_process_locale(tmp_path: Path):
     target = tmp_path / "study.yaml"
     code = (
-        "import locale; from pathlib import Path; from discovery_engine import study_io\n"
+        "import locale; from pathlib import Path; from discovery_engine.study import io as study_io\n"
         "assert locale.getencoding().lower() in ('ascii', 'us-ascii', 'ansi_x3.4-1968'), locale.getencoding()\n"
         f"study_io.atomic_write(Path({str(target)!r}), 'title: corpus \\u2014 reproduction\\n')\n"
     )

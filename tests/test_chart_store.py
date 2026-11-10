@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from discovery_engine import viz_freshness
+from discovery_engine.viz import freshness as viz_freshness
 from viva_superpowers import chart_store
 
 

@@ -39,8 +39,8 @@ import json
 import time
 from pathlib import Path
 
-from discovery_engine import study_io, study_outcomes, run_registry, viz_freshness
-
+from discovery_engine.study import io as study_io, outcomes as study_outcomes, run_registry
+from discovery_engine.viz import freshness as viz_freshness
 # Sidecar manifest filename, written inside the study's charts/ dir.
 MANIFEST_NAME = ".chart-runs.json"
 

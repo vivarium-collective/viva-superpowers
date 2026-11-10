@@ -66,8 +66,8 @@ def fill_interpret_finding(request: dict, ws_root: Path) -> "dict | None":
     request's target study — a finding with a numeric ``evidence.observed`` and a
     cited ``evidence.from_test`` but no authored ``explanation`` yet. Returns a
     GenerationResult dict, or ``None`` when nothing is eligible."""
-    from discovery_engine import study_io
-    from discovery_engine.investigation_import import studies_dir
+    from discovery_engine.study import io as study_io
+    from discovery_engine.investigation.import_ import studies_dir
 
     target = str(request.get("target") or "")
     slug = target.split(":", 1)[1] if target.startswith("claim:") else target

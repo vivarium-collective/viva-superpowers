@@ -15,8 +15,7 @@ import yaml
 
 pytest.importorskip("viva_emitters")
 
-from discovery_engine import study_evaluator as se
-
+from discovery_engine.study import evaluator as se
 # ---------------------------------------------------------------------------
 # Real paths (read-only; test is skipped when absent)
 # ---------------------------------------------------------------------------
