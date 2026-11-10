@@ -1,5 +1,5 @@
 """Helpers shared by viva-superpowers skills."""
-__version__ = "0.25.0"
+__version__ = "0.26.0"
 
 # Light, import-safe contract (no process_bigraph): eager.
 from discovery_engine.reporting.test_contract import (  # noqa: E402,F401

@@ -1,6 +1,6 @@
 [project]
 name = "viva-superpowers"
-version = "0.25.0"
+version = "0.26.0"
 description = "Plugin Python helpers for the viva-superpowers skills (was pbg-superpowers)"
 requires-python = ">=3.11"
 dependencies = [
@@ -50,7 +50,7 @@ events = ["investigation-contracts"]
 
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
-# viva-discovery-engine: resolves from PyPI (>=0.2,<0.3 -> 0.2.1). The generation
+# viva-discovery-engine: resolves from PyPI (>=0.3,<0.4 -> 0.3.0). The generation
 # contract (generation / generation_apply) the filler consumes, plus the
 # consistent_with_zero evidence grading (DE #43), are published there.
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
