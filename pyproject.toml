@@ -31,7 +31,7 @@ dependencies = [
     # PyPI distribution is `viva-discovery-engine`; the import package stays
     # `discovery_engine`. Pinned to a PyPI semver range (not git branch=main) so
     # installs are coherent and bumps are visible Renovate PRs, not silent drift.
-    "viva-discovery-engine>=0.2,<0.3",
+    "viva-discovery-engine>=0.3,<0.4",
 ]
 
 [project.optional-dependencies]
