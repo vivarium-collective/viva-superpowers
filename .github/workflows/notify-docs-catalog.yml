@@ -1,0 +1,33 @@
+name: Notify viva-docs on catalog change
+
+# When the module catalog changes on main, poke viva-docs to rebuild so its
+# published catalog page (https://vivarium-collective.github.io/viva-docs/catalog/)
+# refreshes within minutes. viva-docs regenerates docs/catalog.md from this file
+# at build time; this just triggers that build.
+#
+# Requires a repo secret DOCS_DISPATCH_TOKEN: a fine-grained PAT scoped to
+# vivarium-collective/viva-docs with Contents: Read and write (repository_dispatch
+# is gated by Contents write). The default GITHUB_TOKEN cannot trigger another repo.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "viva_superpowers/catalog/modules.json"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger viva-docs rebuild
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::warning::DOCS_DISPATCH_TOKEN not set; skipping. Add the secret to enable event-driven catalog updates."
+            exit 0
+          fi
+          gh api -X POST repos/vivarium-collective/viva-docs/dispatches \
+            -f event_type=catalog-updated
+          echo "Dispatched catalog-updated to viva-docs"
