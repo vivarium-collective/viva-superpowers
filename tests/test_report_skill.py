@@ -1,12 +1,16 @@
-"""Guard test for the /viva-report skill (Phase 2.1d rewire).
+"""Guard test for the /viva-report skill (engine-native-skills migration, Phase 2).
 
-Asserts the SKILL.md is a THIN client of the workbench dashboard API
-(GET /api/report-lint, POST /api/study-readout-migrate, POST /api/render)
-rather than importing/invoking viva_superpowers compute in-process. The
-prior attempt at this rewire reimplemented compute (including override-log
-logic) in the skill; the workbench endpoints were then enhanced to do that
-server-side, so this guard also blocks any client-side override-key /
-override-log reimplementation creeping back in.
+Supersedes the Phase 2.1d "thin client of the workbench dashboard API" contract.
+The three deterministic passes (lint, readout-migrate, render) now run through the
+`discover` CLI (`python -m discovery_engine.discover`) directly, so /viva-report
+lints and renders with the dashboard server DOWN. Each verb wraps the identical
+engine function the old `/api/*` endpoint wrapped, so output is unchanged — only
+the transport.
+
+The still-critical guards are KEPT: the skill must drive the engine via the CLI,
+not inline engine compute (`test_no_inline_plugin_compute`), and must not
+reimplement override-key derivation / override-log writing (that lives inside the
+engine — `test_no_client_side_override_reimplementation`).
 """
 from __future__ import annotations
 
@@ -26,22 +30,25 @@ def test_skill_file_exists():
     assert _SKILL.is_file(), "skills/viva-report/SKILL.md must exist"
 
 
-def test_references_report_lint_backend(skill_text):
-    assert "GET /api/report-lint" in skill_text or "/api/report-lint" in skill_text
-    assert "curl" in skill_text
+def test_references_lint_backend(skill_text):
+    # Pass B linter runs engine-native via the discover CLI (server-free).
+    assert "discover" in skill_text
+    assert "lint --json" in skill_text
 
 
 def test_references_readout_migrate_backend(skill_text):
-    assert "/api/study-readout-migrate" in skill_text
+    # Pass B½ canonicalization via `discover readout-migrate <slug> --write`.
+    assert "readout-migrate" in skill_text
 
 
 def test_references_render_backend(skill_text):
-    assert "/api/render" in skill_text
-    # today/force body fields (byte-stable CI render + forced-render w/
-    # server-side override logging) must be documented as POST body fields,
-    # not reimplemented client-side.
-    assert '"today"' in skill_text
-    assert '"force"' in skill_text or "'force'" in skill_text
+    # Render via `discover report`, with byte-stable (--today) and forced
+    # (--force, logs overrides in-engine) renders as CLI flags — not
+    # reimplemented client-side.
+    assert "discover" in skill_text
+    assert "report" in skill_text
+    assert "--today" in skill_text
+    assert "--force" in skill_text
 
 
 def test_no_inline_plugin_compute(skill_text):
@@ -73,13 +80,15 @@ def test_no_client_side_override_reimplementation(skill_text):
     assert "_override_key(" not in skill_text
 
 
-def test_server_preflight_documented(skill_text):
-    # viva-catalog's exact preflight idiom: workspace.yaml walk-up +
-    # .pbg/server/server-info, erroring (not silently falling back) when
-    # the dashboard server is not running.
+def test_server_is_optional_for_deterministic_passes(skill_text):
+    # The deterministic passes (lint / readout-migrate / render) are engine-native
+    # and need no server. The URL is resolved only if a dashboard is already
+    # running (for the optional Pass A needs-attention enrichment + the UI tail),
+    # via the workspace.yaml walk-up + .pbg/server/server-info idiom; its absence
+    # is no longer an error.
     assert "workspace.yaml" in skill_text
     assert ".pbg/server/server-info" in skill_text
-    assert "/viva-workbench start" in skill_text
+    assert "server_preflight" in skill_text
 
 
 def test_bootstrap_call_sites_untouched(skill_text):

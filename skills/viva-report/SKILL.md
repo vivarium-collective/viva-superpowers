@@ -51,17 +51,27 @@ This exports `$INVESTIGATIONS_DIR`, `$STUDIES_DIR`, `$REPORTS_DIR`, etc. (each =
 
 ## Resolve the workbench server URL
 
-Pass B (lint), Pass B½ (readout migration), and Render are thin clients of the
-`vivarium-workbench` dashboard API. Resolve the server per `/viva-workbench`
-(walk up to the `workspace.yaml` root, then read the running server's URL from
-`.pbg/server/server-info`, erroring with `Run /viva-workbench start` when it's
-absent) — `$WORKSPACE_ROOT` is already resolved above:
+Pass B (lint), Pass B½ (readout migration), and Render now run **engine-native**
+through the `discover` CLI (`python -m discovery_engine.discover`), so they need
+**no running server** — `/viva-report` lints and renders with the dashboard down.
+Each wraps the exact engine function the old `/api/*` endpoint wrapped
+(`render_workspace_report`, the report linter, `readout_migration.migrate_study_file`),
+so the output is identical; only the transport changed.
+
+A server URL is resolved **only if one is up**, and only the optional parts use
+it: the Pass A `needs-attention` enrichment (env-stale / nondeterministic run
+flags) and opening the result in the workbench. Its absence is never an error.
 
 ```bash
+# The deterministic passes (B, B½, Render) need no server. Resolve the URL only
+# if a dashboard is already running — it is optional (Pass A needs-attention
+# enrichment + the "open in the workbench" tail). $WORKSPACE_ROOT is resolved above.
 INFO="$WORKSPACE_ROOT/.pbg/server/server-info"
-[ -f "$INFO" ] || { echo "ERROR: dashboard server not running. Run /viva-workbench start"; exit 1; }
-URL="$(python3 -c "import json; print(json.load(open('$INFO'))['url'])")"
-python3 -m discovery_engine.integration.server_preflight --url "$URL" || true  # version-skew preflight (warns; never fails)
+URL=""
+if [ -f "$INFO" ]; then
+  URL="$(python3 -c "import json; print(json.load(open('$INFO'))['url'])")"
+  python3 -m discovery_engine.integration.server_preflight --url "$URL" || true  # version-skew preflight (warns; never fails)
+fi
 ```
 
 ## Pass A — Reviewer-readiness audit (NEW)
@@ -205,7 +215,7 @@ If `blocking > 0` and `--force` is NOT set, exit before Pass B with a non-zero s
 
 ## Pass B — Structural lint
 
-The pre-publication linter, via `GET /api/report-lint`. Checks every study under the workspace's studies and investigations dirs (the endpoint resolves these itself from the workspace root):
+The pre-publication linter, via `discover lint` (engine-native — no server). Checks every study under the workspace's studies and investigations dirs (resolved from `workspace.yaml` at the workspace root):
 
 - **incomplete_summaries** (error) — `evaluation_status: evaluated` but `conclusion_logic` is empty.
 - **status_contradictions** (error) — gate/evaluation/sim/impl/review combinations that cannot logically co-exist.
@@ -219,51 +229,51 @@ The pre-publication linter, via `GET /api/report-lint`. Checks every study under
 
 Only **error**-level findings (`severity: "error"`) block publication.
 
-Internally:
+Internally (engine-native — no server):
 
 ```bash
-# Pass B only:
-curl -sf "$URL/api/report-lint" | python3 -c '
+# Pass B only — the Pass B report linter, straight from the engine CLI.
+# `discover lint --json` emits the findings list (keys: level, study_slug,
+# check, message, field_path); it exits 1 when un-overridden errors remain.
+python -m discovery_engine.discover --workspace "$WORKSPACE_ROOT" lint --json | python3 -c '
 import json, sys
-d = json.load(sys.stdin)
-findings = d.get("findings") or []
+findings = json.load(sys.stdin)
 by_sev = {"error": 0, "warning": 0, "info": 0}
 for f in findings:
-    by_sev[f.get("severity", "info")] = by_sev.get(f.get("severity", "info"), 0) + 1
-    print(f"[{f[\"severity\"]}] {f[\"study\"]}: {f[\"check\"]} — {f[\"message\"]} ({f[\"field_path\"]})")
+    sev = f.get("level", "info")
+    by_sev[sev] = by_sev.get(sev, 0) + 1
+    print(f"[{sev}] {f[\"study_slug\"]}: {f[\"check\"]} — {f[\"message\"]} ({f[\"field_path\"]})")
 print(f"\n{by_sev[\"error\"]} error / {by_sev[\"warning\"]} warning / {by_sev[\"info\"]} info")
 '
 ```
 
-`by_sev["error"] > 0` is what blocks publication (unless `--force`). `/api/report-lint` already applies `.pbg/report-lint-overrides.json` server-side (an overridden `error` finding arrives here downgraded to `warning`, message prefixed `[overridden]`) — the skill only displays `findings`, it never re-derives an override key or re-applies the override file itself.
+`by_sev["error"] > 0` is what blocks publication (unless `--force`). `discover lint` already applies `.pbg/report-lint-overrides.json` (an overridden `error` finding is downgraded to `warning`, message prefixed `[overridden]`) — identical to the old endpoint, since both call `apply_overrides`; the skill only displays the findings, it never re-derives an override key or re-applies the override file itself. You can also gate on the command's exit code (1 = un-overridden errors remain, 0 = clean) instead of re-counting.
 
 ## Pass B½ — Canonicalize readouts (auto-migrate, before render)
 
 `/viva-report` is one of the two triggers (the other is the explicit `/viva-study migrate-readouts`) that auto-canonicalize the safe `migratable` readouts. Run this after Pass B passes and **before** rendering, so the rendered report shows every study's readouts in canonical form.
 
-For each member study under `$STUDIES_DIR` / `$INVESTIGATIONS_DIR`, call `POST /api/study-readout-migrate` with `write: true` and tally the un-parseable ones:
+For each member study under `$STUDIES_DIR` / `$INVESTIGATIONS_DIR`, run `discover readout-migrate <slug> --write` and tally the un-parseable ones:
 
 ```bash
-python3 - "$URL" "$STUDIES_DIR" <<'PY'
-import json, sys, urllib.request
+python3 - "$WORKSPACE_ROOT" "$STUDIES_DIR" <<'PY'
+import json, subprocess, sys
 from pathlib import Path
 
-url, studies_dir = sys.argv[1], sys.argv[2]
+ws_root, studies_dir = sys.argv[1], sys.argv[2]
 needs_human_total = 0
 for sy in sorted(Path(studies_dir).glob('*/study.yaml')):
     slug = sy.parent.name
-    body = json.dumps({"study": slug, "write": True}).encode()
-    req = urllib.request.Request(
-        f"{url}/api/study-readout-migrate", data=body, method="POST",
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req) as resp:
-        d = json.load(resp)
-    entries = d.get("entries") or []
-    canonicalized = d.get("canonicalized") or []
-    needs_human = [e for e in entries if e.get("status") == "needs_human"]
-    if canonicalized:
-        print(f"{slug}: canonicalized {len(canonicalized)} readout(s)")
+    out = subprocess.run(
+        ["python", "-m", "discovery_engine.discover",
+         "--workspace", ws_root, "readout-migrate", slug, "--write"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    d, _ = json.JSONDecoder().raw_decode(out.lstrip())  # JSON object, ignore any trailing note
+    migrated = d.get("migrated") or []
+    needs_human = d.get("needs_human") or []
+    if migrated:
+        print(f"{slug}: canonicalized {len(migrated)} readout(s)")
     if needs_human:
         print(f"{slug}: {len(needs_human)} readout(s) still need_human "
               f"(re-author via /viva-study migrate-readouts)")
@@ -272,24 +282,24 @@ print(f"\nreadout migration: {needs_human_total} needs_human readout(s) remain a
 PY
 ```
 
-`write: true` (or its synonym `apply: true`) is meaning-preserving, comment-safe, idempotent, and leaves every `needs_human` readout untouched — the endpoint only rewrites the resolvable ones (it wraps `discovery_engine.readout_migration.migrate_study_file` server-side). It is a **true no-op** on an already-canonical study (the file is left byte-identical — `changed=False`/`written=False`), so re-running `/viva-report` never reflows a clean readouts block. Note: inline comments on an *individual readout entry* are not preserved across canonicalization (the readout dict is rebuilt from its resolved selector); comments on non-readout content survive. Report the total `needs_human` count as a (non-blocking) finding: these can't be auto-fixed and must be re-authored against the composite's real observables via `/viva-study migrate-readouts <slug>` (which uses `/viva-study check-observables` + `/api/observables`). The skill never writes to `study.yaml` directly — the endpoint does, server-side.
+`--write` is meaning-preserving, comment-safe, idempotent, and leaves every `needs_human` readout untouched — `discover readout-migrate` rewrites only the resolvable ones (it calls the same `discovery_engine.readout_migration.migrate_study_file` the old `/api/study-readout-migrate` endpoint wrapped). It is a **true no-op** on an already-canonical study (the file is left byte-identical — `written=False`), so re-running `/viva-report` never reflows a clean readouts block. Omit `--write` for a dry-run that only reports. Note: inline comments on an *individual readout entry* are not preserved across canonicalization (the readout dict is rebuilt from its resolved selector); comments on non-readout content survive. Report the total `needs_human` count as a (non-blocking) finding: these can't be auto-fixed and must be re-authored against the composite's real observables via `/viva-study migrate-readouts <slug>` (which uses `/viva-study check-observables` + `/api/observables`). The write goes through the engine, not a direct `study.yaml` edit by the skill.
 
 ## Render
 
-After both passes succeed (or `--force`):
+After both passes succeed (or `--force`), render engine-native — no server:
 
 ```bash
-# Plain render — produces the interactive SPA shell at $REPORTS_DIR/index.html:
-curl -s -X POST -H "Content-Type: application/json" -d '{}' "$URL/api/render" | python3 -m json.tool
+# Plain render — writes the interactive SPA shell under the workspace's reports/ dir:
+python -m discovery_engine.discover --workspace "$WORKSPACE_ROOT" report
 ```
 
 Forced render with auto-logged overrides:
 
 ```bash
-curl -s -X POST -H "Content-Type: application/json" -d '{"force": true}' "$URL/api/render" | python3 -m json.tool
+python -m discovery_engine.discover --workspace "$WORKSPACE_ROOT" report --force
 ```
 
-`{"force": true}` makes `POST /api/render` log every currently-blocking (error-level, not-yet-overridden) `report-lint` finding to `.pbg/report-lint-overrides.json` server-side, then render — the skill never writes the override file itself. `{"ok": true}` at HTTP 200 on success; `{"error": "<str>"}` at HTTP 500 on a render failure (per-model rendering catches `build_core()` failures internally rather than aborting the whole render).
+`--force` makes `discover report` log every currently-blocking (error-level, not-yet-overridden) `lint` finding to `.pbg/report-lint-overrides.json`, then render — the skill never writes the override file itself. Without `--force`, a blocking lint finding makes the command refuse to render and exit 1 (printing the blocking findings and the `--force` hint); a clean render exits 0 and prints `rendered workspace report -> <path>`. (Per-model rendering catches `build_core()` failures internally rather than aborting the whole render.)
 
 ## What the rendered report now splits — author toward it
 
@@ -374,10 +384,10 @@ Schema version 2 (this revision) added the `pass:` field; pre-existing schema 1 
 
 ## Idempotency
 
-`/viva-report` produces deterministic output given the same inputs. The `today` body field can be passed through `POST /api/render` for byte-stable CI runs:
+`/viva-report` produces deterministic output given the same inputs. Pass `--today` to `discover report` to pin the report date for byte-stable CI runs:
 
 ```bash
-curl -s -X POST -H "Content-Type: application/json" -d '{"today": "2026-05-09"}' "$URL/api/render" | python3 -m json.tool
+python -m discovery_engine.discover --workspace "$WORKSPACE_ROOT" report --today 2026-05-09
 ```
 
 ## Safety
