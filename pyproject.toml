@@ -31,7 +31,7 @@ dependencies = [
     # PyPI distribution is `viva-discovery-engine`; the import package stays
     # `discovery_engine`. Pinned to a PyPI semver range (not git branch=main) so
     # installs are coherent and bumps are visible Renovate PRs, not silent drift.
-    "viva-discovery-engine>=0.3,<0.4",
+    "viva-discovery-engine>=0.3,<0.7",
 ]
 
 [project.optional-dependencies]
@@ -50,9 +50,12 @@ events = ["investigation-contracts"]
 
 [tool.uv.sources]
 viva-workspace = { git = "https://github.com/vivarium-collective/viva-workspace.git", branch = "main" }
-# viva-discovery-engine: resolves from PyPI (>=0.3,<0.4 -> 0.3.0). The generation
-# contract (generation / generation_apply) the filler consumes, plus the
-# consistent_with_zero evidence grading (DE #43), are published there.
+# viva-discovery-engine: resolves from PyPI (>=0.3,<0.7 -> 0.6.0). The generation
+# contract (generation / generation_apply) the filler consumes, the
+# consistent_with_zero evidence grading (DE #43), and the 0.4–0.6 additions
+# (generative cycle, engine-native CLI verbs, linkage relocation, versioned
+# EvidenceSnapshot) are published there. 0.3→0.6 is additive: no modules were
+# deleted or renamed (the subpackage reorg already landed in 0.3.0).
 # viva-emitters needs no source override — it resolves from PyPI (>=0.2.3).
 viva-basic-processes = { git = "https://github.com/vivarium-collective/viva-basic-processes.git", branch = "main" }
 investigation-contracts = { git = "https://github.com/vivarium-collective/investigation-contracts.git", branch = "main" }
