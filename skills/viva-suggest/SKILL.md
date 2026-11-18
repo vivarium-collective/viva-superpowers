@@ -50,8 +50,6 @@ Write a markdown PR body in this structure:
 - [ ] Lint passes: `python scripts/lint-workspace.py`
 - [ ] Dashboard renders without errors
 - [other relevant checks based on the commits]
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
 Tailor the bullets to the commits — e.g., if commits added datasets, mention "Loads <N> new datasets"; if they touched processes, mention "Wires up <process_name>".

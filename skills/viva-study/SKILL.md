@@ -202,7 +202,7 @@ their absence). What viva-study emits:
 
 ## Run the readiness linter as a build step (not just at report time)
 
-The readiness linter (`discovery_engine.report_linter.lint_workspace_report`) is
+The readiness linter (`discovery_engine.reporting.linter.lint_workspace_report`) is
 the same gate that `/viva-report --lint` and `/viva-harden-investigation` run. It
 is cheap, needs no server, and catches the gaps this skill is responsible for —
 `gate_class_missing`, `missing_provenance`, `visualization_address_unresolved` /
@@ -212,7 +212,7 @@ you call the study done — not only when rendering a report.**
 
 ```bash
 # whole workspace, or scope to the study you just edited
-python -c "from pathlib import Path; from discovery_engine.report_linter import \
+python -c "from pathlib import Path; from discovery_engine.reporting.linter import \
 lint_workspace_report, format_findings; \
 print(format_findings([f for f in lint_workspace_report(Path('.')) if f.level!='info']))"
 # or, with the dashboard conventions:  /viva-report --lint
@@ -243,12 +243,6 @@ fallback but is deprecated: setting it *and* `pipeline_gate.prerequisites` drift
 (the dashboard ignores the legacy one), which the linter flags as `dag_edges_*`.
 New studies should use `pipeline_gate.prerequisites` only. The legacy shape, for
 reading old studies:
-
-```yaml
-parent_studies:
-  - dnaa-01-expression-dynamics                       # legacy: tests-passed
-  - {study: dnaa-03-box-binding, condition: ran}      # object: parent must have ≥1 run
-```
 
 ```yaml
 # studies/dnaa-02-atp-hydrolysis/study.yaml
@@ -283,7 +277,7 @@ status. They sit alongside the existing fields the graph already reads:
 | `title:` | human display name (the slug stays the technical id) | graph node label, study heading, nav | slug with the `<inv>-NN-` ordering prefix stripped + humanized | **Design** |
 | `parent_studies[].relation:` | edge semantics on a dependency | solid edge (`builds-on` / `tests` / `motivates`) or dashed edge (`alternative-to`) | `builds-on` | **Design** |
 | `claim:` | one-line headline of the knowledge the study produced (what we now believe) | the node's "Finds" line | top `findings[].summary` | **Evaluate / Decide** |
-| `confidence:` | the study's acceptance/confidence state | node badge | `discovery_engine.study_verdict.derive_confidence(spec)` — the SAME value the left-rail dot reads, so the rail and the graph never disagree: the rolled-up/authored verdict wins (`report.verdict`/`gate_status`: passing→`Accepted`, failed→`Refuted`, needs_calibration→`Investigating`), else the lifecycle `status` (completed/complete/ran/evaluated→`Accepted`, running→`Investigating`, else `Planned`) | **Decide** (when the derived value is wrong) |
+| `confidence:` | the study's acceptance/confidence state | node badge | `discovery_engine.study.verdict.derive_confidence(spec)` — the SAME value the left-rail dot reads, so the rail and the graph never disagree: the rolled-up/authored verdict wins (`report.verdict`/`gate_status`: passing→`Accepted`, failed→`Refuted`, needs_calibration→`Investigating`), else the lifecycle `status` (completed/complete/ran/evaluated→`Accepted`, running→`Investigating`, else `Planned`) | **Decide** (when the derived value is wrong) |
 
 **Enums.**
 
@@ -546,7 +540,7 @@ retroactively; applying it here means you rarely need it.
 
 **Reconcile authored `confidence:` with the derived value before calling a
 study passed.** If you hand-set the graph-node `confidence:` field, it MUST
-agree with `discovery_engine.study_verdict.derive_confidence(spec)` — the same
+agree with `discovery_engine.study.verdict.derive_confidence(spec)` — the same
 value the left-rail dot and the badge read. An authored `confidence: Accepted`
 over a `report.verdict: failed` (which derives to `Refuted`) makes the three
 status surfaces tell different stories, and a reviewer reads it as spin. The

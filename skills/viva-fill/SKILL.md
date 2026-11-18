@@ -10,12 +10,11 @@ argument-hint: "[request.json] — reads a GenerationRequest (stdin or path), pr
 
 The discovery engine is a pure, LLM-free projection. It **emits** typed
 `GenerationRequest`s for the generative work the frontier wants
-(`discovery_engine.generation` / `generation_emit`) and **applies** the
-`GenerationResult`s you return (`discovery_engine.generation_apply`). It never
+(`discovery_engine.phases.generation` / `generation_emit`) and **applies** the
+`GenerationResult`s you return (`discovery_engine.phases.generation_apply`). It never
 generates the artifact itself. **You are the filler** — the one place an LLM
 runs — injected across the seam as `$VIVA_FILLER_CMD` (the generalization of the
-decider seam). Read `docs/specs/2026-10-30-ai-drivable-discovery-cycle.md` in the
-discovery-engine repo for the full design.
+decider seam).
 
 A deterministic baseline filler already exists (`viva_superpowers.filler` /
 the `viva-fill` console script) for the factual core of `interpret_finding`. This
@@ -74,7 +73,7 @@ match what that op expects (below).
 
 ## Wiring it as `$VIVA_FILLER_CMD`
 
-The engine's runner (`discovery_engine.generation_apply.run_requests` /
+The engine's runner (`discovery_engine.phases.generation_apply.run_requests` /
 `discover requests <inv> --fill`) dispatches each auto-gated request to the
 command in `$VIVA_FILLER_CMD`, feeding the request JSON on stdin and reading the
 result JSON on stdout. Wire this skill as that command, e.g.:
