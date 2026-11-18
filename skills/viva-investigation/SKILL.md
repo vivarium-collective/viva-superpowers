@@ -455,7 +455,7 @@ native_investigations:            # investigations authored in THIS workspace
   Wire into CI with a two-line pytest:
 
   ```python
-  from discovery_engine.investigation_import import assert_selection_ok
+  from discovery_engine.investigation.import_ import assert_selection_ok
   def test_investigation_selection():
       assert_selection_ok(WORKSPACE_ROOT)
   ```
@@ -466,7 +466,7 @@ native_investigations:            # investigations authored in THIS workspace
   pulled. `--upstream-src PATH` uses an existing local checkout instead of a cache clone;
   `--rev SHA` overrides the pinned rev.
 
-Both are thin wrappers over `python -m discovery_engine.investigation_import {check|sync}`.
+Both are thin wrappers over `python -m discovery_engine.investigation.import_ {check|sync}`.
 Excluding a future upstream investigation is just: leave it off the allowlist; `check`
 keeps it out for good.
 
@@ -507,7 +507,7 @@ This command does NOT modify acceptance_criteria or narrative that reference the
 
 Reconcile an investigation after a **structural edit** — studies removed, added, or merged — so its membership, cross-references, and narrative stay consistent. Run it after any `add-study` / `remove-study` / study-set change. It is the systematic answer to the dangling-reference gap that `remove-study` leaves manual, and it splits into deterministic detection (AI-free) + agent-authored prose, mirroring the helper split used elsewhere in viva-superpowers.
 
-1. **Detect (AI-free, no writes):** `python -m discovery_engine.investigation_reconcile <inv-slug> --ws "$WORKSPACE_ROOT"` prints a grouped drift report:
+1. **Detect (AI-free, no writes):** `python -m discovery_engine.investigation.reconcile <inv-slug> --ws "$WORKSPACE_ROOT"` prints a grouped drift report:
    - `member_missing_on_disk` — a declared member whose study was removed;
    - `orphan_on_disk` — a study on disk not listed as a member;
    - `structured_ref_to_removed` — a removed study still named in `members`/`studies`, `at_a_glance`, `acceptance_criteria`, or a surviving study's `pipeline_gate.prerequisites`;

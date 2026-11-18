@@ -195,4 +195,4 @@ behavior, a guessed param). So:
 
 - [`/viva-run`](../viva-run/SKILL.md) — local composite smoke-test (the fast, offline sibling).
 - [`/viva-workbench`](../viva-workbench/SKILL.md) — the interactive dashboard server a human drives.
-- `vivarium-workbench` `docs/dashboard-api-vs-sms-api.md` — the local-API ↔ viva-api boundary.
+- `vivarium-workbench` `docs/dashboard-api-vs-viva-api.md` — the local-API ↔ viva-api boundary.
