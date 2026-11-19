@@ -2307,7 +2307,7 @@ dependencies = [
 
 [[package]]
 name = "viva-discovery-engine"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bigraph-schema" },
@@ -2329,9 +2329,9 @@ dependencies = [
     { name = "viva-emitters", extra = ["parquet"] },
     { name = "viva-workspace" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/84/71/bb73854250654cc70d302dfb40045c028e32c81a31260df701863f30500b/viva_discovery_engine-0.6.0.tar.gz", hash = "sha256:475913341c03c536972ba1bf51c752e9ecf9804b9958d491fea996254e9c6792", size = 3347826, upload-time = "2026-11-11T19:09:54.422Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/eb/5c80ef90a65c691c56278a6afed2b17f4303aac41c6aeaa6413fd293579b/viva_discovery_engine-0.7.0.tar.gz", hash = "sha256:00d2d7d708e379b5f02a9fa2442d22cc337ac0c265ab126f3c862c0407aefc13", size = 4033917, upload-time = "2026-11-19T23:35:56.764Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/8e/f477001808251e361acffbc43e8f00023b33b7abdfd7e7e1fb8dd08c378c/viva_discovery_engine-0.6.0-py3-none-any.whl", hash = "sha256:271bb0bbe81404bc43ff782f77d9ba1608cfdf4e2bcae69a0edb4c5d38780376", size = 550762, upload-time = "2026-11-11T19:09:52.799Z" },
+    { url = "https://files.pythonhosted.org/packages/54/03/05977b32038b77643c63c6b95de3d5355c280c2e5f1afdedc62a45b00658/viva_discovery_engine-0.7.0-py3-none-any.whl", hash = "sha256:48d1f72748b85ebc9ff84191f27be7c5c00deb1982c485df38bc2ff13f248250", size = 646081, upload-time = "2026-11-19T23:35:55.014Z" },
 ]
 
 [[package]]
@@ -2360,7 +2360,7 @@ parquet = [
 
 [[package]]
 name = "viva-superpowers"
-version = "0.26.0"
+version = "0.27.0"
 source = { editable = "." }
 dependencies = [
     { name = "bigraph-schema" },
@@ -2411,7 +2411,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruamel-yaml", specifier = ">=0.18" },
     { name = "viva-basic-processes", marker = "extra == 'processes'", git = "https://github.com/vivarium-collective/viva-basic-processes.git?branch=main" },
-    { name = "viva-discovery-engine", specifier = ">=0.3,<0.7" },
+    { name = "viva-discovery-engine", specifier = ">=0.7,<0.8" },
     { name = "viva-emitters", specifier = ">=0.2.3" },
     { name = "viva-emitters", extras = ["parquet"], marker = "extra == 'evaluator'" },
     { name = "viva-workspace", git = "https://github.com/vivarium-collective/viva-workspace.git?branch=main" },
