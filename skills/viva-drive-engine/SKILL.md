@@ -1,6 +1,6 @@
 ---
 name: viva-drive-engine
-description: Use when you want to DRIVE the discovery engine on one investigation with a free-text steering goal — "develop this investigation toward <X>", "make this a visual exposition of <Y>", "push <inv> further". Runs the engine's bounded autonomous loop (`discover investigate`) with your goal threaded into every generative act, so what the engine proposes and fills is shaped toward the goal — while the frontier, honesty rules, and budget stay in the engine's hands. The generative half runs through /viva-fill.
+description: Use when you want to drive the discovery engine on one investigation with a free-text steering goal — e.g. "develop this toward <X>", "make this a visual exposition of <Y>", "push <inv> further". Runs the engine's bounded loop (discover investigate --goal) with the goal threaded into every generative act, so what it proposes and fills is shaped toward the goal while the frontier, gates, budget, and honesty rules stay the engine's.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit
 argument-hint: "<investigation-slug> <steering prompt...>  — e.g. ecoli-baseline make this a visual exposition of the baseline biology"
