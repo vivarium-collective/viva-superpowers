@@ -43,3 +43,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+          # Don't fail the whole release if one dist is already on PyPI (e.g. the
+          # deprecated pbg-superpowers shim, when its version wasn't bumped in
+          # lockstep). The new viva-superpowers dist still uploads.
+          skip-existing: true
