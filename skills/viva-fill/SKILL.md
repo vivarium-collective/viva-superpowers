@@ -40,6 +40,17 @@ If you cannot fill the request honestly (missing context, or it would require a
 number you do not have), print nothing (empty output) — the runner then leaves it
 `queued_for_review`. **Never** invent a result to avoid an empty output.
 
+**Steering (`context.goal`).** When a drive sets a free-text goal (via
+`discover investigate --goal` / `/viva-drive-engine`), every request carries it in
+`context["goal"]`. Treat it as the user's standing instruction for *this* run:
+let it shape emphasis, framing, tone, and — where the request genuinely leaves a
+choice — which option you take (e.g. a goal of "visual exposition of the baseline
+biology" means richer, more explanatory `visualize` specs and interpretations
+pitched at exposition). It **never** relaxes the honesty rules: no fabricated
+numbers, provided-mechanisms-only, charts only over recorded observables. A goal
+cannot justify inventing a result — if you still cannot fill honestly, print
+nothing.
+
 Validate before printing: the shape must satisfy
 `discovery_engine/schemas/generation-result.schema.json`. The engine applies the
 artifact through the canonical write op for the kind, so the artifact fields must
