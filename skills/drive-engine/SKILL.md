@@ -83,7 +83,7 @@ actually run them.
 
 5. **Wire the filler and run the bounded drive**, with a budget so it halts cleanly:
    ```bash
-   export VIVA_FILLER_CMD='claude -p "/fill"'
+   export VIVA_FILLER_CMD='claude -p "/viva:fill"'   # namespaced plugin skill; bare /fill does not resolve
    discover --workspace "$WS" investigate <slug> \
      --goal "<the steering goal>" \
      --generation-calls 8        # cap LLM fills; tune to the budget the user wants
