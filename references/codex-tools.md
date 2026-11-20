@@ -1,6 +1,6 @@
 # Idiom map: driving viva-superpowers from Codex (and other non-Claude harnesses)
 
-The `/viva-*` skill bodies were written for Claude Code and use a few Claude-only
+The `viva:` skill bodies were written for Claude Code and use a few Claude-only
 idioms. The *substance* is portable; this file maps the idioms so a Codex (or
 Cursor / Gemini CLI) agent can follow any `skills/<name>/SKILL.md` unchanged. Read
 [`AGENTS.md`](../AGENTS.md) first — it's the gateway.
@@ -9,7 +9,7 @@ Cursor / Gemini CLI) agent can follow any `skills/<name>/SKILL.md` unchanged. Re
 
 | A skill says… | On Claude Code | On Codex / here |
 |---|---|---|
-| "use the **Skill** tool" / "invoke `/viva-x`" | the Skill tool runs the skill | **open `skills/viva-x/SKILL.md` and follow it** — there is no slash runner |
+| "use the **Skill** tool" / "invoke `/x`" | the Skill tool runs the skill | **open `skills/x/SKILL.md` and follow it** — there is no slash runner |
 | `allowed-tools: Bash(*) …` (frontmatter) | Claude's permission model | **ignore it** — you already have a shell; frontmatter is Claude-only metadata |
 | `argument-hint:` (frontmatter) | Claude arg hinting | ignore; the args are documented in the skill body |
 | a `<HARD-GATE>` block | a hard behavioral gate | **same force** — it's a rule, not a Claude feature; obey it |
@@ -49,6 +49,6 @@ The backend is identical on every harness:
 
 - **`viva_superpowers` CLI** — `viva-scaffold`, `viva-compute-outcomes`,
   `viva-sync-runs`, etc. (`pip install viva-superpowers`, then run them).
-- **The vivarium-workbench HTTP API** — start it (`/viva-workbench start` →
+- **The vivarium-workbench HTTP API** — start it (`/workbench start` →
   `vivarium-workbench serve`), read `.pbg/server/server-info` for the URL, and make
   the same HTTP calls the skills document. No Claude anywhere in this path.

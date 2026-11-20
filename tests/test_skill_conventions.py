@@ -2,7 +2,7 @@
 """Skill-authoring conventions, enforced (obra/superpowers `writing-skills` lessons).
 
 Complements test_skill_manifests.py (which pins the *set* of skills). This file
-pins the *quality* of each SKILL.md so the gateway (viva-orient) can trust that:
+pins the *quality* of each SKILL.md so the gateway (orient) can trust that:
 
   * descriptions are triggers ("Use when ..."), not workflow summaries, and stay
     within the frontmatter budget an agent actually reads (<=500 chars);
@@ -121,7 +121,7 @@ def test_h1_matches_name_and_has_no_pbg(skill_path):
     assert "pbg-" not in h1, (
         f"{name}: H1 still says {h1!r} — stale pbg- title, should be /{name}"
     )
-    # Non-user-invocable skills (viva-orient, viva-suggest) may use a prose H1.
+    # Non-user-invocable skills (orient, suggest) may use a prose H1.
     if fm.get("user-invocable") is True:
         assert re.match(rf"^#\s+/?{re.escape(name)}\b", h1), (
             f"{name}: H1 {h1!r} must start with '# /{name}' (command form)"
@@ -130,7 +130,7 @@ def test_h1_matches_name_and_has_no_pbg(skill_path):
 
 # ---- token budget for the always-loaded surface ----
 # Frontmatter (incl. argument-hint) loads into every session's skill listing, and
-# viva-orient's whole body is injected each session by hooks/session-start. These
+# orient's whole body is injected each session by hooks/session-start. These
 # ratchets stop the always-loaded cost from creeping back up.
 ARGUMENT_HINT_MAX = 150
 ORIENT_BODY_MAX_WORDS = 600
@@ -152,9 +152,9 @@ def test_argument_hint_within_budget(skill_path):
 
 def test_orient_body_within_budget():
     root = Path(__file__).resolve().parents[1]
-    _, body = _split((root / "skills" / "viva-orient" / "SKILL.md").read_text())
+    _, body = _split((root / "skills" / "orient" / "SKILL.md").read_text())
     words = len(body.split())
     assert words <= ORIENT_BODY_MAX_WORDS, (
-        f"viva-orient body is {words} words (budget {ORIENT_BODY_MAX_WORDS}). It is "
+        f"orient body is {words} words (budget {ORIENT_BODY_MAX_WORDS}). It is "
         f"injected into EVERY session by hooks/session-start — keep the gateway lean."
     )

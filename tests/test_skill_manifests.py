@@ -16,33 +16,33 @@ import yaml
 
 # The skills that ship with `user-invocable: true`.
 #
-# `_VIVA_CORE`: the core `/viva-*` skills (incl. `/viva-init` machine setup;
-# `/viva-suggest` is an internal dashboard callback, deliberately NOT invocable).
+# `_VIVA_CORE`: the core `/*` skills (incl. `/init` machine setup;
+# `/suggest` is an internal dashboard callback, deliberately NOT invocable).
 # `_VIVA_EXTRA`: skills added after the core set.
 # The pbg→viva rebrand is complete — the legacy `pbg-*` alias skills were removed,
-# so the invocable set is now viva-only. `/viva-server` (the report-mirror server)
-# was retired; report viewing is served by the vivarium-workbench (`/viva-workbench`).
+# so the invocable set is now viva-only. `/server` (the report-mirror server)
+# was retired; report viewing is served by the vivarium-workbench (`/workbench`).
 # The v0.10 skill-surface leanness pass folded 4 overlapping skills into 3 hosts
 # as subcommands/aspects and removed their standalone dirs:
-#   viva-audit-tests   -> viva-tests   "### Subcommand: audit"
-#   viva-cite-bands    -> viva-tests   "### Subcommand: cite-bands"
-#   viva-status        -> viva-navigate "### Subcommand: status"
-#   viva-biology-forward -> viva-harden-investigation "### Aspect: biology-forward"
+#   viva-audit-tests   -> tests   "### Subcommand: audit"
+#   viva-cite-bands    -> tests   "### Subcommand: cite-bands"
+#   viva-status        -> navigate "### Subcommand: status"
+#   viva-biology-forward -> harden-investigation "### Aspect: biology-forward"
 # Keep in sync with docs/skills.md + README/CLAUDE counts — the test below fails on drift.
 _VIVA_CORE = {
-    "viva-catalog", "viva-expert",
-    "viva-init", "viva-investigation", "viva-navigate",
-    "viva-remote-run", "viva-report", "viva-run", "viva-study", "viva-tests",
-    "viva-viz", "viva-workbench", "viva-workspace",
+    "catalog", "expert",
+    "init", "investigation", "navigate",
+    "remote-run", "report", "run", "study", "tests",
+    "viz", "workbench", "workspace",
 }
-_VIVA_EXTRA = {"viva-harden-investigation", "viva-model-build", "viva-benchmark",
-               "viva-consolidate", "viva-fill", "viva-drive-engine"}
+_VIVA_EXTRA = {"harden-investigation", "model-build", "benchmark",
+               "consolidate", "fill", "drive-engine"}
 _VIVA_INVOCABLE = _VIVA_CORE | _VIVA_EXTRA
 USER_INVOCABLE_SKILLS = _VIVA_INVOCABLE
 
 
 REQUIRED_FIELDS = {"name", "description"}
-SKILL_NAME_RE = re.compile(r"^viva-[a-z][a-z0-9-]*$")
+SKILL_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 def _frontmatter(text: str) -> dict:
@@ -102,13 +102,13 @@ def test_user_invocable_set_is_pinned(plugin_root):
 
 def test_docs_skill_count_matches(plugin_root):
     """docs/skills.md, README.md, CLAUDE.md must all cite the live count."""
-    n = len(_VIVA_INVOCABLE) - 1  # exclude viva-init (machine setup)
+    n = len(_VIVA_INVOCABLE) - 1  # exclude init (machine setup)
     skills_md = (plugin_root / "docs" / "skills.md").read_text()
     assert f"{n} user-facing skills" in skills_md, (
         f"docs/skills.md should say '{n} user-facing skills'")
     readme = (plugin_root / "README.md").read_text()
-    assert f"Ships {n} `/viva-*` skills" in readme, (
-        f"README.md should say 'Ships {n} `/viva-*` skills'")
+    assert f"Ships {n} `viva:` skills" in readme, (
+        f"README.md should say 'Ships {n} `/*` skills'")
     claude = (plugin_root / "CLAUDE.md").read_text()
     assert f"all {n} user-invocable" in claude, (
         f"CLAUDE.md should say 'all {n} user-invocable'")

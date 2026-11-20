@@ -102,7 +102,7 @@ Create `viva_superpowers/benchmark_score.py`:
 Pure: consumes a trial's already-collected artifacts (no file I/O, no loop, no
 LLM) and emits report_card_verdict/v2 axes + a benchmark_report/v1 aggregate.
 The LLM axes (question_comprehension, model_plausibility) are filled by the
-/viva-benchmark skill; here they are `ungraded`. See the benchmark spec §5/§7.
+/benchmark skill; here they are `ungraded`. See the benchmark spec §5/§7.
 """
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ from viva_superpowers.test_contract import check, value
 
 
 def score_test_sufficiency(audit_gate: str) -> dict:
-    """The trial's /viva-audit-tests gate → a hard axis."""
+    """The trial's /audit-tests gate → a hard axis."""
     v = {"pass": "within_tol", "warn": "drift"}.get(str(audit_gate), "mismatch")
     return check("test_sufficiency", "Test sufficiency (audit gate)", None,
                  value(1.0, op=">="), severity="hard", verdict=v,
@@ -215,7 +215,7 @@ _LLM_AXES = (("question_comprehension", "Question comprehension"),
 
 def build_trial_report(item: dict, artifacts: dict) -> dict:
     """A trial's rubric as a report_card_verdict/v2 doc. Deterministic axes are
-    scored here; the LLM axes are placeholders (`ungraded`) the /viva-benchmark
+    scored here; the LLM axes are placeholders (`ungraded`) the /benchmark
     skill overwrites."""
     ls = artifacts.get("loop_state") or {}
     tb = TestBuilder(model_ref=str(item.get("id") or ""))
@@ -359,7 +359,7 @@ git commit -m "benchmark_score: aggregate -> benchmark_report/v1 (pass/giveup/ga
 
 ## Notes for the executor
 
-- **Test venv:** `benchmark_score` imports only `test_contract`/`test_vocab`/`loop_state` (all light/stdlib-backed). If `loop_state` transitively pulls `viva_workspace` (via `paths`), prepend `/Users/eranagmon/code/viva-workspace` to `PYTHONPATH`. Use `/Users/eranagmon/code/v2ecoli/.venv/bin/python`.
+- **Test venv:** `benchmark_score` imports only `test_contract`/`test_vocab`/`loop_state` (all light/stdlib-backed). If `loop_state` transitively pulls `viva_workspace` (via `paths`), prepend `/Users/eranagmon/code/workspace` to `PYTHONPATH`. Use `/Users/eranagmon/code/v2ecoli/.venv/bin/python`.
 - **Do NOT** import `process_bigraph`/`vivarium_workbench` — AI-free rule.
 - **Do NOT** read files or run the loop here — the scorer is pure over the `artifacts` dict; the run harness (scaffold + dispatch + collect) is Slice 2, a separate plan.
-- Slices 2-5 (run harness, `/viva-benchmark` skill, workbench display, `suite-v1`) are separate follow-on plans.
+- Slices 2-5 (run harness, `/benchmark` skill, workbench display, `suite-v1`) are separate follow-on plans.

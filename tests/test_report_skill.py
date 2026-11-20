@@ -1,8 +1,8 @@
-"""Guard test for the /viva-report skill (engine-native-skills migration, Phase 2).
+"""Guard test for the /report skill (engine-native-skills migration, Phase 2).
 
 Supersedes the Phase 2.1d "thin client of the workbench dashboard API" contract.
 The three deterministic passes (lint, readout-migrate, render) now run through the
-`discover` CLI (`python -m discovery_engine.discover`) directly, so /viva-report
+`discover` CLI (`python -m discovery_engine.discover`) directly, so /report
 lints and renders with the dashboard server DOWN. Each verb wraps the identical
 engine function the old `/api/*` endpoint wrapped, so output is unchanged — only
 the transport.
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL = Path(__file__).resolve().parents[1] / "skills" / "viva-report" / "SKILL.md"
+_SKILL = Path(__file__).resolve().parents[1] / "skills" / "report" / "SKILL.md"
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def skill_text() -> str:
 
 
 def test_skill_file_exists():
-    assert _SKILL.is_file(), "skills/viva-report/SKILL.md must exist"
+    assert _SKILL.is_file(), "skills/report/SKILL.md must exist"
 
 
 def test_references_lint_backend(skill_text):

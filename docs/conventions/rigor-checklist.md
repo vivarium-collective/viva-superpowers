@@ -7,7 +7,7 @@ reports, per study, `ok` / `warn` / `gap` on each dimension below, plus an
 investigation roll-up. **A missing field is a `gap`** — that is the feedback.
 
 Author studies so the scorecard goes green. This is the canonical list of
-required information; `/viva-study` and `/viva-investigation` reference it, and the
+required information; `/study` and `/investigation` reference it, and the
 report surfaces each dimension. None of it is a hard gate — it is standing
 feedback — but a finished study should address every dimension or say why not.
 

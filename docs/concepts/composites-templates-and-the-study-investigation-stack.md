@@ -277,7 +277,7 @@ claim.**
 
 Four repos, stacked by dependency: **bigraph-schema** (types) ⊂ **process-bigraph**
 (engine + composite/template primitives) ⊂ **vivarium-workbench** (server +
-investigation-as-composite) ⊂ **viva-superpowers** (`/viva-*` skills + authoring). Each
+investigation-as-composite) ⊂ **viva-superpowers** (`viva:` skills + authoring). Each
 lower layer is imported by the ones above it.
 
 ### bigraph-schema + process-bigraph — the substrate
@@ -303,12 +303,12 @@ The tables below cover the two layers that own the *study/investigation* concept
 | `env_worker.py` | The spawned worker — `run_study` / `run_investigation_analysis` capabilities. |
 | `templates/study-detail.html` · `loom/` | The 5-act study-spine UI; the composite-explorer (loom) view. |
 
-### viva-superpowers — the `/viva-*` skills + study/investigation authoring
+### viva-superpowers — the `viva:` skills + study/investigation authoring
 
 | File | What it is |
 |---|---|
 | `docs/concepts/vivarium-workbench-model.md` | The data-model source of truth (on-disk YAML + API). |
-| `skills/` | The `/viva-*` skills — study, investigation, expert, viz, run. |
+| `skills/` | The `viva:` skills — study, investigation, expert, viz, run. |
 | `viva_superpowers/scaffold.py` | Emits the study/investigation YAML spines (TODO placeholders). |
 | `viva_superpowers/study_canonicalize.py` · `investigation_canonicalize.py` | Canonicalize specs on read. |
 | `viva_superpowers/study_status.py` | `study_clarity_summary` — the derive-on-read status source. |
@@ -342,7 +342,7 @@ studies/<slug>/parquet-runs/<run>/            # emitted trajectories
 .pbg/server/                                  # dashboard runtime state
 ```
 
-To see it rendered: `/viva-workbench start`, then open an investigation — the same three
+To see it rendered: `/workbench start`, then open an investigation — the same three
 layers appear as the **Investigation graph** (nodes = studies, Asks → Finds →
 Confidence), the **study-detail spine** (Design / Evidence / Assurance / Decision acts),
 and the **Composite Explorer** (the wired process graph).

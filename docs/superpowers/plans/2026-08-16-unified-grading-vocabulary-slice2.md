@@ -583,7 +583,7 @@ Task 6.
   `viva_workspace` (via `study_outcomes`) and `process_bigraph`/`viva_emitters`
   (via `post_sim`, only if imported). Use a venv that has them, e.g.
   `/Users/eranagmon/code/v2ecoli/.venv/bin/python` with
-  `PYTHONPATH=<worktree>:/Users/eranagmon/code/viva-workspace` prepended, or the
+  `PYTHONPATH=<worktree>:/Users/eranagmon/code/workspace` prepended, or the
   CI environment. `test_contract` / `test_vocab` themselves are stdlib-only.
 - **`_apply_op` internals are out of scope.** Do not change how `result` or
   `measured_value` are computed — only read them. If a per-gen op returns a

@@ -15,14 +15,14 @@ outcomes), `report_card_verdict/v2` (`check`/`Expected`, signed margin + severit
 `severity_gate` + `report.json`/`test_diff.json`, `study_verdict.roll_up_verdict`,
 `viva-navigate` (`needs_attention` worklist: `uncovered_ac`/`hard_gate`/
 `test_regression`), `viva-test` CLI, `rigor.py` (13-dim rigor scorecard +
-`threshold_sensitivity`), `band_provenance`, the `/viva-study` lifecycle. See
+`threshold_sensitivity`), `band_provenance`, the `/study` lifecycle. See
 `docs/superpowers/specs/2026-08-15-tests-as-agent-feedback-design.md` and
 `2026-08-16-unified-grading-vocabulary-slice2-design.md`.
 
 **Architecture rule (binding):** the plugin owns **judgment/evaluation** (AI in
-`/viva-*` skills + deterministic `viva_superpowers` helpers); the workbench
+`viva:` skills + deterministic `viva_superpowers` helpers); the workbench
 **renders + persists** (AI-free). One-way dependency (workbench → plugin). Both
-new components are `/viva-*` skills backed by `viva_superpowers` helpers; nothing
+new components are `viva:` skills backed by `viva_superpowers` helpers; nothing
 AI lands in the workbench.
 
 ## 1. Motivation
@@ -48,10 +48,10 @@ spine is the mechanism that forecloses all three.
 - A **persisted loop-state** artifact so the protocol is resumable, auditable, and
   dispatchable (the seam that lets a supervised in-session run today become an
   autonomous dispatched run later).
-- **Component A — `/viva-audit-tests`**: a sufficiency audit that adds
+- **Component A — `/audit-tests`**: a sufficiency audit that adds
   discrimination, objective-coverage, redundancy, and discriminating-control
   checks; outputs a graded `report_card_verdict/v2` report.
-- **Component B — `/viva-model-build`**: the driver skill that executes the
+- **Component B — `/model-build`**: the driver skill that executes the
   protocol against the loop-state, calling the existing skills at each state.
 - **Integrity by construction:** audit-gate + pre-registration lock; the loop can
   edit only the model; honest give-up.
@@ -76,9 +76,9 @@ States, the gate that leaves each, and the transition:
 | State | Does | Gate to leave | On gate fail |
 |---|---|---|---|
 | **AUTHOR** | From the open `question:`, author `behavior_tests[]` (acceptance criteria: measure/pass_if/cites/classification) + a model plan. | Tests exist + structurally valid (`verify` L0/L1). | stay AUTHOR |
-| **AUDIT** | Run `/viva-audit-tests`; the sufficiency report. | audit **overall != fail** (no hard-insufficient dimension). | → AUTHOR (refine Tests) |
+| **AUDIT** | Run `/audit-tests`; the sufficiency report. | audit **overall != fail** (no hard-insufficient dimension). | → AUTHOR (refine Tests) |
 | **LOCK** | Pre-register: freeze `behavior_tests[]`, record `locked_tests_hash` + `prereg_record` (criteria predate any run — feeds `rigor` dim 9). | always. | — |
-| **BUILD** | Build/edit the model/composite (`/viva-expert` or params). | `verify` + `check-observables` (pre-run HARD gate). | stay BUILD |
+| **BUILD** | Build/edit the model/composite (`/expert` or params). | `verify` + `check-observables` (pre-run HARD gate). | stay BUILD |
 | **RUN** | Run the canonical simulation(s) (`viva-study run-*`). | run completes; `auto_evaluate` fills `runs[].outcomes`. | → BUILD (fix run) |
 | **EVALUATE** | `roll_up_verdict` + `severity_gate(report.json)` + `test_diff.json` (what the last edit moved). | — (always advances). | — |
 | **DECIDE** | `verdict == passed` (gate `pass`, `fail==0 & pass>0`)? | pass → **DONE** (findings + report). | → NAVIGATE |
@@ -139,7 +139,7 @@ assertions here). The driver skill never edits the JSON by hand — it calls the
 helper, which is unit-testable without an agent. This module IS the dispatch seam:
 a future autonomous dispatcher reads the same file and advances the same states.
 
-## 5. Component A — `/viva-audit-tests` (sufficiency audit)
+## 5. Component A — `/audit-tests` (sufficiency audit)
 
 **Input:** a study slug (its `question`, `behavior_tests[]`, `conditions`,
 `readouts`, `controls`, and — if a run exists — its outcomes). **Output:** a
@@ -179,11 +179,11 @@ Split: `viva_superpowers/test_audit.py` holds the deterministic checks (unit-
 tested, AI-free); the skill supplies the reasoning (null-model plausibility,
 mechanism-semantics) and assembles the report via `TestBuilder`.
 
-## 6. Component B — `/viva-model-build` (the driver)
+## 6. Component B — `/model-build` (the driver)
 
-A `/viva-*` skill whose body IS the protocol (§3): it reads/creates the loop-state,
-and at each state calls the existing skills — AUTHOR/`/viva-study` design,
-AUDIT/`/viva-audit-tests`, LOCK/`loop_state.lock`, BUILD/`/viva-expert` +
+A `viva:` skill whose body IS the protocol (§3): it reads/creates the loop-state,
+and at each state calls the existing skills — AUTHOR/`/study` design,
+AUDIT/`/audit-tests`, LOCK/`loop_state.lock`, BUILD/`/expert` +
 `viva-study verify`+`check-observables`, RUN/`viva-study run-*`, EVALUATE/
 `roll_up_verdict`+`severity_gate`, NAVIGATE/`viva-navigate decisions` — advancing
 the loop-state through the helper (which enforces I1-I5) after each. It stops at
@@ -193,7 +193,7 @@ the checkpoints (the dispatchable mode); the protocol and loop-state are identic
 either way — that is the hybrid seam.
 
 The driver never grades or edits Tests itself: grading is `study_evaluator`, Test
-authoring is `/viva-study`, sufficiency is `/viva-audit-tests`. It is
+authoring is `/study`, sufficiency is `/audit-tests`. It is
 orchestration + invariant-enforcement only.
 
 ## 7. Integrity / anti-gaming (how the three cheats are foreclosed)
@@ -233,9 +233,9 @@ orchestration + invariant-enforcement only.
 Order (each an independently landable slice; the lock depends on the audit):
 1. **`loop_state.py`** + `model_build_loop/v1` schema + invariant assertions (pure,
    unit-tested). The systematic backbone.
-2. **`test_audit.py`** deterministic checks + **`/viva-audit-tests`** skill +
+2. **`test_audit.py`** deterministic checks + **`/audit-tests`** skill +
    graded report. Component A. The AUDIT gate.
-3. **`/viva-model-build`** driver skill (protocol over §3, checkpoints,
+3. **`/model-build`** driver skill (protocol over §3, checkpoints,
    `--autonomous` seam). Component B.
 4. **Fixture harness** (known-good + known-impossible) + docs.
 Catalog guards: a new user-invocable skill updates the pinned set + the
@@ -251,5 +251,5 @@ Catalog guards: a new user-invocable skill updates the pinned set + the
   in the audit. Default: reasoning-only in v1; a cheap knockout run is an opt-in
   the audit *recommends*, not a hard requirement (keeps the audit pre-run and fast).
 - **Budget default** (`max_iterations`) and the checkpoint cadence N.
-- **Skill names:** `/viva-audit-tests` + `/viva-model-build` vs folding the driver
-  into `/viva-study loop`. Recommend standalone skills (clean surfaces).
+- **Skill names:** `/audit-tests` + `/model-build` vs folding the driver
+  into `/study loop`. Recommend standalone skills (clean surfaces).

@@ -54,8 +54,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/vivarium-collective/viva-<tool>"
-Issues = "https://github.com/vivarium-collective/viva-<tool>/issues"
+Homepage = "https://github.com/vivarium-collective/<tool>"
+Issues = "https://github.com/vivarium-collective/<tool>/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["viva_<tool>"]
@@ -98,7 +98,7 @@ better, and the catalog Install logic uses `uv pip install --python
 <venv-py>` to install viva-* packages from PyPI or local paths.
 
 Scaffolded workspaces' `NEXT_STEPS.md.j2` and `template-init.sh` use uv
-exclusively. Skills (`/viva-workspace`, `/viva-workbench`) follow suit.
+exclusively. Skills (`/workspace`, `/workbench`) follow suit.
 
 ## Verification
 

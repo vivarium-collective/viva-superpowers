@@ -1,4 +1,4 @@
-"""Guard test for the /viva-tests audit subcommand's sourcing near-miss hook.
+"""Guard test for the /tests audit subcommand's sourcing near-miss hook.
 
 The skill mirrors its deterministic+LLM split for TEST sufficiency onto the
 model-SOURCING decision: it runs the deterministic module_sourcing audit and
@@ -6,8 +6,8 @@ adds an LLM near-miss judgment for capability tokens the manifest tags miss.
 This asserts that hook is documented and wired to the real audit, so it can't
 silently regress to test-only.
 
-The audit subcommand was folded into /viva-tests (skills/viva-tests/SKILL.md,
-"### Subcommand: audit") from the standalone /viva-audit-tests skill.
+The audit subcommand was folded into /tests (skills/tests/SKILL.md,
+"### Subcommand: audit") from the standalone /audit-tests skill.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL = Path(__file__).resolve().parents[1] / "skills" / "viva-tests" / "SKILL.md"
+_SKILL = Path(__file__).resolve().parents[1] / "skills" / "tests" / "SKILL.md"
 
 
 @pytest.fixture

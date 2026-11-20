@@ -78,7 +78,7 @@ wrong.
   from the **latest run's `outcomes[test_name].result`** — a test with
   `status: passed` but no recorded outcome still renders **⏳ pending**.
 - So after editing, **trace the render path and confirm the rendered output**,
-  not just the spec. Run `/viva-report` (Pass B lint surfaces the gaps), and
+  not just the spec. Run `/report` (Pass B lint surfaces the gaps), and
   open the dashboard to see the actual study cards.
 
 ### 6. Account for the install / deployment gap
@@ -102,7 +102,7 @@ the code: `python -c "import vivarium_workbench, os; print(os.path.dirname(vivar
 
 - One cohesive commit per repo; investigation content (study yamls) and tooling
   (renderer/linter) are **separate repos and separate PRs**.
-- Run `/viva-report` (Pass A audit + Pass B lint) and **open the report** before
+- Run `/report` (Pass A audit + Pass B lint) and **open the report** before
   telling anyone it's ready to send. "The data is right" ≠ "the report is
   ready."
 - Surface reviewer-specific decisions explicitly: a blocked study should carry
@@ -173,5 +173,5 @@ reading, record FAIL, and start diagnosing a non-problem.
 ## Related
 
 - [Reviewer-facing status clarity](../concepts/vivarium-workbench-model.md#reviewer-facing-status-clarity) — the `study_clarity_summary` backbone + the report-linter clarity checks.
-- `/viva-report` skill — the pre-send audit + lint + render.
+- `/report` skill — the pre-send audit + lint + render.
 - `discovery_engine.study_status` — derive-on-read status (the single source of truth for run/test/verdict markers).

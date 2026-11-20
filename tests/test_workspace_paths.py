@@ -1,7 +1,7 @@
 """Tests for the workspace-layout resolver re-exported by the compat shim.
 
 ``viva_superpowers/workspace_paths.py`` is now a thin shim over the shared
-``viva-workspace`` package (the former hand-vendored copy is gone). The checks
+``workspace`` package (the former hand-vendored copy is gone). The checks
 below pin the re-exported ``LAYOUT_DEFAULTS`` and the canonical ``viva_<slug>``
 package naming so the shim keeps exposing the expected public surface.
 """

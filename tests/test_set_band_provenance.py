@@ -293,25 +293,25 @@ def test_frac_test_keys_preserved(tmp_path):
 
 
 def test_skill_file_exists():
-    """skills/viva-tests/SKILL.md exists (hosts the cite-bands subcommand)."""
-    skill = Path(__file__).resolve().parents[1] / "skills" / "viva-tests" / "SKILL.md"
+    """skills/tests/SKILL.md exists (hosts the cite-bands subcommand)."""
+    skill = Path(__file__).resolve().parents[1] / "skills" / "tests" / "SKILL.md"
     assert skill.is_file(), f"SKILL.md not found at {skill}"
 
 
 def test_skill_frontmatter_valid():
     """SKILL.md has required front-matter fields and expected values.
 
-    cite-bands was folded into /viva-tests as a subcommand
-    ("### Subcommand: cite-bands") from the standalone /viva-cite-bands skill.
+    cite-bands was folded into /tests as a subcommand
+    ("### Subcommand: cite-bands") from the standalone /cite-bands skill.
     """
     import yaml as _yaml
-    skill = Path(__file__).resolve().parents[1] / "skills" / "viva-tests" / "SKILL.md"
+    skill = Path(__file__).resolve().parents[1] / "skills" / "tests" / "SKILL.md"
     text = skill.read_text()
     assert text.startswith("---\n"), "SKILL.md must start with YAML front-matter"
     end = text.find("\n---\n", 4)
     assert end != -1, "SKILL.md front-matter not closed"
     fm = _yaml.safe_load(text[4:end]) or {}
-    assert fm.get("name") == "viva-tests"
+    assert fm.get("name") == "tests"
     assert fm.get("user-invocable") is True
     assert "description" in fm
     assert "allowed-tools" in fm
@@ -323,7 +323,7 @@ def test_skill_frontmatter_valid():
 def test_skill_references_helpers():
     """SKILL.md body wires the three key ops via the workbench API (Phase
     2.1e — thin client), not by importing the Python helpers directly."""
-    skill = Path(__file__).resolve().parents[1] / "skills" / "viva-tests" / "SKILL.md"
+    skill = Path(__file__).resolve().parents[1] / "skills" / "tests" / "SKILL.md"
     body = skill.read_text()
     assert "/api/band-provenance" in body, "skill must call GET/POST /api/band-provenance"
     assert "/api/expert-search" in body, "skill must call GET /api/expert-search"
@@ -333,7 +333,7 @@ def test_skill_references_helpers():
 
 def test_skill_references_proposed_inputs_guardrail():
     """SKILL.md documents the proposed_inputs / never-fabricate guardrail."""
-    skill = Path(__file__).resolve().parents[1] / "skills" / "viva-tests" / "SKILL.md"
+    skill = Path(__file__).resolve().parents[1] / "skills" / "tests" / "SKILL.md"
     body = skill.read_text()
     assert "proposed_inputs" in body, "skill must mention proposed_inputs fallback"
 

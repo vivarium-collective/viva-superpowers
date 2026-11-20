@@ -7,16 +7,16 @@ harness decided), pending spec review.
 study *question* into a validated model — and measure it **repeatably across
 framework variants**, so we can do eval-driven development of the loop, the audit,
 and the skills. The system under test is the agentic model-building loop
-([[project_agentic_model_building_loop]], `/viva-model-build`); this benchmark
+([[project_agentic_model_building_loop]], `/model-build`); this benchmark
 grades it.
 
-**Builds on:** the loop (`loop_state`, `test_audit`/`/viva-audit-tests`,
-`/viva-model-build`), the graded `/v2` contract, `severity_gate`,
+**Builds on:** the loop (`loop_state`, `test_audit`/`/audit-tests`,
+`/model-build`), the graded `/v2` contract, `severity_gate`,
 `roll_up_verdict`. Spec: `docs/superpowers/specs/2026-08-16-agentic-model-building-loop-design.md`.
 
 **Architecture rule (binding):** plugin owns judgment (AI + deterministic helpers);
 workbench renders + persists (one-way dep). The scorer + report live in
-`viva_superpowers`; the LLM-judge reasoning lives in a `/viva-*` skill; the display
+`viva_superpowers`; the LLM-judge reasoning lives in a `viva:` skill; the display
 is a workbench render. No AI in the workbench.
 
 ## 1. Motivation
@@ -54,10 +54,10 @@ honestly) so the benchmark catches a loop that fabricates passes.
 ## 4. The run harness (decided): scaffold-per-item → dispatch the loop
 
 For each item, one benchmark **trial**:
-1. **Scaffold** a fresh throwaway study from the item's `question` (`/viva-study new`
+1. **Scaffold** a fresh throwaway study from the item's `question` (`/study new`
    / `fill-overview`) in an isolated scratch workspace (so trials don't collide and
    a suite run is reproducible).
-2. **Dispatch** `/viva-model-build <study> --autonomous --max-iterations <budget>`
+2. **Dispatch** `/model-build <study> --autonomous --max-iterations <budget>`
    (the Slice-3 driver; `--autonomous` = no checkpoints).
 3. **Collect** the trial artifacts: the study's `loop_state.json` (state, gate,
    iterations, reopen trail, I1-I5 validity), the `test-audit.verdict.json`
@@ -77,7 +77,7 @@ shipped grading machinery.
 | Axis | How scored | Kind |
 |---|---|---|
 | **question_comprehension** | LLM-judge: did the study's `question`/`purpose.mechanism`/objective faithfully scope the item's question and derive the right `expected_mechanisms`? | LLM |
-| **test_sufficiency** | Deterministic — the trial's `/viva-audit-tests` gate (`test_audit.audit_gate` over the locked Tests): `pass`→within_tol, `warn`→drift, `fail`→mismatch. | det |
+| **test_sufficiency** | Deterministic — the trial's `/audit-tests` gate (`test_audit.audit_gate` over the locked Tests): `pass`→within_tol, `warn`→drift, `fail`→mismatch. | det |
 | **model_plausibility** | Deterministic checks (cited mechanisms present, composite resolves + a run produced outcomes) + LLM-judge (is the mechanism plausible / non-fabricated for the question). | det + LLM |
 | **loop_outcome** | Deterministic from `loop_state`: `solvable` item reaching gate `pass` with **zero I1-I5 violations** → within_tol; honest GIVE_UP on a `solvable:false` item → within_tol; an invalid/gamed pass (gate pass but an invariant violation, or a `solvable:false` item that "passed") → **mismatch (hard)**; solvable item that gave up → drift. | det |
 | **efficiency** | Deterministic: iterations spent / budget → margin (fewer = better); reopen_count penalized lightly. | det |
@@ -88,7 +88,7 @@ shipped grading machinery.
 
 **Scorer split:** `viva_superpowers/benchmark_score.py` computes all deterministic
 axes purely from the collected artifacts (unit-testable, AI-free). The LLM axes
-(`question_comprehension`, the plausibility half) are filled by a `/viva-benchmark`
+(`question_comprehension`, the plausibility half) are filled by a `/benchmark`
 skill that judges against a **versioned rubric prompt** and merges them into the
 report. A trial can be scored deterministic-only (LLM axes `ungraded`) for a fast,
 AI-free CI signal.
@@ -128,9 +128,9 @@ JSON; degrades in the published static bundle.
 1. **`benchmark_score.py`** — the deterministic rubric axes over collected artifacts
    + `build_trial_report(item, artifacts) -> /v2` + `aggregate(trials) -> benchmark_report/v1`.
    Pure, unit-tested. The stable core.
-2. **The run harness** — scaffold-per-item + dispatch `/viva-model-build --autonomous`
+2. **The run harness** — scaffold-per-item + dispatch `/model-build --autonomous`
    + collect artifacts (+ variant capture). Depends on the Slice-3 driver (shipped).
-3. **`/viva-benchmark` skill** — runs the harness over a suite, fills the LLM axes,
+3. **`/benchmark` skill** — runs the harness over a suite, fills the LLM axes,
    writes `benchmark_report/v1`; `--score-only` for deterministic CI.
 4. **The display** — workbench results page + variant-diff view.
 5. **A starter `suite-v1`** — a handful of items across domains/difficulties incl.
@@ -157,4 +157,4 @@ JSON; degrades in the published static bundle.
 - **LLM-judge determinism** — the judge prompt is versioned (`rubric_prompt_version`);
   whether to cache/pin judgments for reproducibility of a scored run.
 - **Efficiency axis weighting** — how much reopen_count / iterations penalize.
-- Skill name `/viva-benchmark` vs `/viva-eval`.
+- Skill name `/benchmark` vs `/eval`.

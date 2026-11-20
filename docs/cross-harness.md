@@ -20,8 +20,8 @@ broader support is incremental.
 1. `pip install viva-superpowers`
 2. Point Codex at this repo so it reads **`AGENTS.md`** (the gateway) and can open
    `skills/<name>/SKILL.md` on demand.
-3. Describe what you want to model. The gateway routes you: `/viva-workspace` →
-   `/viva-workbench start` → `/viva-expert` or `/viva-study`. Follow the referenced
+3. Describe what you want to model. The gateway routes you: `/workspace` →
+   `/workbench start` → `/expert` or `/study`. Follow the referenced
    `SKILL.md`, using [`references/codex-tools.md`](../references/codex-tools.md) to
    translate any Claude idioms.
 
@@ -34,14 +34,14 @@ broader support is incremental.
   Codex (see the idiom map) — correct but slower, more context.
 - **`superpowers:` composition is optional.** Use it if obra's plugin is installed
   for your harness; otherwise apply the principle inline.
-- **Verified loop only.** The spike proves `/viva-workspace` → `/viva-workbench` →
-  `/viva-run` from Codex (see `tests/pressure-scenarios/codex-first-loop.md`).
+- **Verified loop only.** The spike proves `/workspace` → `/workbench` →
+  `/run` from Codex (see `tests/pressure-scenarios/codex-first-loop.md`).
   Everything else is expected to work but is not yet exercised per-harness.
 
 ## Keeping harnesses in sync
 
 `AGENTS.md`'s Rule + routing table are single-sourced against
-`skills/viva-orient/SKILL.md` by `tests/test_cross_harness.py`, so the Claude
+`skills/orient/SKILL.md` by `tests/test_cross_harness.py`, so the Claude
 gateway and the `AGENTS.md` gateway can't drift apart. Adding a harness = a new
 entry file + (if its tool vocabulary differs) a new `references/<harness>-tools.md`
 — never a copy of the skills.

@@ -217,7 +217,7 @@ anything is authored:
   `support`/`prerequisite` path in `GE`, or a jump from weaker to stronger
   verdict with no supporting edge, is an **unsupported transition**; each gap
   names the missing evidence and is emitted as a candidate follow-up study via
-  the existing `/viva-study propose-followup` → `seed-from-followup` path.
+  the existing `/study propose-followup` → `seed-from-followup` path.
 
 The worked example's unsupported move — *"regulatory feedback is necessary in the
 composite"* → *"regulatory feedback causes the observed bimodality in living

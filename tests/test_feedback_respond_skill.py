@@ -1,11 +1,11 @@
-"""Structural guard: the viva-study skill documents the feedback-respond
+"""Structural guard: the study skill documents the feedback-respond
 subcommand and references the SP3b primitives by name (the AI-free split).
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[1] / "skills" / "viva-study" / "SKILL.md"
+SKILL = Path(__file__).resolve().parents[1] / "skills" / "study" / "SKILL.md"
 
 
 def _doc(skill_md: Path) -> str:
@@ -35,7 +35,7 @@ def test_skill_index_lists_feedback_respond():
     # subcommand index is where subcommands are advertised.
     skill_text = SKILL.read_text()
     assert "feedback-respond" in skill_text, (
-        "feedback-respond missing from viva-study SKILL.md subcommand index"
+        "feedback-respond missing from study SKILL.md subcommand index"
     )
 
 

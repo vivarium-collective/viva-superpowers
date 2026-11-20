@@ -30,16 +30,16 @@ def _read(skill: str) -> str:
 
 
 def test_pbg_catalog_skill_exists():
-    assert (SKILLS / "viva-catalog" / "SKILL.md").exists(), (
-        "viva-catalog skill dir is the consolidated home for the v0.8 trio "
+    assert (SKILLS / "catalog" / "SKILL.md").exists(), (
+        "catalog skill dir is the consolidated home for the v0.8 trio "
         "(/pbg-list, /pbg-install, /pbg-uninstall) — it must be present."
     )
 
 
 @pytest.mark.parametrize("subcmd", ["list", "install", "uninstall"])
 def test_pbg_catalog_documents_subcommand(subcmd):
-    text = _read("viva-catalog")
-    assert subcmd in text, f"viva-catalog SKILL.md must document the '{subcmd}' subcommand"
+    text = _read("catalog")
+    assert subcmd in text, f"catalog SKILL.md must document the '{subcmd}' subcommand"
 
 
 @pytest.mark.parametrize("endpoint", [
@@ -48,16 +48,16 @@ def test_pbg_catalog_documents_subcommand(subcmd):
     "/api/catalog-uninstall",
 ])
 def test_pbg_catalog_wraps_dashboard_endpoint(endpoint):
-    text = _read("viva-catalog")
+    text = _read("catalog")
     assert endpoint in text, (
-        f"viva-catalog must wrap {endpoint} to keep parity with the v0.8 skill it replaces"
+        f"catalog must wrap {endpoint} to keep parity with the v0.8 skill it replaces"
     )
 
 
 @pytest.mark.parametrize("removed", ["pbg-list", "pbg-install", "pbg-uninstall"])
 def test_v08_trio_skill_dirs_are_gone(removed):
     assert not (SKILLS / removed).exists(), (
-        f"{removed} was merged into /viva-catalog in v0.9 and its skill dir must be removed"
+        f"{removed} was merged into /catalog in v0.9 and its skill dir must be removed"
     )
 
 
@@ -65,17 +65,17 @@ def test_v08_trio_skill_dirs_are_gone(removed):
 
 
 def test_pbg_expert_documents_lightweight_mode():
-    text = _read("viva-expert")
+    text = _read("expert")
     assert "--lightweight" in text, (
-        "viva-expert must document --lightweight (replaces the v0.8 /pbg-wrapper and /pbg-composer)"
+        "expert must document --lightweight (replaces the v0.8 /pbg-wrapper and /pbg-composer)"
     )
     assert "Lightweight Mode" in text or "lightweight mode" in text.lower(), (
-        "viva-expert must have a dedicated Lightweight Mode section"
+        "expert must have a dedicated Lightweight Mode section"
     )
 
 
 def test_pbg_expert_lightweight_covers_single_and_composite():
-    text = _read("viva-expert")
+    text = _read("expert")
     # Single-tool lightweight form
     assert "single-tool form" in text.lower() or "Lightweight single-tool" in text, (
         "Lightweight Mode must document the single-tool form (replaces /pbg-wrapper)"
@@ -88,7 +88,7 @@ def test_pbg_expert_lightweight_covers_single_and_composite():
 
 def test_pbg_expert_documents_lightweight_output_layout():
     """Lightweight mode should still write into viva_<slug>/{processes,composites}/."""
-    text = _read("viva-expert")
+    text = _read("expert")
     assert "viva_<slug>/processes/" in text, "single-tool lightweight writes processes/<tool>.py"
     assert "viva_<slug>/composites/" in text, "composite lightweight writes composites/<name>.py"
 
@@ -96,7 +96,7 @@ def test_pbg_expert_documents_lightweight_output_layout():
 @pytest.mark.parametrize("removed", ["pbg-wrapper", "pbg-composer"])
 def test_v08_wrap_compose_skill_dirs_are_gone(removed):
     assert not (SKILLS / removed).exists(), (
-        f"{removed} was folded into /viva-expert --lightweight in v0.9; its skill dir must be removed"
+        f"{removed} was folded into /expert --lightweight in v0.9; its skill dir must be removed"
     )
 
 
@@ -130,28 +130,28 @@ def test_pbg_package_skill_dir_is_gone():
 
 
 def test_pbg_status_reports_server_liveness():
-    """status was folded into /viva-navigate as a subcommand
-    ("### Subcommand: status") from the standalone /viva-status skill."""
-    text = _read("viva-navigate")
+    """status was folded into /navigate as a subcommand
+    ("### Subcommand: status") from the standalone /status skill."""
+    text = _read("navigate")
     assert ".pbg/server/server-info" in text, (
-        "viva-navigate's status subcommand must probe the workbench server-info "
-        "for its server-liveness section (the report-mirror /viva-server was retired)"
+        "navigate's status subcommand must probe the workbench server-info "
+        "for its server-liveness section (the report-mirror /server was retired)"
     )
 
 
-# ----------------------------------------------- viva-suggest stays for callback
+# ----------------------------------------------- suggest stays for callback
 
 
 def test_pbg_suggest_remains_for_dashboard_callback():
-    """viva-suggest is invoked by the vivarium-workbench 'Suggest' button.
+    """suggest is invoked by the vivarium-workbench 'Suggest' button.
 
     Removing it would break the dashboard's repo-name/PR-title/PR-body suggest flow,
     so v0.9 keeps the skill registered but flags it as internal-only.
     """
-    assert (SKILLS / "viva-suggest" / "SKILL.md").exists(), (
-        "viva-suggest must remain installed for the vivarium-workbench Suggest callback"
+    assert (SKILLS / "suggest" / "SKILL.md").exists(), (
+        "suggest must remain installed for the vivarium-workbench Suggest callback"
     )
-    text = _read("viva-suggest")
+    text = _read("suggest")
     assert "internal" in text.lower(), (
-        "viva-suggest frontmatter/body should flag it as an internal dashboard callback"
+        "suggest frontmatter/body should flag it as an internal dashboard callback"
     )

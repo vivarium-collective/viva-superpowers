@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Worktree:** `~/code/viva-sp-audit`, branch `feat/study-audit-l0-l5` (off `origin/main` @ `0050f85`). Verify `git branch --show-current` + HEAD before commits.
+- **Worktree:** `~/code/sp-audit`, branch `feat/study-audit-l0-l5` (off `origin/main` @ `0050f85`). Verify `git branch --show-current` + HEAD before commits.
 - **Tests:** run with `~/code/pbg-superpowers/.venv/bin/python -m pytest` from the worktree root (cwd-first import → the worktree's `viva_superpowers` is used; verified). `read_text(encoding="utf-8")` everywhere.
 - **No `vivarium_workbench` import** anywhere in `study_audit.py` — the module ships in the package v2ecoli CI imports; a workbench dep would break that and invert the dependency graph.
 - **Tiered contract (from the design doc §3):** L0 Structure + L1 Resolvability are **hard** tier; L2 Executability, L3 Outputs, L4 Evidence, L5 Ordering(execution) are **soft** (warn/ratchet). L5 graph-validity (acyclic / no dangling) is **hard**. `--gate` exits non-zero iff any `status=="fail"` check with `tier=="hard"` exists.

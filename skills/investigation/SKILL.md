@@ -1,0 +1,956 @@
+---
+name: investigation
+description: "Use when grouping multiple Studies under a shared research question — creating, opening, listing, or closing an Investigation, or adding/removing member studies and orchestrating a run across all of them."
+user-invocable: true
+allowed-tools: Bash(*) Read Write Edit Glob
+argument-hint: <subcmd> [args...]
+---
+
+# /investigation
+
+The interface for **Investigations** in the vivarium-workbench: named collections of studies that together answer a higher-level research question.
+
+An Investigation lives at `$INVESTIGATIONS_DIR/<slug>/investigation.yaml` (resolved from `workspace.yaml` `layout:`; `investigations/<slug>/` by default). It lists member studies by slug, carries its own question/hypothesis/description, and links acceptance criteria to specific `expected_behavior[i].name` entries on member studies.
+
+See [`docs/concepts/vivarium-workbench-model.md`](../../docs/concepts/vivarium-workbench-model.md) for the canonical data model.
+
+## Where this sits in the arc
+
+Step 2 of the generation arc (full arc in `/orient`): `/expert` (source the
+model) → **investigation** (group studies into a campaign) → `/study` (per
+study, usually driven by `/model-build`) → `/run` (smoke-test) →
+`/report` (publish read-only via `vivarium-workbench-publish` → gh-pages).
+
+## Layout (flat writer, nested-aware resolver)
+
+The dashboard's study-create endpoint — the **authoritative writer** — creates
+each study **flat** at `$STUDIES_DIR/<slug>/study.yaml` (the conventional
+`studies/<slug>/`, or `workspace/studies/<slug>/` when the workspace `layout:`
+relocates it). As of vivarium-workbench 0.4.1 it does **not** write the nested
+`investigations/<inv>/studies/<slug>/` tree. The investigation's
+publication/report lives at `investigations/<inv>/reports/` (per-investigation —
+there is **no global repo-wide report**).
+
+- **Resolve a study dir** (nested- and flat-aware): tooling checks the nested
+  path `$INVESTIGATIONS_DIR/<inv>/studies/<slug>/` first, then the flat
+  `$STUDIES_DIR/<slug>/`. New studies land flat; the nested path resolves only
+  after a repo is migrated.
+- **The nested layout is a convention/migration target, not the default writer
+  output.** A repo adopts it by running `viva-migrate-nested`, which relocates
+  flat studies under their investigation and writes the `investigation: <inv>`
+  back-ref. Until then, studies stay flat and carry membership only via the
+  investigation's `studies[]` list.
+
+Where older text below says "create under the nested path" or implies the
+writer produces `investigations/<inv>/studies/<slug>/`, read it as the
+post-migration convention — the live endpoint writes `$STUDIES_DIR/<slug>/`.
+
+**Investigation-owned inputs.** An investigation owns its datasets/references under `investigations/<inv>/inputs/` (e.g. `inputs/datasets/<file>`), recorded in `investigation.yaml`:
+
+```yaml
+inputs:
+  datasets:
+    - inputs/datasets/beulig.csv
+  references: []
+  expert_docs: []
+```
+
+Repo-wide source packages and shared/unused inputs stay global (repo-level `datasets/`, `references/papers.bib`). To migrate existing repo-level datasets, run the `viva-migrate-inputs` console script (`--workspace <ws> [--apply]`): it assigns a dataset to an investigation only when exactly ONE investigation's studies reference it (by filename in `study.yaml`); multi-investigation and unused datasets are reported and left global. Default prints the plan; `--apply` performs the `git mv` and updates `investigation.yaml`.
+
+**NEVER silently add an input the expert did not provide.** `inputs.references`, `inputs.datasets`, and `expert_docs` are the *provided* inputs — things the expert supplied or explicitly approved. If, while working, you find yourself wanting to cite a paper, invoke a mechanism, or lean on a parameter the expert did **not** give you, do **not** add it to `inputs.` and do **not** weave it into the prose as fact. Instead record it under `proposed_inputs:` with `status: pending`, plus the `provenance` (which commit / why it came up) and the `rationale` (what you used it for). The expert then Accepts or Declines each item in the report; on Accept the dashboard promotes a `kind: reference` item into `inputs.references` (a `kind: mechanism` is marked accepted for a human to integrate), on Decline it is marked declined and left out. This keeps the agent from quietly importing outside claims as if they were expert-sanctioned.
+
+```yaml
+proposed_inputs:
+  _note: "Why this block exists — agent-suggested inputs the expert did NOT provide."
+  items:
+  - id: <slug>                 # stable id; reference ids double as the bib-key on accept
+    kind: reference            # reference | mechanism
+    citation: "..."            # kind=reference: the citation text
+    summary: "..."             # kind=mechanism: what the mechanism is
+    proposed_by: agent
+    proposed_at: '2026-06-08'
+    related_study: <study-slug>
+    rationale: "what it was used for"
+    provenance: "which commit / why it came up; NOT provided by the expert"
+    status: pending            # pending | accepted | declined  (expert sets via the report)
+```
+
+
+## The Investigation graph (discourse graph)
+
+The dashboard reframes the investigation page as an **Investigation graph**: a discourse/knowledge graph whose nodes are its member studies and whose edges are their `parent_studies` dependencies. The framing is **mechanism-centered** — the investigation's primary artifact is an *evolving mechanistic understanding* of the biology; each study is a **knowledge-producing operation** that generates evidence which updates confidence in mechanism elements. Read each node as **Question (Asks) → Evidence (Finds) → Confidence**:
+
+- **Asks** — the study's `question:`.
+- **Finds** — the study's `claim:` (one-line headline of what we now believe), falling back to the top `findings[].summary`.
+- **Confidence** — the study's `confidence:` badge (`Accepted | Investigating | Planned | Refuted`), derived from the 6-axis status when unset.
+- **Display name** — the study's `title:` (slug, prefix-stripped + humanized, when unset).
+
+These are **study-level** fields — author them per member study via `/study` (see [viva-study → Investigation-graph fields](../study/SKILL.md)). At Design, set each study's `title:` and wire `parent_studies` with a `relation:` (`builds-on` default / `tests` / `motivates` → solid edge; `alternative-to` → dashed edge). At Evaluate/Decide, set `claim:` and (when the derived value is wrong) `confidence:`.
+
+**Confidence rollup.** The investigation aggregates over its members: the graph badges each node with its study-level confidence, and the investigation's `executive.verdict_status` is the higher-level rollup a reviewer lands on first. Keep the two consistent — a `Refuted` study should be reflected in the investigation verdict.
+
+**State-first opening — `executive` is the single source.** The investigation opening is state-first and is rendered from `executive: {what_is_this, verdict, verdict_status, verdict_detail, decisions_needed:[{question, context}]}`. The **same `executive` block** drives the report's Executive summary — do not maintain a second copy. Update `verdict` / `verdict_status` (`in-progress | passed | complete | blocked | failed | planning`) as member studies pass or fail. The framing + argument come from `question:`, `hypothesis:`, and `scientific_argument: {main_claim, evidence_for[], evidence_against[], key_figures[], caveats[]}`.
+
+**parquet-runs / SimulationsDB convention.** For a member study's run to appear in SimulationsDB tagged to its study + investigation, the run's emitter output must live under the per-study path `studies/<slug>/parquet-runs/<run>/` (ParquetEmitter hive) or `studies/<slug>/runs.db` (SQLite, with `emitter_path` recorded). Bespoke runners (`canonical_runs:` scripts) must write there; the dashboard-managed `run-baseline` / `run-variant` flow already does.
+
+> **Canonical run index is `.pbg/runs.jsonl`.** The per-workspace run INDEX
+> (across studies) is now `.pbg/runs.jsonl`, written via
+> `vivarium_workbench.lib.run_log` (workbench #612) — the dashboard
+> dual-writes `runs_meta` (sqlite, per-study) + `.pbg/runs.jsonl`
+> (workspace-wide). Bespoke `canonical_runs` scripts should record events via
+> `run_log.append_run_event` rather than relying on a study-local `runs.db`
+> alone. (This is a pointer, not a migration — the `runs.db` prose above
+> stays as-is.)
+
+
+## Multi-realization claims
+
+An investigation may hold **more than one realization of the same claim** at
+different fidelity levels — e.g. a phenomenological realization (a scalar
+rate/knob) alongside a mechanistic realization (the same behavior emergent
+from a finer-grained process). Both are first-class members; the finer one
+does not replace the coarser one, it **refines** it.
+
+- Declare the relationship with `parent_studies[].relation: refines` (see the
+  `relation` enum in [viva-study → Investigation-graph fields](../study/SKILL.md)),
+  pointing from the finer (refining) study back to the coarser one it refines.
+- On the finer study, name the coarser realization's passing behaviors it must
+  reproduce, and whether it currently does:
+
+  ```yaml
+  refinement:
+    must_preserve:
+      - {coarse_study: <coarse-slug>, behavior: <coarse-behavior-name>, note: "…"}
+    satisfaction: PASSED   # PASSED | FAILED | PENDING
+  ```
+
+- **Re-check `satisfaction` whenever either realization changes** — a `refines`
+  edge is a standing obligation, not a one-time note at authoring time.
+
+## Investigation ≡ branch ≡ worktree
+
+An Investigation slug is also a **git branch name** and a **worktree directory name**. The three are kept in 1:1 correspondence so that parallel agents can each work on a different Investigation without trampling each other's files, runtime DBs (`.pbg/composite-runs.db`), or dashboard ports.
+
+- `new <slug>` creates `$INVESTIGATIONS_DIR/<slug>/investigation.yaml` AND the git branch `<slug>`, then commits the new YAML on that branch.
+- `open <slug>` creates (or reuses) a worktree at `.pbg/worktrees/<slug>/` checked out to branch `<slug>`. By default it also boots a per-worktree dashboard server (one server per worktree — intentional parallelism).
+- The cross-worktree sidebar switcher in the dashboard reads `~/.pbg/servers/*.json` so every worktree's dashboard sees every other live worktree's Investigation as a clickable row.
+
+## Write strategy
+
+The vivarium-workbench exposes POST `/api/investigation-create` for the initial scaffold (it emits a v2-shape `investigation.yaml` with the narrative spine commented in as TODO placeholders — executive, scientific_argument, biological_story, at_a_glance, glossary, guidelines). Update subcommands write YAML directly to disk using an atomic tmp-file + rename pattern, because the dashboard doesn't yet expose mutation endpoints for the narrative-spine fields. Read paths use GET `/api/investigation-summaries` and GET `/api/investigation/<name>`.
+
+## Rigor (investigation level)
+
+An investigation should defend its claims against a skeptical reader; the
+dashboard computes an **evidence & rigor scorecard** and the report surfaces it.
+At the investigation level, declare `competing_frameworks: [{name, relation}]`
+(compare your interpretive lens to alternatives) and include at least one member
+study with `kind: adversarial` (a system that should NOT qualify — the metric
+passes by rejecting it), so **adversarial coverage**, **falsification exposure**,
+and **comparative framing** all read `ok`. Drive each member study toward 8/8 per
+the per-study checklist. Full guide:
+[`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md).
+`viva-autopoiesis` is the reference (5/5 investigation, every study 8/8).
+
+### Design principles — build the investigation as a MAP OF BOTTLENECKS
+
+An exploratory campaign is strongest when it exposes *dependencies, failure
+regimes, and discriminating experiments*, and weakest when it produces one
+successful narrative. A passing gate means the model satisfies a prespecified
+criterion under its assumptions — it does NOT establish that the real transition
+occurred. Carry these investigation-level expectations (from the viva-genesis
+Scientific Enrichment Plan §14):
+
+1. **Phase maps, not representative trajectories.** Every major claim identifies
+   its PASS *and* its FAILURE regions. At the study level this is the Decision
+   view (see [viva-study → Three-view standard](../study/SKILL.md)); at the
+   investigation level, the `scientific_argument` should read the failure
+   regions as findings, not footnotes.
+2. **Provenance class on every parameter** — measured vs calibrated vs
+   extrapolated, carried explicitly (the per-study `cites` / `provenance: theory`
+   / `proposed_inputs` discipline rolls up here).
+3. **Conservation accounting** — matter, charge, and free-energy ledgers across
+   the composed processes, with losses bounded and reported.
+4. **Feature ablations find NECESSARY (not merely correlated) mechanisms.**
+   Include member studies that remove one mechanism at a time (`kind: ablation`
+   or an `ablation:` block naming what's removed) and show the claim break —
+   that's how you distinguish a load-bearing mechanism from a bystander.
+5. **Negative controls that fail the same gates.** At least one adversarial
+   member (`kind: adversarial`) — a system that should NOT qualify (a
+   vent-specificity / non-vent control) and passes the gate by rejecting it.
+6. **Shared modules across scenarios.** Multiple scenarios (deep/shallow vents,
+   terrestrial geothermal, photochemical) reuse the same composite modules and
+   are compared through the same gates (see the composites-are-reusable-modules
+   rule in [viva-expert](../expert/SKILL.md)).
+7. **Negative results are scientific output.** A broken transition is a finding,
+   not a failure to hide — it identifies an experimentally targetable
+   bottleneck. Frame a member study that *refutes* its hypothesis as a result
+   (`confidence: Refuted`, a `claim:` that states what broke), and let the
+   investigation `verdict` carry it honestly (the status triad takes the
+   weakest honest reading — see below).
+
+`report_linter`'s `investigation_missing_adversarial` flags an investigation
+whose member studies include no `kind: adversarial` and no `kind: ablation`
+(nor an `ablation:` block). Add one, or — for a genuinely single-arm screen —
+opt out explicitly with `adversarial_coverage_skip: true` and an
+`adversarial_coverage_skip_reason`.
+
+Every member study must also reference a **REAL registered composite**
+(`baseline[].composite` resolves in the registry — run `/catalog` to see
+them) and **persist its runs via an emitter** (sqlite / parquet / xarray, or a
+run-db reference). Both are linted: an unresolved composite is flagged via
+`report_linter.unresolved_composite_refs`, and a study with runs but no emitter
+earns a `run_persistence` rigor `gap` + a `runs_without_emitter` warning.
+
+## Acceptance criteria — pre-state them BEFORE runs (never leave `[]`)
+
+An `acceptance_criteria: []` left empty until results exist is the single most
+common way an investigation ends up grading itself post-hoc — a reviewer reads
+criteria written after the runs as regression pins dressed up as acceptance.
+Populate `acceptance_criteria[]` at scaffold time, **before any member study
+runs**, with two kinds of entry:
+
+- **Pre-stated directional priors** — what direction/magnitude is expected if
+  the hypothesis is right (e.g. "raising adhesion asymmetry should monotonically
+  increase the sorting index"), each linked to the member study behavior_test
+  that will gate it (`{study: <slug>, behavior: <name>}`). Mirror each prior into
+  that study's `preregistered:` block and mark the gating test
+  `gate_class: acceptance_criterion` (see
+  [viva-study → Born-rigorous defaults](../study/SKILL.md)).
+- **Order-of-magnitude EXTERNAL ANCHORS** — literature values that bound what a
+  plausible result looks like (e.g. "sorting completes within ~10²–10³ MCS at
+  Graner–Glazer scale"). Flag each explicitly as an **anchor** — a sanity bound
+  the result is *compared against* — never as a calibration target the model is
+  *tuned to hit*. Source anchors via `/tests cite-bands`; an anchor the
+  expert did not provide and you cannot cite is a `proposed_inputs` pending
+  item, not a fact.
+
+A criterion first conceived after the runs exist may still be recorded — but
+honestly, as a `regression_pin` on the member study, never back-dated into this
+list as acceptance.
+
+## Status triad — reconcile to ONE honest signal
+
+Three surfaces report investigation state: the per-study `confidence:` badges,
+`executive.verdict_status`, and the investigation's top-level `status:`. A
+reviewer reads disagreement among them (a `Refuted` member under
+`verdict_status: passed`; `status: complete` over open `decisions_needed`) as
+either sloppiness or spin. Whenever any one of the three changes, reconcile the
+other two in the same edit so they tell one story — and when the evidence is
+mixed, the rollup takes the **weakest** honest reading, not the most flattering
+(a failed hard gate anywhere means the rollup is not `passed`). The report-card
+status reconciliation flags divergence; fix it at the source rather than
+overriding the lint.
+
+## Common prelude
+
+All sub-commands:
+
+1. Walk up from cwd to find `workspace.yaml`. Fail with a clear message if not found.
+2. Set `WORKSPACE_ROOT` to that directory.
+3. Resolve workspace directories from `workspace.yaml`'s optional `layout:` map (honors flat or nested workspaces; conventional names when absent) — a plain config read, no server needed:
+
+   ```bash
+   eval "$(WS="$WORKSPACE_ROOT" python3 -c "
+   import os, yaml
+   ws = os.environ['WS']
+   layout = (yaml.safe_load(open(os.path.join(ws, 'workspace.yaml'))) or {}).get('layout') or {}
+   defaults = {'studies': 'studies', 'investigations': 'investigations',
+               'references': 'references', 'reports': 'reports', 'datasets': 'datasets'}
+   for key, dflt in defaults.items():
+       print('export %s_DIR=%s' % (key.upper(), os.path.join(ws, layout.get(key, dflt))))
+   ")"
+   ```
+
+   This exports `$INVESTIGATIONS_DIR`, `$STUDIES_DIR`, `$REPORTS_DIR`, etc. (each = absolute path). Use these variables for the studies/investigations/references/reports paths below — do NOT hardcode `investigations/`, `studies/`, `reports/`. (The hidden `.pbg/` machine-state dir stays at the workspace root by default — use it literally.)
+4. Investigation files live at `$INVESTIGATIONS_DIR/<slug>/investigation.yaml`.
+
+No server-info check is required for read/write operations (files are written directly). Server is only used if you add a `list` display that needs resolved-study data from `/api/investigation-summaries`.
+
+## Slug validation
+
+All `<slug>` arguments must match `^[a-z0-9][a-z0-9_-]*$`. Reject with a clear error otherwise.
+
+## Sub-commands
+
+### `new <slug>`
+
+Create `$INVESTIGATIONS_DIR/<slug>/investigation.yaml` with placeholder fields, create a matching git branch `<slug>`, and commit the new YAML on it.
+
+**Steps:**
+
+1. Validate slug format. Fail if invalid.
+2. Check `$INVESTIGATIONS_DIR/<slug>/investigation.yaml` does NOT already exist. Fail with "Investigation '<slug>' already exists at $INVESTIGATIONS_DIR/<slug>/investigation.yaml. Use set-overview to update fields." if it does.
+3. Check no git branch named `<slug>` exists (`git show-ref --verify --quiet refs/heads/<slug>`). Fail with: "Branch '<slug>' already exists. Pick a different slug or rename the existing branch." if it does.
+4. Create branch `<slug>` from current HEAD and switch to it: `git checkout -b <slug>`.
+5. Create the `$INVESTIGATIONS_DIR/<slug>/` directory if absent.
+6. Write `investigation.yaml` as a v2-shape scaffold with the narrative spine commented in as TODO placeholders. Prefer the dashboard's `/api/investigation-create` endpoint when a server is running (it uses the canonical scaffolder); fall back to writing the body directly when offline:
+
+```yaml
+# <slug>/investigation.yaml — schema v2
+schema_version: 2
+name: <slug>
+title: "<slug> (untitled)"
+created: '<YYYY-MM-DD>'
+status: planning
+
+# Front matter
+# question: |
+#   (the overarching research question)
+# hypothesis: |
+#   (predicted outcome across the full study sequence)
+# lead: |
+#   (3-4 sentence front-of-textbook intro)
+
+# Narrative spine (uncomment + fill as the investigation matures)
+# executive:           # state-first opening AND report Executive summary (single source)
+#   what_is_this: ""
+#   verdict: ""
+#   verdict_status: in-progress   # in-progress | passed | complete | blocked | failed | planning
+#   verdict_detail: ""
+#   decisions_needed: []          # [{question, context}]
+# inputs:              # per-investigation owned inputs (Inputs page)
+#   datasets: []       # [{name, path, supports_claims}]
+#   references: []     # bibkeys (joined against the shared papers.bib)
+#   expert_docs: []    # [{name, path}]
+# scientific_argument: # structured claim/evidence
+#   main_claim: ""
+#   evidence_for: []
+#   evidence_against: []
+#   key_figures: []
+#   caveats: []
+# biological_story: |
+#   (multi-paragraph plain-English mechanism narrative)
+# at_a_glance:         # one-line role per member study
+#   - {study: <slug>, role: ""}
+# how_to_read: |
+#   (evaluator tips)
+# glossary:
+#   - {term: "TERM", definition: "..."}
+# guidelines:          # investigation-wide rules
+#   literature_anchors: []
+#   parameter_catalog: []
+#   calibration_targets: []
+
+studies: []
+expert_docs: []
+acceptance_criteria: []  # populate BEFORE runs — pre-stated directional priors +
+                         # external anchors (see § Acceptance criteria above);
+                         # do NOT leave empty until results exist
+```
+
+All v2 narrative-spine fields are optional per `investigation.schema.json`, so the scaffold validates on day one. The user opts in by uncommenting + filling sections. See `template/NEXT_STEPS.md` in viva-template for the full pattern + when to fill each.
+
+7. `git add "$INVESTIGATIONS_DIR/<slug>/investigation.yaml"` then commit: `git commit -m "feat(investigation): scaffold <slug>"`. Do NOT push — the user pushes manually when ready.
+8. Print: `Created branch '<slug>' + $INVESTIGATIONS_DIR/<slug>/investigation.yaml (committed). Use /investigation open <slug> to create a worktree and start a dashboard, or /investigation add-study <slug> <study-slug> to add member studies.`
+
+**Rollback on failure:** if step 4 succeeds but a later step fails, the assistant must `git checkout -` back to the previous branch and `git branch -D <slug>` to leave the repo in a clean state before reporting the error.
+
+**Atomic write pattern:**
+
+```python
+import os, yaml
+
+# $INVESTIGATIONS_DIR was exported by the prelude (step 3).
+path = os.path.join(os.environ["INVESTIGATIONS_DIR"], slug, "investigation.yaml")
+os.makedirs(os.path.dirname(path), exist_ok=True)
+tmp = path + ".tmp"
+with open(tmp, "w") as f:
+    yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+os.replace(tmp, path)
+```
+
+---
+
+### `open <slug> [--no-server] [--share-artifacts] [--no-share-artifacts]`
+
+Create (or re-use) a git worktree for branch `<slug>` at the standard location `.pbg/worktrees/<slug>/`, then optionally start a per-worktree dashboard server in it. Auto-symlinks expensive-to-rebuild artifacts from a sibling worktree (closes friction #6 — `out/cache/` rebuilds taking minutes per new worktree).
+
+**Steps:**
+
+1. Validate slug format.
+2. Check branch `<slug>` exists (`git show-ref --verify --quiet refs/heads/<slug>`). If not, fail with: `No branch named '<slug>'. Create it first with /investigation new <slug>, or rename an existing branch with git branch -m <old> <slug>.`
+3. Compute `worktree_path = .pbg/worktrees/<slug>`.
+4. If `worktree_path` already exists AND is registered as a git worktree (check `git worktree list --porcelain`), print: `Worktree already exists at <worktree_path> (branch <slug>).` and skip to step 6.
+5. Otherwise, run `git worktree add <worktree_path> <slug>`. Surface any git error verbatim (most common: branch already checked out elsewhere — the standard worktree path is the only sanctioned mount point, so the user should `git worktree remove` the conflicting one first).
+6. **Share artifacts from a sibling worktree.** Read `workspace.yaml.runtime.shared_artifacts:` — a list of paths (relative to workspace root) that are expensive to rebuild and worth sharing across worktrees. Default if the field is absent: `["out/cache"]` (matches v2ecoli's ParCa-cache convention; harmless on workspaces that don't have one). For each declared path:
+   1. Skip if the target already exists in the new worktree (whether as file, dir, or symlink).
+   2. Search for a sibling worktree (any other entry from `git worktree list --porcelain`, plus the main checkout) that has the path **populated** — non-empty dir or non-zero file. Skip if none found.
+   3. **With `--share-artifacts`:** create a relative symlink from `<worktree_path>/<artifact>` → the sibling's path. Print `linked: <artifact> → <sibling>/<artifact>`.
+   4. **With `--no-share-artifacts`:** skip silently.
+   5. **Default (neither flag):** print a recommendation line per candidate — `would link: <artifact> → <sibling>/<artifact> (re-run with --share-artifacts to apply, or --no-share-artifacts to silence)`. Don't act. The friction author's "offer to symlink or copy" intent — discoverable, opt-in.
+7. Unless `--no-server` is given, start a dashboard server in the new worktree:
+   ```bash
+   cd "<worktree_path>" && bash scripts/serve.sh &
+   ```
+   The server self-registers in `~/.pbg/servers/<name>.<hash>.json` on boot. Wait briefly (poll `~/.pbg/servers/` up to ~5 s) and capture the URL for printing. If no record appears, print: `Server did not register within 5s — check scripts/serve.sh logs.` and continue (worktree is still usable).
+8. Print summary:
+   ```
+   Worktree:    <worktree_path>
+   Branch:      <slug>
+   Artifacts:   <linked-count> linked from <sibling>  (omit if zero)
+   Dashboard:   <url>           (omit if --no-server)
+   ```
+
+**Why symlink, not copy.** ParCa caches under `out/cache/` are read-only after build; the runners only ever read them. Symlinks save disk and stay current if the source worktree rebuilds. The friction note offered "symlink or copy" — copy is implementable as a future `--copy-artifacts` flag if anyone needs isolation.
+
+**Schema.** `workspace.yaml.runtime.shared_artifacts:` is a free-form list of workspace-relative paths. Examples:
+
+```yaml
+runtime:
+  shared_artifacts:
+    - out/cache                    # v2ecoli ParCa cache (default if field absent)
+    - out/cache-stage1-heuristic   # extra condition caches
+    - data/precomputed             # other workspaces' equivalents
+```
+
+**Standard location rationale.** Putting all worktrees under `.pbg/worktrees/` (a) keeps them close to the parent checkout for discovery and (b) lives inside the `.pbg/` dir which is already conventionally git-ignored by workspace scaffolds, so the worktree directories themselves never accidentally show up in the parent's `git status`.
+
+---
+
+### `list`
+
+List all investigations in the workspace.
+
+**Steps:**
+
+1. Glob `$INVESTIGATIONS_DIR/*/investigation.yaml`.
+2. For each file: load YAML, extract `name`, `title`, `status`, `len(studies)`.
+3. Sort by `name` alphabetically.
+4. Print one line per investigation:
+
+```
+<slug>  <title>  <status>  <n_studies> studies
+```
+
+If no investigations exist, print: `No investigations found. Run /investigation new <slug> to create one.`
+
+---
+
+### `import {check|sync} [--dry-run]`
+
+Manage which investigations this workspace carries **from an upstream repo it imports**
+(e.g. sms-ecoli importing v2ecoli). A workspace often carries a *subset* of the upstream
+repo's investigations — seeded from upstream, then hand-maintained. This makes the
+selection explicit and enforceable, so a new upstream investigation does not silently
+flow in.
+
+Selection lives in `workspace.yaml`:
+
+```yaml
+imported_investigations:          # either a plain list of upstream slugs (guard only)…
+  from: v2ecoli                   # …or a source block enabling additive sync:
+  git: https://github.com/vivarium-collective/v2ecoli.git
+  subtree: workspace/investigations   # optional (default)
+  allow:
+    - colonies
+    - metabolism-overflow
+native_investigations:            # investigations authored in THIS workspace
+  - cd1-review-comparison
+```
+
+- **`import check`** — conformance guard. Every investigation present under the
+  investigations dir must be declared (`imported ∪ native`) and the two lists disjoint;
+  a stray upstream investigation left off the allowlist fails. Exit 1 on any problem.
+  Wire into CI with a two-line pytest:
+
+  ```python
+  from discovery_engine.investigation.import_ import assert_selection_ok
+  def test_investigation_selection():
+      assert_selection_ok(WORKSPACE_ROOT)
+  ```
+
+- **`import sync [--dry-run]`** — additively copy any allowlisted investigation that is
+  **missing** locally from the **pinned** upstream rev (resolved from `uv.lock`, not
+  upstream `main`). Never overwrites a local (divergent) copy; only allowlisted slugs are
+  pulled. `--upstream-src PATH` uses an existing local checkout instead of a cache clone;
+  `--rev SHA` overrides the pinned rev.
+
+Both are thin wrappers over `python -m discovery_engine.investigation.import_ {check|sync}`.
+Excluding a future upstream investigation is just: leave it off the allowlist; `check`
+keeps it out for good.
+
+---
+
+### `add-study <inv-slug> <study-slug>`
+
+Append a study slug to an investigation's `studies:` list.
+
+**Steps:**
+
+1. Load `$INVESTIGATIONS_DIR/<inv-slug>/investigation.yaml`. Fail if absent.
+2. Check `<study-slug>` is not already in `studies[]`. Fail: "Study '<study-slug>' is already in investigation '<inv-slug>'." if duplicate.
+3. Warn (do NOT refuse) if `$STUDIES_DIR/<study-slug>/study.yaml` does not exist: "Warning: $STUDIES_DIR/<study-slug>/study.yaml not found. The study slug will be added but may not resolve in the dashboard."
+4. Append `<study-slug>` to `studies[]`.
+5. Atomic write.
+6. Print: `Added '<study-slug>' to investigation '<inv-slug>' (now <N> studies).`
+
+---
+
+### `remove-study <inv-slug> <study-slug>`
+
+Remove a study slug from an investigation's `studies:` list.
+
+**Steps:**
+
+1. Load `$INVESTIGATIONS_DIR/<inv-slug>/investigation.yaml`. Fail if absent.
+2. If `<study-slug>` is not in `studies[]`, print: "Study '<study-slug>' is not in investigation '<inv-slug>'. No changes made." and exit without error.
+3. Remove `<study-slug>` from `studies[]`.
+4. Atomic write.
+5. Print: `Removed '<study-slug>' from investigation '<inv-slug>' (now <N> studies).`
+
+This command does NOT modify acceptance_criteria or narrative that reference the removed study. Run **`reconcile`** (below) to clean those up systematically instead of hand-hunting each reference.
+
+---
+
+### `reconcile <inv-slug> [--apply]`
+
+Reconcile an investigation after a **structural edit** — studies removed, added, or merged — so its membership, cross-references, and narrative stay consistent. Run it after any `add-study` / `remove-study` / study-set change. It is the systematic answer to the dangling-reference gap that `remove-study` leaves manual, and it splits into deterministic detection (AI-free) + agent-authored prose, mirroring the helper split used elsewhere in viva-superpowers.
+
+1. **Detect (AI-free, no writes):** `python -m discovery_engine.investigation.reconcile <inv-slug> --ws "$WORKSPACE_ROOT"` prints a grouped drift report:
+   - `member_missing_on_disk` — a declared member whose study was removed;
+   - `orphan_on_disk` — a study on disk not listed as a member;
+   - `structured_ref_to_removed` — a removed study still named in `members`/`studies`, `at_a_glance`, `acceptance_criteria`, or a surviving study's `pipeline_gate.prerequisites`;
+   - `prose_ref_to_removed` — a removed study named in free-text narrative (`executive.verdict`/`what_is_this`, `scientific_argument.evidence_for`/`evidence_against`/`key_figures`, `biological_story`).
+   `--json` emits the report for tooling. Membership is resolved across both `members:` and `studies:`, so it works on pre- and post-canonicalization investigations.
+
+2. **Apply the mechanical drops (`--apply`):** the same command with `--apply` drops every `structured_ref_to_removed` and prunes dangling prerequisites in surviving studies, via a comment-preserving round-trip. It is idempotent and **never edits prose**.
+
+3. **Rewrite the prose (the agent's job):** for each `prose_ref_to_removed`, and for the newly-added members, author the narrative so it reflects the current study set:
+   - rewrite `scientific_argument.evidence_for` (and `evidence_against` / `key_figures`) to cite the surviving plus newly-added studies, dropping the removed ones;
+   - refresh `executive.verdict` / `verdict_status` to match the current member set and findings;
+   - reconcile mentions of removed studies in `biological_story`;
+   - add an `at_a_glance` role line for each added study;
+   - when two studies were merged into one, record `reconciled_from: [<a>, <b>]` on the survivor so the lineage stays visible.
+   Write prose in normal sentence case; use the atomic comment-preserving YAML-write helper.
+
+4. **Confirm clean:** re-run the detector — it should report no drift once the prose is reconciled and the mechanical drops applied.
+
+---
+
+### `set-overview <inv-slug> [--title T] [--question Q] [--hypothesis H] [--description D]`
+
+Update one or more overview fields on an investigation. Each flag is optional; only specified fields are written.
+
+**Steps:**
+
+1. Load `$INVESTIGATIONS_DIR/<inv-slug>/investigation.yaml`. Fail if absent.
+2. Parse flags. Require at least one flag — fail with usage if none given.
+3. For each provided flag, update the corresponding YAML field. Do not touch unspecified fields.
+4. Atomic write.
+5. Print which fields were updated and their new character counts.
+
+**Example:**
+
+```bash
+/investigation set-overview dnaa-replication \
+  --title "DnaA / Replication Initiation" \
+  --question "Can the DnaA mechanistic model reproduce once-per-generation timing?"
+```
+
+---
+
+### `set-status <inv-slug> <status>`
+
+Update the `status:` field on an investigation.
+
+**Valid statuses:** `planned` | `running` | `ran` | `complete` | `failed` | `invalid` | `archived`
+
+**Steps:**
+
+1. Validate `<status>` against the allowed set. Fail with a list of valid values if not recognized.
+2. Load `$INVESTIGATIONS_DIR/<inv-slug>/investigation.yaml`. Fail if absent.
+3. Set `status: <status>`.
+4. Atomic write.
+5. Print: `Set status of '<inv-slug>' to '<status>'.`
+
+---
+
+### `scaffold-from-plan <plan.pdf> [--name <slug>] [--studies-prefix <prefix>] [--dry-run]`
+
+The marquee subcommand. Read a plan PDF and auto-generate a complete Investigation + constituent Studies.
+
+**Steps:**
+
+#### 1. Read the plan PDF
+
+Use the Read tool on `<plan.pdf>` (resolve relative to `WORKSPACE_ROOT` if not absolute). For large PDFs (>10 pages), read all pages. Also check `workspace.yaml.expert_docs` for entries whose `path` matches the same file, and read any cross-referenced supporting PDFs if available.
+
+#### 2. Derive the investigation slug
+
+If `--name <slug>` is provided, use it (validate slug format). Otherwise, derive from the PDF filename (e.g., `chromosome-replication-plan.pdf` → `chromosome-replication`). Fail if the derived slug does not match `^[a-z0-9][a-z0-9_-]*$`.
+
+#### 3. Decompose the plan
+
+Using the plan content, identify:
+
+**Investigation overview:**
+- `title` — concise human-readable title (≤60 chars).
+- `question` — the overarching research question (one paragraph).
+- `hypothesis` — predicted outcome across the full study sequence; include quantitative thresholds only if they appear explicitly in the plan.
+- `description` — two-to-four paragraphs: background, mechanism, study sequence rationale, expected outcome.
+- `expert_docs` — names of `workspace.yaml.expert_docs` entries that are relevant (match by keyword scan; leave empty if none match).
+
+**Per-phase studies:**
+
+For each phase/stage/section in the plan that represents a discrete implementation step:
+- `study-slug` — derived from the phase name: strip noise words, lowercase, kebab-case, prepend `--studies-prefix` if provided. Keep the phase number prefix (e.g., "Phase 1: DnaA Expression Dynamics" + prefix `dnaa-` → `dnaa-01-expression-dynamics`).
+- `question` — one paragraph, measurable, ending with `?`.
+- `hypothesis` — one paragraph stating the expected outcome.
+- `objective` — imperative present tense: "Simulate … and measure … to determine …".
+- `description` — two-to-four paragraphs.
+- `expected_behavior` — list of **behavior-grammar** `(given, measure, expect)` entries — `{name, en, measure: {kind, …}, expect: {op, …}, status: stub}` — from the plan's acceptance criteria, behavioral requirements, or success metrics for this phase. `status: stub` is correct before the Build phase (the acceptance band is filled when the test is built out). Use the DSL name convention: `<process>-<observable>-<condition>` (e.g., `dnaa-count-in-mass-spec-range`). Generate at least one entry per study. The flat `{observable, condition, rationale}` shape is **rejected by the dashboard loader** — do not emit it.
+- `parent_studies` — wire linearly by default (each study depends on the previous with `condition: tests-passed`). The user can edit dependencies after scaffolding.
+- `status: planned` for all generated studies.
+
+**Investigation acceptance_criteria:**
+
+For each study, pick the most important `expected_behavior` entry (the one that gates the next phase) and emit a `{study: <slug>, behavior: <name>}` pair in the investigation's `acceptance_criteria`.
+
+Because scaffolding happens **before any run**, this is exactly the moment to
+make each criterion a genuine acceptance criterion (see § Acceptance criteria
+above): phrase it as the plan's pre-stated directional prior, and where the plan
+or expert docs give order-of-magnitude literature values, emit them as external
+**anchors** (flagged as anchors, not calibration targets). Only numbers that
+appear explicitly in the plan — never invented precision.
+
+#### 4. Print preview tree
+
+```
+Would create:
+
+  $INVESTIGATIONS_DIR/<name>/investigation.yaml
+  $STUDIES_DIR/<study-1-slug>/study.yaml
+  $STUDIES_DIR/<study-2-slug>/study.yaml
+  ...
+
+Proceed? [yes / no / edit]
+```
+
+In `--dry-run` mode: print the full YAML content of each file (clearly separated by `---\n# <path>\n`) and stop. Do not write anything.
+
+#### 5. Confirm and write
+
+- `yes` — proceed. For each file: if the path already exists, print "Skipping <path> (already exists)" and continue. Write all non-existing files using the atomic pattern. Print the summary line when done.
+- `no` — print "Aborted. No files written." and exit.
+- `edit <field> <new-prompt>` — re-generate just that field using the new prompt, print the updated preview, and ask again.
+
+#### 6. Summary
+
+```
+Created investigation '<name>' with N studies. Run /workbench start then open the Investigations tab.
+```
+
+#### 7. Name the execution vehicle — drive each member through the loop
+
+Scaffolding writes specs, not implementations — each member is a design-stage stub
+that still needs to be built out. The default vehicle is the **agentic
+model-building loop**: run `/model-build <study>` on each member to author its
+tests, source/build the model, run, grade, and iterate to the severity gate. The
+loop *generates* the study's content (findings, verdicts, metrics, report) from the
+run rather than you hand-authoring it — a stub becomes a validated study the moment
+its loop reaches DONE, and a phase's dependents wait on
+`parent_studies[].condition: tests-passed`.
+
+Fan the loop out across **independent** members concurrently (check the
+`parent_studies` DAG just written — studies with no dependency edge are
+parallelizable) via **`superpowers:subagent-driven-development`**; run linear chains
+or tightly-coupled studies one at a time.
+
+For a rich multi-phase campaign in which a phase sweeps a model-class axis or
+propagates uncertainty, those mechanics live in the **workspace's own package**
+(e.g. a model-class registry, a UQ layer) — the loop and `scaffold-from-plan`
+*drive* them per phase; they are not part of this general plugin.
+
+**Study YAML shape to emit for each phase:**
+
+```yaml
+schema_version: 3
+name: <study-slug>
+status: planned
+
+question: |
+  <question>
+
+hypothesis: |
+  <hypothesis>
+
+objective: |
+  <objective>
+
+description: |
+  <description>
+
+parent_studies:
+  - {study: <prev-slug>, condition: tests-passed}   # omit for the first study
+
+expected_behavior:
+  - name: <behavior-name>            # DSL slug: <process>-<observable>-<condition>
+    en: "<one-sentence English prediction>"
+    given:
+      condition: <condition>        # or {run: baseline, window: full}
+    measure:
+      kind: observable-comparison   # design-stage placeholder measure
+      observable: <observable>
+    expect:
+      op: within-tolerance
+      note: Acceptance band set when this test is built out (design-stage stub).
+    status: stub                    # pre-Build placeholder; promote to `implemented` at Build
+
+baseline:
+  - name: baseline
+    composite: <pkg>.composites.<TODO>   # replace with a real registered composite (see /catalog)
+variants: []
+interventions: []
+runs: []
+```
+
+> **Why these shapes.** The dashboard loader (`load_spec`) hard-rejects a flat
+> `expected_behavior: {observable, condition, rationale}` entry and an empty
+> `baseline: []` — a scaffolded study with either then fails to render ("localhost
+> didn't send any data"). Emit the `(given, measure, expect)` grammar with
+> `status: stub`, and a single placeholder baseline entry (a `<TODO>` composite
+> path is fine pre-Build — it renders, and `/report`'s linter nudges you to
+> wire a real one). See `docs/concepts/expected-behavior-grammar.md`.
+
+> **schema_version: 3 caveat.** This scaffold emits `schema_version: 3`, but
+> `model_settings` is only read by the Build tab on a **v4** study (see
+> `/study` § Render completeness) — a top-level `model_settings:` on a
+> v3 study is authored-but-inert. If a phase's studies will carry calibrated
+> parameters, migrate them to v4 (`schema_version: 4`, params under
+> `conditions.model_settings`) once they leave the design stage, rather than
+> authoring `model_settings` here where it silently won't render.
+
+**Notes for Claude when running scaffold-from-plan:**
+
+- Be conservative with hypothesis thresholds — only use numbers that appear explicitly in the plan.
+- A question longer than four sentences is too long.
+- If `--studies-prefix` is provided, all study slugs must start with it.
+- If phase numbers appear in the plan (Phase 1, Phase 2, …), reflect them as `01-`, `02-`, … in the slug.
+- For the `expert_docs` list on the investigation, scan `workspace.yaml.expert_docs[].name` values and include any that appear relevant. Do not invent names.
+- The first study in the linear chain has no `parent_studies` (or an empty list).
+
+---
+
+### `run <inv-slug> [--studies a,b,...] [--entry <name>] [--dry-run] [--keep-going]`
+
+Run the investigation's bespoke-script studies in declaration order by calling `/study run-script` for each member. The investigation-level orchestrator the dnaa-biology session asked for in friction note 2026-05-27 #1 — replaces the manual "enumerate studies, find each `sims/run_*.py`, invent CLI args, run by hand" loop.
+
+**Arguments:**
+
+- `<inv-slug>` (required) — investigation slug.
+- `--studies a,b,c` (optional) — restrict to this comma-separated subset of member slugs (preserving declaration order). Default: every member of `investigation.yaml.studies`.
+- `--entry <name>` (optional) — pass `--entry <name>` through to each `viva-study run-script` call (so all members run the same named entry, e.g. `--entry smoke`). Default: each study runs its own `default: true` entry.
+- `--dry-run` (optional) — print the planned commands; don't execute.
+- `--keep-going` (optional) — continue to the next study when one fails (`make -k`-style). Default: stop on first non-zero exit and propagate it.
+
+**Flow:**
+
+1. Common prelude (find `workspace.yaml`, resolve workspace dirs, read `.pbg/server/server-info`).
+2. Load `$INVESTIGATIONS_DIR/<inv-slug>/investigation.yaml`. Fail with a clear message if absent.
+3. Resolve the run list:
+   - Start from `investigation.yaml.studies` in declared order.
+   - If `--studies` is given, intersect (preserving the investigation's order, not the flag's order); fail if any flag-named slug is absent from the investigation.
+4. For each study slug, classify it:
+   - **`runnable`** — `$STUDIES_DIR/<slug>/study.yaml` exists AND has a non-empty `canonical_runs:` list. Will be run.
+   - **`no-recipe`** — `study.yaml` exists but `canonical_runs:` is missing/empty. Skipped (addresses friction #9 — dnaa-05 / dnaa-06 have only spec, no `sims/`).
+   - **`missing`** — `study.yaml` absent. Skipped with a warning.
+5. Print the plan: a numbered list of `[runnable|no-recipe|missing] <slug>` lines + the planned `python <script> <args...>` for each runnable one.
+6. If `--dry-run`: exit 0 after the plan.
+7. Otherwise execute each runnable in order via `/study run-script <slug> [--entry <name>]`. Stream stdout/stderr through. On non-zero exit:
+   - Without `--keep-going`: stop, print `failed at <slug> (exit N)`, exit N.
+   - With `--keep-going`: log the failure, continue to the next study, exit with the count of failures at the end.
+8. Final summary: `ran <K>/<N> studies (<S> skipped, <F> failed)` and a one-line per-study verdict table.
+
+```bash
+# Run every study with a canonical_runs block
+/investigation run dnaa-replication
+
+# Smoke-only across the full chain (fast validation)
+/investigation run dnaa-replication --entry smoke
+
+# Re-run a subset, don't bail on the first failure
+/investigation run dnaa-replication --studies dnaa-01-expression-dynamics,dnaa-02-atp-hydrolysis --keep-going
+
+# Preview without running
+/investigation run dnaa-replication --dry-run
+```
+
+The orchestrator is intentionally thin — it does not write to `runs.db`, doesn't manage parallelism, doesn't retry. Each member study's runner owns its own composite construction, emitter wiring, and (when relevant) `parquet_emitter()` lifecycle (see PR #88 — `emit.bind(composite)` for auto-flush on exit).
+
+> **Member studies without `canonical_runs:`.** Some studies live as spec-only chapters of an investigation (parameter foundation, deferred-implementation phases). The orchestrator silently skips them — see the `no-recipe` classification above. If you want to assert that every study must be runnable, lift the check at the investigation level (e.g. a `policy: all-studies-runnable` toggle on `investigation.yaml`). Not implemented; raise it if needed.
+
+> **Composite-shaped studies (no `canonical_runs:`).** A study whose runner is the dashboard's in-process `/api/study-run-baseline` executor doesn't need a `canonical_runs:` block — the orchestrator can't run it either (different execution surface). For now those studies appear as `no-recipe` and are skipped. A future extension could detect `baseline:` and call `/api/study-run-baseline` directly; out of scope for this iteration.
+
+---
+
+### `refresh-viz <inv-slug> [--studies a,b,...]`
+
+Re-render registered charts across the investigation's member studies by orchestrating `/study refresh-viz` on each one. Mirrors how the `run` subcommand iterates members — the same inclusion/exclusion logic applies.
+
+**Arguments:**
+
+- `<inv-slug>` (required) — investigation slug.
+- `--studies a,b,c` (optional) — restrict to this comma-separated subset of member slugs (preserving declaration order). Default: every member of `investigation.yaml.studies`.
+
+**Flow:**
+
+1. Common prelude (find `workspace.yaml`, resolve workspace dirs).
+2. Load `$INVESTIGATIONS_DIR/<inv-slug>/investigation.yaml`. Fail with a clear message if absent.
+3. Resolve the study list (same intersection logic as `run`; fail if any `--studies` slug is absent from the investigation).
+4. For each study slug in order, call `/study refresh-viz <slug>`.
+5. Collect per-chart result lists from each study and print a per-study summary:
+
+   ```
+   <slug>  rendered: N  needs_manual_refresh: M  error: K
+   ```
+
+6. Final summary: `refreshed <N> studies — <total_rendered> charts rendered, <total_errors> errors, <total_needs_manual> need manual refresh`.
+
+Studies that have no `runs.db` or no `visualizations[]` entries are skipped with a one-line notice; this is not treated as an error.
+
+```bash
+# Refresh all studies in the investigation
+/investigation refresh-viz dnaa-replication
+
+# Refresh a subset
+/investigation refresh-viz dnaa-replication --studies dnaa-01-expression-dynamics,dnaa-02-atp-hydrolysis
+```
+
+---
+
+### `close <slug> [--dry-run] [--no-pr] [--skip-report] [--json]`
+
+Close an investigation: render the workspace report, copy it into `$INVESTIGATIONS_DIR/<slug>/report.html` (so it lands as a git-tracked artifact), stamp the investigation YAML with `status: closed`, `closed_at`, `report_url`, and a populated `contributors[]`, commit on the investigation branch, and open a PR. **Never auto-merges** — stops after `gh pr create`; the user clicks merge in the GitHub UI per the standing no-auto-merge instruction.
+
+**Arguments:**
+
+- `<slug>` (required) — investigation slug. Per the Investigation ≡ branch convention, the git branch must be named `<slug>`.
+- `--dry-run` (optional) — print the proposed actions; do not render, write, commit, push, or open a PR.
+- `--no-pr` (optional) — skip the `gh pr create` step entirely (offline / no-remote use).
+- `--skip-report` (optional) — don't re-render the workspace report; just stamp the YAML and commit. Useful when the report was rendered manually moments before.
+- `--json` (optional) — emit the result (slug, branch, contributors, actions, pr_url) as JSON instead of plain text.
+
+**What gets recorded in `contributors[]`:**
+
+1. **Humans** — derived from `git log --pretty='%an|%ae|%H' <main>..<branch>`. Each unique (name, email) pair becomes one entry with `kind: human`, `roles: [implementer]`, and `commits: <count>`.
+2. **Agents (via Co-Authored-By trailer)** — commits on the branch whose body contains `Co-Authored-By: <name> <email>` where the email is `*@noreply.anthropic.com`, contains `bot`, or has `ci` as a name-part are added with `kind: agent`, `roles: [agent_runner]`.
+3. **Agents (via the `.pbg/` agent-sessions dir)** — every JSON file under `.pbg/agent-sessions/<id>.json` with shape `{agent_name, session_id, ...}` is grouped by `agent_name` and added (or merged into an existing entry) with `sessions[]` populated.
+
+**User edits are preserved.** If you've previously curated `roles` or `notes` on a contributor entry, re-running close keeps those — only `commits` and `sessions` are refreshed.
+
+**Steps (server-side, via `POST /api/iset-close`):**
+
+The whole close mechanic — resolve workspace + investigation YAML, verify the
+branch, derive contributors, render the workspace report (unless
+`--skip-report`), copy it to `$INVESTIGATIONS_DIR/<slug>/report.html`, stamp
+`investigation.yaml` (`status: closed`, `closed_at`, `report_url`,
+`contributors`), commit on the investigation branch, and (unless `--no-pr`)
+open/refresh a PR (**never `--auto`**) — runs server-side in the workspace:
+
+```bash
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"slug": "<slug>", "dry_run": <bool>, "no_pr": <bool>, "skip_report": <bool>}' \
+  "$URL/api/iset-close" | python3 -m json.tool
+```
+
+Map the flags: `--dry-run`→`dry_run:true`, `--no-pr`→`no_pr:true`,
+`--skip-report`→`skip_report:true`. A 404 means the investigation or its branch
+doesn't exist (per the Investigation ≡ branch convention).
+
+The response is a `CloseResult` (`{slug, branch, contributors, actions, pr_url,
+dry_run}`) listing every action taken (or proposed, in dry-run), the contributor
+list, and the PR URL. With `--json`, print it verbatim; otherwise summarize the
+actions + contributors + PR URL for the user.
+
+**Example:**
+
+```bash
+# Standard close — render report, stamp YAML, commit, open PR.
+/investigation close dnaa-replication
+
+# Dry-run to see what would happen.
+/investigation close dnaa-replication --dry-run
+
+# Close without re-rendering the report (already rendered).
+/investigation close dnaa-replication --skip-report
+
+# Close offline — no remote interaction.
+/investigation close dnaa-replication --no-pr
+```
+
+The close mechanic runs server-side via `POST /api/iset-close` (the workbench backs it with the same `close_investigation` compute); the dashboard's "Close investigation" button posts to the same endpoint, so the skill and the UI share one path. Because close renders the report + reads `git log`, the dashboard server must be running (`/workbench start`).
+
+---
+
+## Implementation outline (YAML write helper)
+
+The Python snippet below is the canonical atomic-write helper. Inline it wherever a subcommand needs to write a YAML file.
+
+```python
+import os, yaml, tempfile
+
+def atomic_write_yaml(path: str, data: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        yaml.dump(data, f, default_flow_style=False, allow_unicode=True,
+                  sort_keys=False, width=100)
+    os.replace(tmp, path)
+```
+
+## Examples
+
+```text
+# Create a new empty investigation (also creates branch + commits YAML)
+/investigation new dnaa-replication
+
+# Open an isolated worktree for that investigation + boot a dashboard
+/investigation open dnaa-replication
+
+# Open the worktree without starting a server (e.g., for a scripted run)
+/investigation open dnaa-replication --no-server
+
+# List all investigations
+/investigation list
+
+# Add an existing study to an investigation
+/investigation add-study dnaa-replication dnaa-01-expression-dynamics
+
+# Remove a study from an investigation
+/investigation remove-study dnaa-replication dnaa-06-seqa-sequestration
+
+# Update overview fields
+/investigation set-overview dnaa-replication \
+  --title "DnaA / Replication Initiation" \
+  --question "Can a DnaA-driven model reproduce once-per-generation initiation timing?"
+
+# Change status
+/investigation set-status dnaa-replication running
+
+# Scaffold a full investigation + studies from a plan PDF (preview only)
+/investigation scaffold-from-plan references/expert/chromosome_replication_plan.pdf \
+  --name dnaa-replication \
+  --studies-prefix dnaa- \
+  --dry-run
+
+# Scaffold and write
+/investigation scaffold-from-plan references/expert/chromosome_replication_plan.pdf \
+  --name dnaa-replication \
+  --studies-prefix dnaa-
+```
+
+## Required investigation narrative (lint-gated)
+
+Every investigation report must carry three AUTHORED narrative sections —
+`executive`, `scientific_argument`, and `biological_story`. The linter
+(`investigation_narrative_spine_required`) warns for each missing one. A
+genuinely slim investigation may opt out per-section:
+
+```yaml
+narrative_spine_skip: [scientific_argument, biological_story]
+narrative_spine_skip_reason: "single-study screen; full narrative not warranted"
+```
+
+("Decisions needed" and "Suggested additions" are framework-computed signals,
+not author-required.)

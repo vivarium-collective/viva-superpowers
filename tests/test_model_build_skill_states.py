@@ -1,4 +1,4 @@
-"""Guard test for the /viva-model-build skill's state-machine documentation.
+"""Guard test for the /model-build skill's state-machine documentation.
 
 The loop is defined by ``viva_superpowers.loop_state.STATES``. The skill's state
 table drives the agent, so if a state is added to ``STATES`` but the skill never
@@ -15,7 +15,7 @@ import pytest
 
 from viva_superpowers import loop_state as ls
 
-_SKILL = Path(__file__).resolve().parents[1] / "skills" / "viva-model-build" / "SKILL.md"
+_SKILL = Path(__file__).resolve().parents[1] / "skills" / "model-build" / "SKILL.md"
 
 
 @pytest.fixture
@@ -24,13 +24,13 @@ def skill_text() -> str:
 
 
 def test_skill_file_exists():
-    assert _SKILL.is_file(), "skills/viva-model-build/SKILL.md must exist"
+    assert _SKILL.is_file(), "skills/model-build/SKILL.md must exist"
 
 
 def test_every_loop_state_is_documented(skill_text):
     missing = [s for s in ls.STATES if s not in skill_text]
     assert not missing, (
-        f"/viva-model-build SKILL.md does not document loop_state.STATES {missing}; "
+        f"/model-build SKILL.md does not document loop_state.STATES {missing}; "
         f"an undocumented state is a gate the loop silently skips."
     )
 

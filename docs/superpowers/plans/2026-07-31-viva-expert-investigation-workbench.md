@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Workspace root for the wrapper:** `/Users/eranagmon/code/viva-fenics` (fresh `git init` repo; no worktree needed — brand new).
+- **Workspace root for the wrapper:** `/Users/eranagmon/code/fenics` (fresh `git init` repo; no worktree needed — brand new).
 - **Skill/scaffolder work happens in the worktree:** `/Users/eranagmon/code/pbg-superpowers--viva-expert-investigation` on branch `viva-expert-investigation-workbench`. Never commit skill changes in the shared `~/code/pbg-superpowers` checkout.
 - **Real tool only** — no mock/reproduction of FEniCS. If an advanced study is genuinely intractable in-env, ship a guarded process that raises a clear requirement and surface it; do not silently downgrade.
 - **Env manager:** pixi (`pixi.toml`/`pixi.lock`), channels `["conda-forge"]`, platform `osx-arm64`, `python=3.12`. All commands run via `pixi run <cmd>` from `viva-fenics/`.
@@ -18,7 +18,7 @@
 - **Discovery:** process classes inherit `process_bigraph.Process`/`Step`; `viva_fenics/__init__.py` re-exports via `__all__`; `pyproject.toml` lists `bigraph-schema` + `process-bigraph`; no manual `register_link` for installed classes.
 - **Composites:** every generator is `@composite_generator`-decorated with first positional `core=None`, keyword-only params matching `parameters=`, `local:RAMEmitter` (PascalCase). `composites/__init__.py` imports each submodule for side effects.
 - **Emitter alias:** `local:RAMEmitter` (not `local:ram-emitter`).
-- **Publish base-path:** `/viva-fenics/dashboard`. Output bundle: `reports/published/dashboard/`.
+- **Publish base-path:** `/fenics/dashboard`. Output bundle: `reports/published/dashboard/`.
 - **Commits:** local only. NO push / gh-pages deploy until the user explicitly approves. Commit messages end with `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 - **Before every commit:** `git branch --show-current` + `git rev-parse --short HEAD` sanity check in the worktree tasks.
 
@@ -47,8 +47,8 @@
 **`pbg-superpowers--viva-expert-investigation/` (worktree):**
 - `viva_superpowers/scaffold.py` — add `investigation-from-wrapper` subcommand + publish-asset emission (or a new `viva_superpowers/publish_assets.py` templater).
 - `viva_superpowers/templates/publish_dashboard.sh.j2`, `publish-dashboard.yml.j2` — templated from `pbg-biomodels`.
-- `skills/viva-expert/SKILL.md` — Phase 5 rewrite + conda/pixi path + description/deliverables/cross-links.
-- `skills/viva-investigation|viva-study|viva-run|viva-workbench/SKILL.md` — see-also cross-links.
+- `skills/expert/SKILL.md` — Phase 5 rewrite + conda/pixi path + description/deliverables/cross-links.
+- `skills/investigation|viva-study|viva-run|viva-workbench/SKILL.md` — see-also cross-links.
 - `tests/test_scaffold_investigation_from_wrapper.py` — scaffolder test.
 
 ---
@@ -64,7 +64,7 @@
 - [ ] **Step 1: Scaffold repo + pixi.toml**
 
 ```bash
-mkdir -p /Users/eranagmon/code/viva-fenics && cd /Users/eranagmon/code/viva-fenics && git init
+mkdir -p /Users/eranagmon/code/fenics && cd /Users/eranagmon/code/fenics && git init
 ```
 
 `pixi.toml`:
@@ -114,7 +114,7 @@ scratch/*.png
 
 - [ ] **Step 2: Install env**
 
-Run: `cd /Users/eranagmon/code/viva-fenics && pixi install`
+Run: `cd /Users/eranagmon/code/fenics && pixi install`
 Expected: solves and creates `.pixi/`. If solve fails on `python-gmsh`, drop it and use `gmsh` python bindings directly; re-run.
 
 - [ ] **Step 3: Verify imports**
@@ -169,7 +169,7 @@ Expected: `L2 error:` ~1e-14. **If any API name differs in the installed version
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/eranagmon/code/viva-fenics
+cd /Users/eranagmon/code/fenics
 git add pixi.toml pixi.lock .gitignore pyproject.toml viva_fenics/__init__.py scratch/spike_poisson.py
 git commit -m "chore: viva-fenics pixi env + dolfinx Poisson spike (real dolfinx validated)
 
@@ -406,13 +406,13 @@ def test_convergence_loglog_html():
 
 - [ ] **Step 1:** For each core study run its canonical script:
 ```bash
-cd /Users/eranagmon/code/viva-fenics
+cd /Users/eranagmon/code/fenics
 for s in poisson-validation mesh-convergence transient-diffusion reaction-diffusion; do
   pixi run python investigations/fenics-showcase/studies/$s/sims/run.py
 done
 ```
 - [ ] **Step 2:** Verify `.pbg/runs.jsonl` exists per study and `viz/*.html` render (open one).
-- [ ] **Step 3:** Run behavior tests (`/viva-study`-style pytest under `studies/<slug>/tests/` if authored, else the process tests already cover the behaviors).
+- [ ] **Step 3:** Run behavior tests (`/study`-style pytest under `studies/<slug>/tests/` if authored, else the process tests already cover the behaviors).
 - [ ] **Step 4:** Confirm outcomes recorded.
 - [ ] **Step 5: Commit** `feat(fenics): run core studies → .pbg/runs.jsonl + interactive viz`.
 
@@ -479,7 +479,7 @@ done
 
 ## Task 15 (Tier 3): rewrite `viva-expert/SKILL.md`
 
-**Files (worktree):** Modify `skills/viva-expert/SKILL.md`.
+**Files (worktree):** Modify `skills/expert/SKILL.md`.
 
 - [ ] Replace **Phase 5 "Demo Report"** section with **"Phase 5: Showcase Investigation + Published Read-only Workbench"**: (a) `investigation-from-wrapper` scaffold from the repo's generators; (b) author `expected_behavior`/`behavior_tests`/`canonical_runs` + interactive viz per study (invoke `dataviz`); (c) run studies → `.pbg/runs.jsonl`; (d) `publish_assets.emit` + `vivarium-workbench-publish --workspace . --out reports/published/dashboard --base-path /pbg-<tool>/dashboard`; (e) open the bundle. Interactive viz lives in study `viz/`, not `demo/report.html`.
 - [ ] Add a **conda/pixi install path** subsection (for conda-only tools: pixi.toml on conda-forge, one env holding solver + pbg/dashboard, all commands via `pixi run`) next to the uv `.venv` path; reference `pbg-compucell3d` + `viva-fenics`.
@@ -490,9 +490,9 @@ done
 
 ## Task 16 (Tier 3): cross-link sibling skills + local publish verify
 
-**Files (worktree):** Modify `skills/viva-investigation|viva-study|viva-run|viva-workbench/SKILL.md` (see-also block linking the viva-expert → investigation → study → run → publish chain). **In `viva-fenics`:** emit publish assets + produce the bundle.
+**Files (worktree):** Modify `skills/investigation|viva-study|viva-run|viva-workbench/SKILL.md` (see-also block linking the viva-expert → investigation → study → run → publish chain). **In `viva-fenics`:** emit publish assets + produce the bundle.
 
-- [ ] `pixi run python -c "from viva_superpowers.publish_assets import emit; emit('.', 'fenics', base_path='/viva-fenics/dashboard', interactive_url='https://github.com/vivarium-collective/viva-fenics')"` (from `viva-fenics`, with the worktree package importable), then `pixi run vivarium-workbench-publish --workspace . --out reports/published/dashboard --base-path /viva-fenics/dashboard`; open `reports/published/dashboard/index.html`, click into each of the 7 studies, confirm interactive viz renders read-only.
+- [ ] `pixi run python -c "from viva_superpowers.publish_assets import emit; emit('.', 'fenics', base_path='/fenics/dashboard', interactive_url='https://github.com/vivarium-collective/fenics')"` (from `viva-fenics`, with the worktree package importable), then `pixi run vivarium-workbench-publish --workspace . --out reports/published/dashboard --base-path /fenics/dashboard`; open `reports/published/dashboard/index.html`, click into each of the 7 studies, confirm interactive viz renders read-only.
 - [ ] Add see-also cross-links in the 4 sibling skills.
 - [ ] Commit skills in worktree (`docs(viva): cross-link investigation/study/run/publish chain`) and `viva-fenics` bundle/README (`feat(fenics): published read-only workbench bundle + README`).
 - [ ] **STOP — no push.** Report to user: local commits on `viva-fenics` (main) + worktree branch `viva-expert-investigation-workbench`; offer gh-pages deploy + PRs only on explicit approval.

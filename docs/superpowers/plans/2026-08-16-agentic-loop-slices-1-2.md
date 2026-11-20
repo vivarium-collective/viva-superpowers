@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the deterministic, unit-testable foundation of the agentic loop — the `loop_state` backbone (persisted protocol state + invariant assertions) and the `test_audit` sufficiency checks + `/viva-audit-tests` skill.
+**Goal:** Build the deterministic, unit-testable foundation of the agentic loop — the `loop_state` backbone (persisted protocol state + invariant assertions) and the `test_audit` sufficiency checks + `/audit-tests` skill.
 
-**Architecture:** Pure `viva_superpowers` helpers (no `process_bigraph`, no workbench, no AI) own the loop-state read/advance/validate and the deterministic audit checks; the `/viva-audit-tests` skill adds the AI reasoning (null-model plausibility, mechanism semantics) and assembles a graded `report_card_verdict/v2` report via the existing `TestBuilder`/`check`.
+**Architecture:** Pure `viva_superpowers` helpers (no `process_bigraph`, no workbench, no AI) own the loop-state read/advance/validate and the deterministic audit checks; the `/audit-tests` skill adds the AI reasoning (null-model plausibility, mechanism semantics) and assembles a graded `report_card_verdict/v2` report via the existing `TestBuilder`/`check`.
 
 **Tech Stack:** Python 3.11+, `viva_superpowers`, pytest. Reuses `test_contract.check`/`TestBuilder`, `rigor`, `band_provenance`, `study_verdict`, `study_io.atomic_write`, `paths.workspace_dir`.
 
@@ -391,7 +391,7 @@ Expected: FAIL — `No module named 'viva_superpowers.test_audit'`.
 Create `viva_superpowers/test_audit.py`:
 
 ```python
-"""Deterministic test-sufficiency checks for /viva-audit-tests.
+"""Deterministic test-sufficiency checks for /audit-tests.
 
 Adds the sufficiency dimensions rigor.py doesn't cover — discrimination
 (trivially-wide bands), redundancy (tests on the same observable), objective
@@ -607,15 +607,15 @@ git commit -m "test_audit: build_audit_report (/v2 graded sufficiency) + audit_g
 
 ---
 
-### Task 6: `/viva-audit-tests` skill + catalog guards
+### Task 6: `/audit-tests` skill + catalog guards
 
 **Files:**
-- Create: `skills/viva-audit-tests/SKILL.md`
+- Create: `skills/audit-tests/SKILL.md`
 - Modify: `tests/test_skill_manifests.py`, `docs/skills.md`, `README.md`, `AGENTS.md`, `CLAUDE.md`
 
 **Interfaces:**
 - Consumes: `test_audit.build_audit_report`/`audit_gate` (deterministic), plus the skill's own AI reasoning (null-model plausibility, mechanism semantics).
-- Produces: the `/viva-audit-tests <study>` user-invocable skill; writes the audit as `viz/report_card/test-audit.{verdict.json,html}` and prints the gate + the insufficient dimensions.
+- Produces: the `/audit-tests <study>` user-invocable skill; writes the audit as `viz/report_card/test-audit.{verdict.json,html}` and prints the gate + the insufficient dimensions.
 
 - [ ] **Step 1: Determine the current skill count**
 
@@ -631,7 +631,7 @@ Expected: FAIL (skill dir + doc counts not yet present).
 
 - [ ] **Step 3: Create the skill**
 
-Create `skills/viva-audit-tests/SKILL.md`:
+Create `skills/audit-tests/SKILL.md`:
 
 ```markdown
 ---
@@ -642,7 +642,7 @@ allowed-tools: Bash(*) Read Write Edit
 argument-hint: <study-slug>
 ---
 
-# /viva-audit-tests
+# /audit-tests
 
 Judge whether a study's `behavior_tests[]` are rigorous enough to VALIDATE a
 model — not too weak, not gameable — BEFORE they are pre-registered/locked and
@@ -665,7 +665,7 @@ AI reasoning you add on top (the deterministic scaffold can't):
 ## Run
 
 ```bash
-STUDY="${1:?usage: /viva-audit-tests <study-slug>}"
+STUDY="${1:?usage: /audit-tests <study-slug>}"
 python - "$STUDY" <<'PY'
 import sys, json, yaml
 from pathlib import Path
@@ -698,7 +698,7 @@ and report which Tests to strengthen. On `fail`, the loop returns to AUTHOR; onl
 
 - [ ] **Step 4: Update the catalog docs**
 
-Add a `/viva-audit-tests` row to `docs/skills.md`, the skill list in `README.md`, the routing table in `AGENTS.md`, and `CLAUDE.md`'s skills catalog; bump each "N user-facing skills" count to N+1.
+Add a `/audit-tests` row to `docs/skills.md`, the skill list in `README.md`, the routing table in `AGENTS.md`, and `CLAUDE.md`'s skills catalog; bump each "N user-facing skills" count to N+1.
 
 - [ ] **Step 5: Run the manifest + cross-harness tests**
 
@@ -708,14 +708,14 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add skills/viva-audit-tests/SKILL.md tests/test_skill_manifests.py docs/skills.md README.md AGENTS.md CLAUDE.md
-git commit -m "skill: /viva-audit-tests (test-sufficiency audit gate)"
+git add skills/audit-tests/SKILL.md tests/test_skill_manifests.py docs/skills.md README.md AGENTS.md CLAUDE.md
+git commit -m "skill: /audit-tests (test-sufficiency audit gate)"
 ```
 
 ---
 
 ## Notes for the executor
 
-- **Test venv:** `loop_state`/`test_audit` import only light `viva_superpowers` modules (`paths`, `study_io`, `rigor`, `band_provenance`, `test_contract`, `study_verdict`) — all stdlib-backed; a plain `viva-superpowers` editable install runs the tests. If `rigor`/`band_provenance` transitively pull `viva_workspace`, prepend `/Users/eranagmon/code/viva-workspace` to `PYTHONPATH` (as the other suites do).
+- **Test venv:** `loop_state`/`test_audit` import only light `viva_superpowers` modules (`paths`, `study_io`, `rigor`, `band_provenance`, `test_contract`, `study_verdict`) — all stdlib-backed; a plain `viva-superpowers` editable install runs the tests. If `rigor`/`band_provenance` transitively pull `viva_workspace`, prepend `/Users/eranagmon/code/workspace` to `PYTHONPATH` (as the other suites do).
 - **Do NOT** import `process_bigraph` or `vivarium_workbench` in `loop_state.py`/`test_audit.py` — the AI-free/one-way-dep rule is a hard constraint (a `test_no_workbench_import`-style guard exists).
-- Slice 3 (the `/viva-model-build` driver skill) and Slice 4 (fixture harness) are a separate follow-on plan; do not build them here.
+- Slice 3 (the `/model-build` driver skill) and Slice 4 (fixture harness) are a separate follow-on plan; do not build them here.

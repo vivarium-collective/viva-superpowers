@@ -59,7 +59,7 @@ codify the proven recipe back into the skill and smooth the surrounding
   condition, rationale}]`, `behavior_tests[]`, `parent_studies:[{study,
   condition, relation}]` (the DAG edges), `canonical_runs:[{name, script,
   args[], label, default}]`, `visualizations:[{name, chart, render}]`.
-- **Execution:** `/viva-study run-script [--entry N]` shells out
+- **Execution:** `/study run-script [--entry N]` shells out
   `python <script> <args>` from `canonical_runs`; results land in
   `studies/<slug>/runs.db` (SQLite `runs_meta`) and/or `parquet-runs/<run>/`.
   Charts render to `studies/<slug>/viz/<name>.html` (+ `.meta.json` sidecars).
@@ -120,7 +120,7 @@ reproduce canonical FEM results and enable bigraph coupling?"* Studies:
 
 `parent_studies` DAG: validation → convergence → transient → reaction-diffusion;
 validation → navier-stokes → moving-boundary → complex-geometry. Each study has
-`canonical_runs` scripts so `/viva-study run-script` records `runs.db`;
+`canonical_runs` scripts so `/study run-script` records `runs.db`;
 `acceptance_criteria` links studies → behaviors. Charts use **Plotly** (2D
 fields/animation) and **Three.js** (3D), built under the `dataviz` skill for
 palette/design consistency.

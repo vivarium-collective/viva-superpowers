@@ -1,18 +1,18 @@
-"""Guard: the /viva-study `migrate-readouts` subcommand + the /viva-report
+"""Guard: the /study `migrate-readouts` subcommand + the /report
 canonicalize step stay wired to the readout-migration plumbing (SP2b-ii).
 
 SP2b-ii wires the (manual-only) `readout_migration` into the workflow: the
-explicit `/viva-study migrate-readouts` subcommand auto-canonicalizes the safe
+explicit `/study migrate-readouts` subcommand auto-canonicalizes the safe
 `migratable` readouts via `migrate_study_file(write=True)`, drives the
 `needs_human` queue to re-authoring against SP2b-i's `/api/observables`
-(`/viva-study check-observables`), and `/viva-report` canonicalizes migratable
+(`/study check-observables`), and `/report` canonicalizes migratable
 readouts before rendering. If the skills stop naming these, the wiring is
 silently broken and the migration goes back to being orphaned plumbing.
 """
 from pathlib import Path
 
-STUDY_SKILL = Path(__file__).resolve().parent.parent / "skills" / "viva-study" / "SKILL.md"
-REPORT_SKILL = Path(__file__).resolve().parent.parent / "skills" / "viva-report" / "SKILL.md"
+STUDY_SKILL = Path(__file__).resolve().parent.parent / "skills" / "study" / "SKILL.md"
+REPORT_SKILL = Path(__file__).resolve().parent.parent / "skills" / "report" / "SKILL.md"
 
 
 def _doc(skill_md: Path) -> str:
