@@ -387,9 +387,9 @@ git commit -m "test(evaluator): confirm formula: measure grades over emitted obs
 **Worktree:** create it before starting.
 
 ```bash
-git -C ~/code/viva-mGen fetch origin main
-git -C ~/code/viva-mGen worktree add ~/code/viva-mGen--tests-overhaul -b feat/tests-tab-overhaul origin/main
-cd ~/code/viva-mGen--tests-overhaul
+git -C ~/code/mGen fetch origin main
+git -C ~/code/mGen worktree add ~/code/mGen--tests-overhaul -b feat/tests-tab-overhaul origin/main
+cd ~/code/mGen--tests-overhaul
 ```
 
 **PYTHONPATH gotcha:** viva-superpowers must be importable at the Slice-1 rev. Either `pip install -e ~/code/viva-superpowers--tests-overhaul` into the workspace venv, or verify `python -c "import viva_superpowers; print(viva_superpowers.__file__)"` points at the Slice-1 tree. Run the workspace against the worktree, not the canonical checkout.
@@ -403,7 +403,7 @@ Reference: `viva_mgen/` has no `evaluators.py` today (that is the defect). Each 
 - [ ] **Step 1:** For each of the 8 studies, list the distinct `measure.field` values that are NOT emitted observables:
 
 ```bash
-cd ~/code/viva-mGen--tests-overhaul
+cd ~/code/mGen--tests-overhaul
 for d in workspace/studies/*/; do
   echo "== $d =="
   grep -E "^\s+(field|formula):" "$d/study.yaml" 2>/dev/null | sort -u
@@ -465,7 +465,7 @@ Each computer reads the run store via `reader` (and sweep config via `test`/`ws_
 
 - [ ] **Step 5: End-to-end grade one study** against its real run:
 
-Run: `cd ~/code/viva-mGen--tests-overhaul && viva-compute-outcomes fig7-kinetic-parameters` (or the equivalent `python -m viva_superpowers.study_evaluator` CLI / the workbench `/api/study-grade` once Slice 3 lands).
+Run: `cd ~/code/mGen--tests-overhaul && viva-compute-outcomes fig7-kinetic-parameters` (or the equivalent `python -m viva_superpowers.study_evaluator` CLI / the workbench `/api/study-grade` once Slice 3 lands).
 Expected: `fig7`'s primary tests report non-null `measured_value` and real PASS/FAIL — no `agent`/`ungraded` buckets for declared primary tests.
 
 - [ ] **Step 6: Commit.**

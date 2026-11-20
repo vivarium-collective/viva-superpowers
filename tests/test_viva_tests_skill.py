@@ -1,4 +1,4 @@
-"""Guard test for the /viva-tests skill.
+"""Guard test for the /tests skill.
 
 Asserts the SKILL.md exists, carries valid user-invocable front-matter, and
 covers the graded-Test contract the skill is *for*: `check()`/`TestBuilder`,
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL = Path(__file__).resolve().parents[1] / "skills" / "viva-tests" / "SKILL.md"
+_SKILL = Path(__file__).resolve().parents[1] / "skills" / "tests" / "SKILL.md"
 
 
 @pytest.fixture
@@ -21,13 +21,13 @@ def skill_text() -> str:
 
 
 def test_skill_file_exists():
-    assert _SKILL.is_file(), "skills/viva-tests/SKILL.md must exist"
+    assert _SKILL.is_file(), "skills/tests/SKILL.md must exist"
 
 
 def test_frontmatter_is_user_invocable(skill_text):
     assert skill_text.startswith("---"), "SKILL.md must open with YAML front-matter"
     fm = skill_text.split("---", 2)[1]
-    assert "name: viva-tests" in fm
+    assert "name: tests" in fm
     assert "user-invocable: true" in fm
     assert "description:" in fm
     assert "argument-hint:" in fm

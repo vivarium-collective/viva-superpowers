@@ -1,4 +1,4 @@
-"""Guard test for the /viva-navigate skill (SP4a).
+"""Guard test for the /navigate skill (SP4a).
 
 Asserts the SKILL.md documents the seven read-only subcommands and calls the
 workbench API (GET /api/linkage-index, GET /api/needs-attention) rather than
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL = Path(__file__).resolve().parents[1] / "skills" / "viva-navigate" / "SKILL.md"
+_SKILL = Path(__file__).resolve().parents[1] / "skills" / "navigate" / "SKILL.md"
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def skill_text() -> str:
 
 
 def test_skill_file_exists():
-    assert _SKILL.is_file(), "skills/viva-navigate/SKILL.md must exist"
+    assert _SKILL.is_file(), "skills/navigate/SKILL.md must exist"
 
 
 def test_subcommands_documented(skill_text):
@@ -60,9 +60,9 @@ def test_no_inline_plugin_compute(skill_text):
 
 
 def test_server_preflight_documented(skill_text):
-    # viva-catalog's exact preflight idiom: workspace.yaml walk-up +
+    # catalog's exact preflight idiom: workspace.yaml walk-up +
     # .pbg/server/server-info, erroring (not silently falling back) when
     # the dashboard server is not running.
     assert "workspace.yaml" in skill_text
     assert ".pbg/server/server-info" in skill_text
-    assert "/viva-workbench start" in skill_text
+    assert "/workbench start" in skill_text

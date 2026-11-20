@@ -282,14 +282,14 @@ viz_classes = {
 }
 ```
 
-## When to use `/viva-viz`
+## When to use `/viz`
 
-`/viva-viz <name>` generates a Visualization subclass from a
+`/viz <name>` generates a Visualization subclass from a
 natural-language description (the lifecycle written to
 `.pbg/viz-requests/<name>.md` by the dashboard). The generated file lives
 at `.pbg/viz-responses/<name>.py` until committed to the package.
 
-See [/viva-viz SKILL.md](../../skills/viva-viz/SKILL.md).
+See [/viz SKILL.md](../../skills/viz/SKILL.md).
 
 ## When not to use a Visualization Step
 

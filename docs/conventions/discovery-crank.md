@@ -83,13 +83,13 @@ Work the highest priority first.
 
 | Kind (priority) | `op` | Execute it with | Then record |
 |---|---|---|---|
-| `unaddressed_criterion` (90) | `branch` | open a study that addresses the criterion — `/viva-study propose-followup` + `seed-from-followup`, or add a member via `/viva-investigation` | the study's verdict (`set-verdict`) — a met behavior auto-discharges the criterion (PR #360) |
-| `open_challenge` (80) | `synthesize` | adjudicate the alternative/refutation into a justification — author a finding with `/viva-study findings` | `resolve <inv> open_challenge <target> --rationale … --by <study>#<finding>` |
+| `unaddressed_criterion` (90) | `branch` | open a study that addresses the criterion — `/study propose-followup` + `seed-from-followup`, or add a member via `/investigation` | the study's verdict (`set-verdict`) — a met behavior auto-discharges the criterion (PR #360) |
+| `open_challenge` (80) | `synthesize` | adjudicate the alternative/refutation into a justification — author a finding with `/study findings` | `resolve <inv> open_challenge <target> --rationale … --by <study>#<finding>` |
 | `narrative_gap` (70) — **edge exists but bare** (a `parent_studies` prerequisite with a `condition` only, no `relation` facet) | `branch` *(mislabeled)* | **don't seed a study** — author the epistemic relation on the *existing* edge: `connect <inv> --relation builds-on` (bulk) or `relate <downstream> <upstream> --relation <rel>` (one edge). A supporting relation closes the gap outright | re-crank; a now-supported transition drops the gap. `resolve` only if you intend to document a non-supporting (e.g. `tests`) continuity |
-| `narrative_gap` (70) — **no edge at all** (the transition is genuinely unsupported) | `branch` | supply the missing link — a bridging study (`/viva-study propose-followup` + `seed-from-followup`) | `resolve <inv> narrative_gap <target> --rationale … --by <study>` |
-| `open_decision` (60) | `steer` | **the expert decides** — this is the crank's natural hand-back point | resolve the `decisions_needed` in the study (`/viva-study set-conclusion`), then `resolve` |
-| `divergence` (50) | `reconcile` | reconcile the authored verdict against the derived roll-up — `/viva-investigation reconcile` + `/viva-study set-verdicts` | the reconciled verdict |
-| `open_question` (40) | `test` | evaluate the claim — run/evaluate the study (`/viva-study`) | the outcome (`set-verdict`) |
+| `narrative_gap` (70) — **no edge at all** (the transition is genuinely unsupported) | `branch` | supply the missing link — a bridging study (`/study propose-followup` + `seed-from-followup`) | `resolve <inv> narrative_gap <target> --rationale … --by <study>` |
+| `open_decision` (60) | `steer` | **the expert decides** — this is the crank's natural hand-back point | resolve the `decisions_needed` in the study (`/study set-conclusion`), then `resolve` |
+| `divergence` (50) | `reconcile` | reconcile the authored verdict against the derived roll-up — `/investigation reconcile` + `/study set-verdicts` | the reconciled verdict |
+| `open_question` (40) | `test` | evaluate the claim — run/evaluate the study (`/study`) | the outcome (`set-verdict`) |
 
 `_MET` verdicts are `("supported", "qualified")` — a **refuted null control** counts as
 *met*, because the engine tracks the criterion's named *behavior* outcome, not the
@@ -170,7 +170,7 @@ three sources that were scattered before:
   before the study is seeded.
 
 So a suggestion is a *proposal*, never an execution — nothing is created or run until the
-expert resolves the gate and a seed step (`/viva-study seed-from-followup`) materializes it.
+expert resolves the gate and a seed step (`/study seed-from-followup`) materializes it.
 On a CLOSED investigation the frontier looks finished, but `suggest` shows the real next
 moves: e.g. origins-of-life-vent proposes 5 studies, each blocked on an expert prior,
 dataset, or model choice.

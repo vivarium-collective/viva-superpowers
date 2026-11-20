@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task (user chose native inline execution). Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** A reusable `/viva-investigation reconcile <inv>` capability that deterministically detects investigation drift after a structural edit (studies removed / added / merged) and guides the narrative rewrite.
+**Goal:** A reusable `/investigation reconcile <inv>` capability that deterministically detects investigation drift after a structural edit (studies removed / added / merged) and guides the narrative rewrite.
 
 **Architecture:** A new AI-free helper `viva_superpowers/investigation_reconcile.py` — `detect_drift()` (pure, no writes) + `apply_mechanical()` (structured drops via the comment-preserving ruamel writer) — mirroring the `finding_observations.py` deterministic-helper + agent-authoring split. Prose rewrites stay agent-authored (guided by a new `reconcile` section in the `viva-investigation` skill). No dashboard/AI writes.
 
@@ -78,7 +78,7 @@ def test_clean_investigation_returns_no_drift(tmp_path): ...
 
 ### Task 4: skill `reconcile` section
 
-**Files:** Modify `skills/viva-investigation/SKILL.md`.
+**Files:** Modify `skills/investigation/SKILL.md`.
 
 - [ ] Add a `#### reconcile <slug> [--apply]` subcommand section: when to run (after any add/remove/merge of member studies), the flow (run `detect_drift` → show report → `apply_mechanical` for structured drops → **agent reconciles prose**: rewrite `scientific_argument.evidence_for` to surviving+new studies, refresh `executive.verdict`/`verdict_status`, reconcile `biological_story` mentions, add `at_a_glance` roles for new studies, record `reconciled_from: [a,b]` on a merge → re-run `detect_drift` to confirm zero residual). Mirror the YAML-direct dispatch style of the existing subcommands (shell to `python -m viva_superpowers.investigation_reconcile`). Note it's AI-free in the helper; the prose rewrite is the host agent's.
 - [ ] **Commit** — `docs(skill): viva-investigation reconcile subcommand`.

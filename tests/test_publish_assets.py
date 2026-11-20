@@ -12,7 +12,7 @@ from viva_superpowers.publish_assets import emit
 
 
 def test_emit_writes_both_files_at_expected_relative_paths(tmp_path: Path) -> None:
-    paths = emit(tmp_path, name="viva-fenics")
+    paths = emit(tmp_path, name="fenics")
     rel = {p.relative_to(tmp_path) for p in paths}
     assert Path("scripts/publish_dashboard.sh") in rel
     assert Path(".github/workflows/publish-dashboard.yml") in rel
@@ -21,26 +21,26 @@ def test_emit_writes_both_files_at_expected_relative_paths(tmp_path: Path) -> No
 
 
 def test_script_is_executable(tmp_path: Path) -> None:
-    emit(tmp_path, name="viva-fenics")
+    emit(tmp_path, name="fenics")
     script = tmp_path / "scripts" / "publish_dashboard.sh"
     assert os.access(script, os.X_OK)
 
 
 def test_script_contains_publish_invocation_and_default_base_path(tmp_path: Path) -> None:
-    emit(tmp_path, name="viva-fenics")
+    emit(tmp_path, name="fenics")
     text = (tmp_path / "scripts" / "publish_dashboard.sh").read_text()
     assert "vivarium-workbench-publish" in text
-    assert "/viva-fenics/workbench" in text
+    assert "/fenics/workbench" in text
     assert "find " in text and "*.map" in text
     assert ".nojekyll" in text
 
 
 def test_workflow_contains_gh_pages_publish_steps_and_default_base_path(tmp_path: Path) -> None:
-    emit(tmp_path, name="viva-fenics")
+    emit(tmp_path, name="fenics")
     text = (tmp_path / ".github" / "workflows" / "publish-dashboard.yml").read_text()
     assert "gh-pages" in text
     assert "vivarium-workbench" in text
-    assert "/viva-fenics/workbench" in text
+    assert "/fenics/workbench" in text
     assert "scripts/publish_dashboard.sh" in text
 
 
@@ -52,30 +52,30 @@ def test_default_base_path_is_slash_name_slash_dashboard(tmp_path: Path) -> None
 
 def test_default_base_path_is_lowercased(tmp_path: Path) -> None:
     # GitHub Pages serves an uppercase-named repo (viva-Mgen) at a lowercased
-    # path (…/viva-mgen/), so the baked base-path must be lowercase or every
+    # path (…/mgen/), so the baked base-path must be lowercase or every
     # asset 404s and the SPA renders unstyled.
-    emit(tmp_path, name="viva-Mgen")
+    emit(tmp_path, name="Mgen")
     text = (tmp_path / "scripts" / "publish_dashboard.sh").read_text()
-    assert "/viva-mgen/workbench" in text
-    assert "/viva-Mgen/workbench" not in text
+    assert "/mgen/workbench" in text
+    assert "/Mgen/workbench" not in text
 
 
 def test_custom_base_path_and_interactive_url_are_honored(tmp_path: Path) -> None:
     emit(
         tmp_path,
-        name="viva-fenics",
+        name="fenics",
         base_path="/custom/path",
         interactive_url="https://github.com/example/example",
     )
     script = (tmp_path / "scripts" / "publish_dashboard.sh").read_text()
     assert "/custom/path" in script
-    assert "/viva-fenics/workbench" not in script
+    assert "/fenics/workbench" not in script
     assert "https://github.com/example/example" in script
 
 
 def test_emit_creates_parent_dirs(tmp_path: Path) -> None:
     ws = tmp_path / "nested" / "workspace"
     ws.mkdir(parents=True)
-    paths = emit(ws, name="viva-fenics")
+    paths = emit(ws, name="fenics")
     for p in paths:
         assert p.is_file()

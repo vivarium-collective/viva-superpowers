@@ -15,7 +15,7 @@
 - **No AI attribution** in commits/PR.
 - **viva-superpowers only.** Best-effort everywhere: no `contract.face`, no run, or an unreadable run → zero findings, never a crash, never a fabricated mismatch.
 - **Presence-only:** run observables are untyped; check that a declared port is emitted, do not check type/units.
-- **Worktree:** `~/code/viva-superpowers--contract-face-wire` (branch `feat/study-contract-face-wire`, off `origin/main`). Validate with `~/code/viva-genesis/.venv/bin/python` + `PYTHONPATH=<worktree>`; confirm `import viva_superpowers` resolves into the worktree.
+- **Worktree:** `~/code/viva-superpowers--contract-face-wire` (branch `feat/study-contract-face-wire`, off `origin/main`). Validate with `~/code/genesis/.venv/bin/python` + `PYTHONPATH=<worktree>`; confirm `import viva_superpowers` resolves into the worktree.
 - Tests in `tests/`.
 
 ## Review Focus
@@ -41,8 +41,8 @@
 - [ ] **Step 1: Write failing tests** (use the real og-00 run under viva-genesis — a committed canonical run — for the happy path; a tmp_path for the empty path):
 ```python
 def test_observables_from_real_run():
-    # ws_root = ~/code/viva-genesis; study slug og-00-vent-reactor-baseline
-    obs = study_run_observables({"slug": "og-00-vent-reactor-baseline"}, "/Users/eranagmon/code/viva-genesis")
+    # ws_root = ~/code/genesis; study slug og-00-vent-reactor-baseline
+    obs = study_run_observables({"slug": "og-00-vent-reactor-baseline"}, "/Users/eranagmon/code/genesis")
     assert obs and "temperature" in obs and "pressure" not in obs   # pressure declared but not emitted
 def test_observables_none_when_no_run(tmp_path):
     assert study_run_observables({"slug": "nope"}, tmp_path) is None

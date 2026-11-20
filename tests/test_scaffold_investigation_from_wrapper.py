@@ -1,7 +1,7 @@
 """Task 14: `investigation-from-wrapper` scaffolder.
 
 Generates an investigation + one skeleton study per composite generator so
-the viva-expert skill's showcase-investigation step becomes near a
+the expert skill's showcase-investigation step becomes near a
 one-liner. Mirrors the canonical shapes hand-authored in the viva-fenics
 build (investigation.yaml schema_version 2, study.yaml schema_version 4).
 """
@@ -52,7 +52,7 @@ def test_each_study_written_with_expected_shape(tmp_path):
         assert study["schema_version"] == 4
         assert study["baseline"][0]["composite"] == generator
         # script: is resolved relative to the WORKSPACE ROOT (not the study
-        # dir) by /viva-study run-script — matches every hand-authored
+        # dir) by /study run-script — matches every hand-authored
         # viva-fenics reference study (e.g. studies/poisson-validation/
         # study.yaml -> script: studies/poisson-validation/sims/run.py).
         assert study["canonical_runs"][0]["script"] == f"studies/{entry['slug']}/sims/run.py"

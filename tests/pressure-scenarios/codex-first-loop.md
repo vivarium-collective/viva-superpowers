@@ -1,7 +1,7 @@
 # Acceptance: drive the first loop from Codex
 
 **Goal (the spike's one proof):** a **Codex** session takes a newcomer through
-`/viva-workspace` → `/viva-workbench start` → `/viva-run` end-to-end, using only
+`/workspace` → `/workbench start` → `/run` end-to-end, using only
 `AGENTS.md` as the gateway and `pip install viva-superpowers` — no Claude Code
 machinery. This is a behavioral acceptance (run it in a real Codex session), not a
 pytest.
@@ -21,13 +21,13 @@ pytest.
 ## Expected agent behavior (what "pass" looks like)
 
 1. **Reads `AGENTS.md`** and follows the Rule — does NOT start writing a bare
-   script. Routes on state: no `workspace.yaml` → `/viva-workspace` first.
-2. Opens `skills/viva-workspace/SKILL.md`, translates any Claude idiom via
+   script. Routes on state: no `workspace.yaml` → `/workspace` first.
+2. Opens `skills/workspace/SKILL.md`, translates any Claude idiom via
    `references/codex-tools.md` (ignores `allowed-tools`, reads the file instead of
    "using the Skill tool"), and scaffolds `demo` with the `viva-scaffold` CLI.
-3. Opens `skills/viva-workbench/SKILL.md`, starts the server, reads
+3. Opens `skills/workbench/SKILL.md`, starts the server, reads
    `.pbg/server/server-info` for the URL.
-4. Opens `skills/viva-run/SKILL.md`, runs a composite for N steps, reports the
+4. Opens `skills/run/SKILL.md`, runs a composite for N steps, reports the
    emitted observables.
 
 ## Record the result here (fill in when run)

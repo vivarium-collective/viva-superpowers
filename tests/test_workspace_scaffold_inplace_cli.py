@@ -1,4 +1,4 @@
-"""The in-place scaffolder (`/viva-workspace --in-place`, promoting an
+"""The in-place scaffolder (`/workspace --in-place`, promoting an
 existing git checkout) must get the same `cli` subpackage that a fresh
 `viva-template` scaffold gets — both paths render the same template, but the
 in-place path is a separate Python reimplementation (`_inplace_create_pkg`

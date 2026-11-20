@@ -35,7 +35,7 @@
 | **H1** | #5 verdict not re-graded | viva-superpowers | `study_audit` L4 re-grades `grade_card` against the on-disk `verdict.json`; recompute mismatch fails | HARD |
 | **H2** | #2 tune-to-pass | viva-superpowers | promote `unregistered_acceptance` (acceptance_criterion `pass_if` ≠ preregistered threshold) to a gated check | HARD (ratchet) |
 | **H3** | #6 provenance not required | viva-superpowers + workbench | a finding rolling up to *supported/Accepted* must carry `evidence.from_test` + `provenance.run_ids` | HARD (ratchet) |
-| **H4** | #7 divergence non-blocking | workbench | `diverges_from_authored` (authored verdict contradicts computed) blocks `/viva-report` publication | block-on-publish |
+| **H4** | #7 divergence non-blocking | workbench | `diverges_from_authored` (authored verdict contradicts computed) blocks `/report` publication | block-on-publish |
 | **H5** | #3 single-seed | viva-superpowers | thread `seed` into `run_registry` manifest; a single-seed `acceptance_criterion` primary claim gates on replication | SOFT→HARD ratchet |
 | **H6** | #4 reproducibility soft | viva-superpowers | promote L2 `node-keyable` (content-addressable) to HARD for studies that *claim* reproducibility | HARD (ratchet) |
 | **H7** | #1,#8 contract grounding | (depends on A–E) | land 1.8.1 + wire `contract_spine` T1–T3 so `test_contract.check` reconciles band units against the process-contract port units on `main` | — |
@@ -90,7 +90,7 @@ H1–H3 are decomposed below (ready now, pure study-audit, independent of the 1.
 
 ## H4 — divergence blocks publication (workbench, outline)
 
-- `/viva-report` Pass A already reads `needs_attention`; add a **blocking** finding class when `study_verdict.diverges_from_authored(spec)` is true (authored verdict contradicts the computed one) — authored-contradicts-computed blocks render unless `--force` (reuse the existing Pass-A blocking + `--force` path). Never auto-reconcile; the author resolves by fixing the claim or the gate.
+- `/report` Pass A already reads `needs_attention`; add a **blocking** finding class when `study_verdict.diverges_from_authored(spec)` is true (authored verdict contradicts the computed one) — authored-contradicts-computed blocks render unless `--force` (reuse the existing Pass-A blocking + `--force` path). Never auto-reconcile; the author resolves by fixing the claim or the gate.
 - Test: a study whose authored `gate_status` says PASS but `roll_up_verdict` says FAIL → `GET /api/report-lint` returns a blocking finding; render refuses without `--force`.
 
 ## H5 — replication gate for primary claims (viva-superpowers, outline)

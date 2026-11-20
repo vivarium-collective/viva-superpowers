@@ -221,5 +221,5 @@ association in VS Code or PyCharm).
   function-based sibling for composites that need to compute initial state
   or introspect processes at build time.
 - [Process discovery convention](discovery.md) — how processes (code) are discovered
-- `/viva-expert --lightweight <name> <tools…>` skill — writes in-workspace composite
+- `/expert --lightweight <name> <tools…>` skill — writes in-workspace composite
   generator Python files (`@composite_generator`-decorated functions).

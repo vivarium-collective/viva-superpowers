@@ -1,4 +1,4 @@
-"""viva-test CLI: reads the shipped test_report/v1 (viz/tests/report.json), applies
+"""test CLI: reads the shipped test_report/v1 (viz/tests/report.json), applies
 the severity gate, prints a pytest-style summary, exits 0/1 on the gate."""
 import json
 

@@ -26,7 +26,7 @@ infrastructure** in the planned direction:
 - **Streamline** the two near-verbatim duplicated card/flush stacks (v2ecoli's and
   viva_superpowers') onto one shared home, and centralize the verdict vocabulary
   that is currently defined in ~4 places.
-- **Add** the genuinely new pieces: a cross-iteration **diff** and a **`/viva-tests`
+- **Add** the genuinely new pieces: a cross-iteration **diff** and a **`/tests`
   skill** to author/enrich/run tests.
 
 ## 2. What already exists (grounding — do not reinvent)
@@ -88,7 +88,7 @@ From the infrastructure map (2026-08-15):
   `ResultsStep → {AnalysisStep, VisualizationStep, TestStep…} → TestReportStep`,
   where `TestReportStep` writes the run rollup + diff. Legacy flushes reuse the
   same helpers (one implementation of write/rollup/diff).
-- `/viva-tests` skill: `author` / `enrich` / `run`.
+- `/tests` skill: `author` / `enrich` / `run`.
 
 **Non-goals (deferred, YAGNI)**
 - A **knob recommender** (ranked next-action). The `knob` field is defined now;
@@ -271,10 +271,10 @@ aliases (today in `study_spec._VERDICT_ALIASES` + `behavior_test_card` +
 The three repos import from here; the scattered copies become re-exports. This is
 the "streamline" that keeps the display join consistent.
 
-## 12. `/viva-tests` skill (viva-superpowers plugin)
+## 12. `/tests` skill (viva-superpowers plugin)
 
 Thin client over the shared helpers + workbench API (AI-free/provenance
-conventions of the other `/viva-*` skills):
+conventions of the other `viva:` skills):
 
 - **`author <study> <name>`** — scaffold a `TestStep` subclass whose `build` opens
   the run via `ResultsHandle` (`.records()`/`.conn()`) and returns a `/v2` doc from
@@ -289,28 +289,28 @@ conventions of the other `/viva-*` skills):
 - **`run <study>`** — run the study's tests, return the `run_verdict/v2` report +
   `test_diff/v1` as the agent-consumable signal; point at `report.json`/`diff.json`.
 
-### 12.1 Updates to the other `/viva-*` skills
+### 12.1 Updates to the other `viva:` skills
 
 The skills that already touch report cards / verdicts adopt the Test vocabulary and
 consume the strengthened signal (a small, consistent pass, not a rewrite):
 
-- **`/viva-study`** — its Evaluate stage now speaks "tests," calls the shared
+- **`/study`** — its Evaluate stage now speaks "tests," calls the shared
   `check(...)`/grading, and at Decide surfaces the `run_verdict/v2` report + the
   `test_diff` (what moved since the last run) as the loop's feedback. This is where
   the hardened build-loop lives for a human-driven study.
-- **`/viva-cite-bands`** — becomes the natural authoring path for a Test axis's
+- **`/cite-bands`** — becomes the natural authoring path for a Test axis's
   `expected` **band** + `citation`: linking a reference to an acceptance band now
-  writes directly into the axis (`band(low, high)` + `cite=…`), so `/viva-tests
-  enrich` and `/viva-cite-bands` share one target.
-- **`/viva-report`** — renders the strengthened axes (margin, change-since-last-run)
+  writes directly into the axis (`band(low, high)` + `cite=…`), so `/tests
+  enrich` and `/cite-bands` share one target.
+- **`/report`** — renders the strengthened axes (margin, change-since-last-run)
   and reads the centralized vocabulary instead of its own copy.
-- **`/viva-navigate`** ("decisions needed") — its needs-attention ranking consumes
+- **`/navigate`** ("decisions needed") — its needs-attention ranking consumes
   `severity` + `margin` (hard mismatches and directional regressions rank first),
   and reads `test_diff` to flag "regressed since last run."
-- **`/viva-harden-investigation`** — treats "every gating axis is graded with a
+- **`/harden-investigation`** — treats "every gating axis is graded with a
   cited band + a `knob`" as a hardening criterion it can check and drive.
-- **`/viva-orient`** (skill map) + `docs/skills.md` — updated so "report card" reads
-  "test," and `/viva-tests` appears in the Studies-&-runs group.
+- **`/orient`** (skill map) + `docs/skills.md` — updated so "report card" reads
+  "test," and `/tests` appears in the Studies-&-runs group.
 
 All of these import the vocabulary + contract from `viva_superpowers` (§11) — no
 skill carries its own verdict vocabulary after this.
@@ -367,9 +367,9 @@ inspectable, hardened unit.
    `citation` + `test_diff` in the Tests panel; `composite_flush` uses shared
    rollup/diff; keep the `test_modular_tests_*` contract green; centralize vocab
    imports.
-4. **Skills**: new `/viva-tests` (`author`/`enrich`/`run`); the §12.1 pass over
-   `/viva-study`, `/viva-cite-bands`, `/viva-report`, `/viva-navigate`,
-   `/viva-harden-investigation`, `/viva-orient` + `docs/skills.md` (adopt shared
+4. **Skills**: new `/tests` (`author`/`enrich`/`run`); the §12.1 pass over
+   `/study`, `/cite-bands`, `/report`, `/navigate`,
+   `/harden-investigation`, `/orient` + `docs/skills.md` (adopt shared
    vocab/contract, consume `margin`/`severity`/`diff`). Depends on slices 1–3.
 
 Deferred: knob recommender; unifying the two flush triggers; per-scale slicing;

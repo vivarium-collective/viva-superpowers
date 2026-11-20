@@ -168,8 +168,8 @@ returning per-store `{path, dtype, first, last, min, max, sparkline:[…]}` + do
 
 **Files (in `~/code/viva-superpowers--study-spine-reorg`):**
 - Modify: `docs/concepts/vivarium-workbench-model.md` (skill↔concept map + tab/sticky-nav ordering `:265-269`)
-- Modify: `skills/viva-study/SKILL.md`, `skills/viva-viz/SKILL.md`, `skills/viva-report/SKILL.md`,
-  `skills/viva-navigate/SKILL.md`, `skills/viva-audit-tests/SKILL.md`, `skills/viva-model-build/SKILL.md`
+- Modify: `skills/study/SKILL.md`, `skills/viz/SKILL.md`, `skills/report/SKILL.md`,
+  `skills/navigate/SKILL.md`, `skills/audit-tests/SKILL.md`, `skills/model-build/SKILL.md`
   (prose only, where they name tabs)
 - Test: `tests/` (`pytest -q`, `test_skill_conventions.py`, `test_skill_manifests.py`)
 

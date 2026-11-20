@@ -143,7 +143,7 @@ locked-tests hash, reopen trail (`reopen_count` + `prior_hashes`), iteration his
 (DONE / honest give-up). New `lib/loop_provenance_views.py::build_study_loop_state(ws_root,
 slug)` importing `viva_superpowers.loop_state`. Route `GET /api/study-loop-state?study=`.
 Panel `id="panel-build" data-kind="build"`; JS `_loadBuild()`. **Graceful empty state** when no
-loop file exists (studies not built by `/viva-model-build`): a one-line "not built via the loop"
+loop file exists (studies not built by `/model-build`): a one-line "not built via the loop"
 note, not an error.
 
 ---
@@ -159,14 +159,14 @@ stay unchanged.
   sticky-nav / tab ordering (`:265-269`) to the target spine; document Readouts =
   emitter+config+paths+shapes, the Evidence split (Results/Analyses/Visualizations), and the
   Assurance trio (Tests/Audit/Build).
-- **`/viva-study`** — its `check-observables` + `run-*` subcommands already record emitter +
+- **`/study`** — its `check-observables` + `run-*` subcommands already record emitter +
   `emit_paths` (`run_registry.build_run_manifest`) and readout declarations that Readouts/Results
   render; update SKILL.md prose that names the old tabs.
-- **`/viva-viz`** — writes the charts/analysis artifacts the Analyses panel lists; note the
+- **`/viz`** — writes the charts/analysis artifacts the Analyses panel lists; note the
   Analyses panel as the surface.
-- **`/viva-audit-tests`** + **`/viva-model-build`** — already write the sufficiency report +
+- **`/audit-tests`** + **`/model-build`** — already write the sufficiency report +
   `loop_state` the Audit/Build panels read; add a one-line "surfaces in Assurance › Audit/Build".
-- **`/viva-report`, `/viva-navigate`** — prose fixes only where they reference tab names.
+- **`/report`, `/navigate`** — prose fixes only where they reference tab names.
 
 Data-flow confirmation (no capture gap): emitter/emit_paths → `run_registry`; runs →
 `runs.db`; analyses → `studies/<slug>/charts/*` + analysis result files; sufficiency →

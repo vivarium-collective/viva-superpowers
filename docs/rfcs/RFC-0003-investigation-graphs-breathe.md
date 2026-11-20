@@ -238,7 +238,7 @@ In rough order of leverage:
 
 1. **Promote `arms` to a first-class schema field** (`study.schema.json` in viva-template) — turn
    "multi-arm study" from a session convention into a typed contract (fits RFC-0002's substrate).
-2. **Name `branch` / `consolidate` as graph operations** — a `/viva-consolidate` skill +
+2. **Name `branch` / `consolidate` as graph operations** — a `/consolidate` skill +
    workbench action implementing the mechanics above, with the lint as the acceptance gate.
 3. **Formalize the lint as the consolidation contract** — state content-losslessness as the
    definition of a valid fold; the dangling-ref / verdict-evidence / gate-member / artifacts
@@ -281,5 +281,5 @@ when the contract holds, even though the fold-in nodes are deleted non-reversibl
 
 ## See also
 
-- Operational procedure: [`/viva-consolidate`](../../skills/viva-consolidate/SKILL.md) — the Consolidate operation, executed against the contract.
+- Operational procedure: [`/consolidate`](../../skills/consolidate/SKILL.md) — the Consolidate operation, executed against the contract.
 - Ontology formalization: [`docs/concepts/investigation-graph-ontology.md`](../concepts/investigation-graph-ontology.md) — the `arm` category, the Study/Arm boundary, and the invariants tied to the execution × verdict status axes already in the codebase.

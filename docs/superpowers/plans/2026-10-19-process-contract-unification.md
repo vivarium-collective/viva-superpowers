@@ -41,7 +41,7 @@
 | **A** | vivarium-workbench | `available_observables` returns `{type, units, bounds}`; `validate_readouts` adds a type/unit/shape check via `_compute_unit_scale` | **now** |
 | **B** | viva-superpowers | `test_contract` bands carry + reconcile a unit; wire `contract_face_diff` (study `contract.face` ↔ composite) into the lint | **now** |
 | **C** | bigraph-schema → process-bigraph → viva-superpowers → viva-template (+ v2ecoli/sms) | **land 1.8.1**: resolve main-vs-release, re-pin bottom-up, relock, per-repo composite-build validate | infra |
-| **D** | vivarium-workbench + viva-superpowers | unify the audit: study audits call bigraph-schema `contract_audit.audit_contract()`/`completeness()`; fold `op_invariants` + contract checks + readout validation into one surface; `/viva-tests`, `/viva-report` | after A/B/C |
+| **D** | vivarium-workbench + viva-superpowers | unify the audit: study audits call bigraph-schema `contract_audit.audit_contract()`/`completeness()`; fold `op_invariants` + contract checks + readout validation into one surface; `/tests`, `/report` | after A/B/C |
 | **E** | process repos | author faces (auto for 25) + `_units`/bounds/`conditions`; ratchet `--require-declared` | incremental |
 
 A/B land on `main` now; C is the external re-pin; D unifies once C lands; E ratchets.
@@ -75,7 +75,7 @@ A/B land on `main` now; C is the external re-pin; D unifies once C lands; E ratc
 
 - Point `composite_audit.py`/`readout_validation.py` at each process's resolved `ProcessContract.face` (+ `_units`/`_min`/`_max`) via 1.8.x `resolve_contract`, and call bigraph-schema `contract_audit.audit_contract()`/`completeness()` so **study audits and the process-bigraph gate report the same `Finding`s**.
 - Feed `conditions()` (invariant/pre/post/validity) into `test_contract` bands and surface them through `_contract_md` in the study `contract:` block.
-- Fold `viva_superpowers.op_invariants` + the PR-A/B checks into one audit surface consumed by `/viva-tests` and `/viva-report` (so studies and investigations lint through the same gate).
+- Fold `viva_superpowers.op_invariants` + the PR-A/B checks into one audit surface consumed by `/tests` and `/report` (so studies and investigations lint through the same gate).
 
 ## PR-E — contract authoring + ratchet the floor (outline, incremental)
 

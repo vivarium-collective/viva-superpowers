@@ -93,7 +93,7 @@ Content-level honesty survives the destructive fold:
    standalone.
 6. **Provenance + valid references.** References survive regrouping and resolve across the **three
    path-validation layers** (study.yaml → audit lint; test files → full suite; runtime source →
-   source-path-resolves grep). See RFC-0003 and the `/viva-consolidate` skill.
+   source-path-resolves grep). See RFC-0003 and the `/consolidate` skill.
 
 ## Proposed schema stub — `arms:` (NOT implemented; flagged for human decision)
 

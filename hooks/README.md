@@ -6,8 +6,8 @@ Plugin hooks for viva-superpowers.
 
 `hooks.json` registers a `SessionStart` hook (on `startup|clear|compact`) that
 runs `session-start` via the cross-platform `run-hook.cmd` wrapper. The script
-reads `skills/viva-orient/SKILL.md` and injects it as session context, so every
-session opens already oriented to the `/viva-*` skills and the two workspace +
+reads `skills/orient/SKILL.md` and injects it as session context, so every
+session opens already oriented to the `viva:` skills and the two workspace +
 workbench preconditions — no manual skill invocation needed.
 
 | File | Role |
@@ -18,4 +18,4 @@ workbench preconditions — no manual skill invocation needed.
 
 The mechanism mirrors the upstream [obra/superpowers](https://github.com/obra/superpowers)
 `using-superpowers` gateway. To change what every session sees, edit
-`skills/viva-orient/SKILL.md` — the hook picks it up on the next session.
+`skills/orient/SKILL.md` — the hook picks it up on the next session.

@@ -47,7 +47,7 @@ catalog / registry), so it is testable without a live server.
     fit exists (novelty warranted); if a fit exists, drift.
   - **survey_recorded** *(soft)* — `sourcing.rationale`/candidates present (the agent
     actually surveyed, didn't blind-build).
-- LLM near-miss hook: the `/viva-audit-tests` skill adds a semantic-fit judgment for
+- LLM near-miss hook: the `/audit-tests` skill adds a semantic-fit judgment for
   capability tokens the manifest tags miss (mirrors the existing det+LLM split).
 
 ## `loop_state` — a SELECT phase

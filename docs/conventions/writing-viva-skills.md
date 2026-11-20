@@ -1,12 +1,12 @@
 # Writing viva-* skills
 
-House conventions for authoring and editing the `/viva-*` skills. For the
+House conventions for authoring and editing the `viva:` skills. For the
 underlying *method* — baseline-testing a skill against a fresh agent, capturing
 rationalizations, tuning wording, token budgets — defer to
 [`superpowers:writing-skills`](https://github.com/obra/superpowers) (invoke it
 via the **Skill** tool). This file records only what is specific to this repo.
 
-The house exemplar is [`skills/viva-harden-investigation/SKILL.md`](../../skills/viva-harden-investigation/SKILL.md):
+The house exemplar is [`skills/harden-investigation/SKILL.md`](../../skills/harden-investigation/SKILL.md):
 a trigger description, a mode-classification table, red flags drawn from real
 sessions, and a "real-world impact" section. When in doubt, match its shape.
 
@@ -23,7 +23,7 @@ them fails the build.
    - ✅ `Use when wrapping any simulation tool as a process-bigraph Process, or composing wrapped simulators — including when the build looks hard or you are tempted to mock it.`
    - ❌ `Wraps a tool: clones the repo, builds it, writes a Process class, tests, a README, a showcase investigation, and publishes a read-only workbench…` (that is the deliverable spec — it belongs in the body).
 
-2. **The H1 matches the command.** The first `# …` line is `# /viva-<name>`, and
+2. **The H1 matches the command.** The first `# …` line is `# /<name>`, and
    `<name>` equals the directory name and the frontmatter `name:`. No `pbg-`
    titles (the rebrand is finished).
 
