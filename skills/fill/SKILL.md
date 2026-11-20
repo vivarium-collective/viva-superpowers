@@ -8,6 +8,32 @@ argument-hint: "[request.json] — reads a GenerationRequest (stdin or path), pr
 
 # /fill — the AI filler for the discovery cycle
 
+> **This skill runs non-interactively.** It is invoked as `claude -p "/viva:fill"`
+> with one `GenerationRequest` on stdin, and the discovery engine parses your
+> **entire stdout** with `json.loads`. Your final assistant message *is* that stdout.
+
+## Output contract — read this first (absolute)
+
+The engine sees **only your final assistant message**, and it must be **either**:
+
+- **exactly one `GenerationResult` JSON object** — raw text starting with `{` and
+  ending with `}`, no code fence, no ```json wrapper, no leading or trailing prose; **or**
+- **completely empty** — when you cannot fill the request honestly.
+
+Nothing else is allowed in the final message: no explanation, no preamble, no
+summary, no markdown, no "Want me to…?" question, no restating of the request. Do
+**all** reasoning, file reads, and checks through tool calls *before* the final
+message — the engine never sees those. A final message with prose around the JSON
+(even one sentence) fails `json.loads`, so the engine rejects the whole fill and
+your work is wasted. When torn between explaining and emitting nothing, **emit
+nothing**.
+
+To **abstain** (missing context, a number you don't have, an unresolved target, a
+branch point you shouldn't decide), make the final message empty — do **not**
+narrate *why*. The engine then leaves the request `queued_for_review`, which is the
+correct, honest outcome. An explanation of why you abstained is itself a contract
+violation: it is non-empty, non-JSON output.
+
 The discovery engine is a pure, LLM-free projection. It **emits** typed
 `GenerationRequest`s for the generative work the frontier wants
 (`discovery_engine.phases.generation` / `generation_emit`) and **applies** the
@@ -90,7 +116,7 @@ command in `$VIVA_FILLER_CMD`, feeding the request JSON on stdin and reading the
 result JSON on stdout. Wire this skill as that command, e.g.:
 
 ```bash
-export VIVA_FILLER_CMD='claude -p "/fill"'
+export VIVA_FILLER_CMD='claude -p "/viva:fill"'   # the namespaced plugin skill; bare /fill does not resolve
 # gate the kinds you want auto-filled (panel presets or discovery.gates):
 #   free_run      — fill everything
 #   propose_review — fill the cheap kinds, review the branch-points
