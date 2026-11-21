@@ -8,12 +8,14 @@ argument-hint: connect | submit | status | fetch  (or just read it as a runbook)
 
 # /remote-run
 
-Run a workspace composite on **viva-api** (the GovCloud simulation backend) and
-get its results back. This is the *remote* sibling of [`/run`](../run/SKILL.md)
-(local composite smoke-test) — same idea, but the sim executes on GovCloud Ray and
-emits to S3. The interactive [`/workbench`](../workbench/SKILL.md) server
-is what a human drives; this skill is the run-path + params + gotchas the agent
-needs to actually land a remote run.
+> **Stage:** Experiment · **Service:** — · **Lifecycle:** Simulate (remote execute). Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
+The **Experiment**-stage remote-execute path: run a workspace composite on
+**viva-api** (the GovCloud simulation backend) and get its results back. This is
+the *remote* sibling of [`/run`](../run/SKILL.md) (local composite smoke-test) —
+same idea, but the sim executes on GovCloud Ray and emits to S3. The interactive
+[`/workbench`](../workbench/SKILL.md) server is what a human drives; this skill
+is the run-path + params + gotchas the agent needs to actually land a remote run.
 
 This skill is **framework-generic** — it describes how *any* workspace composite
 runs on viva-api. Domain specifics (which composite, which config, which KPI leaf)

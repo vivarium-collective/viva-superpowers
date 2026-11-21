@@ -8,26 +8,27 @@ argument-hint: [model-name | --all | --audit | --lint | --force | --skip-audit]
 
 # /report
 
-Regenerates the workspace dashboard + per-investigation reports. Runs a
-reviewer-readiness audit FIRST (Pass A — verdict ↔ chart drift, stale
-framings, demoted-chart citations, uncommitted state, suggested follow-ups,
-AND required proposals for new visualizations a reviewer should consider),
-THEN the structural lint (Pass B — schema correctness, status
-contradictions, placeholders), then renders. Idempotent.
+> **Stage:** Synthesize · **Service:** — · **Lifecycle:** Decide (publication). Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
 
-Transversal skill (no stage). Run **before sending the report to an external reviewer** (e.g. Chris on a PR) OR at end-of-stage to refresh the dashboards.
+The **Synthesize**-stage publication step: regenerates the workspace dashboard +
+per-investigation reports from the graph's `findings`/verdicts (and, where they
+exist, discovery candidates). Runs a reviewer-readiness audit FIRST (Pass A —
+verdict ↔ chart drift, stale framings, demoted-chart citations, uncommitted
+state, suggested follow-ups, AND required proposals for new visualizations),
+THEN the structural lint (Pass B — schema correctness, status contradictions,
+placeholders), then renders. Idempotent. Run **before sending a report to an
+external reviewer** (e.g. Chris on a PR) OR at end-of-stage to refresh the
+dashboards.
 
 ## Why two passes
 
-Earlier versions of this skill ran only the structural lint (Pass B). Real reports kept shipping with **internal inconsistencies that lint can't catch**:
-
-- The executive verdict cites a chart that was demoted to companion-status by a later commit ("Beulig 50-80 g/L target" while the load-bearing chart says "9.6 g/L peak").
-- Numerical claims in the verdict drift from the chart-meta values that back them.
-- New parquet runs land in `studies/.../parquet-runs/` but the executive panel still references the old reference sim.
-- Uncommitted regenerated SVGs in the working tree would land in the next render but aren't on the branch yet.
-- Obvious next experiments (e.g. "we ran single_daughters; both_daughters would tell a different story") are NOT surfaced as `decisions_needed`.
-
-These are reviewer-readiness issues: lint says "the YAML is well-formed"; the audit asks "would the reviewer find this self-consistent?" Both matter; both run before render.
+Lint alone (Pass B) only proves the YAML is well-formed; it can't catch the
+**internal inconsistencies** that make a report un-reviewer-ready — a verdict
+citing a chart a later commit demoted, numerical claims that drift from the
+chart-meta backing them, new runs the executive panel ignores, uncommitted SVGs
+not yet on the branch, or obvious next experiments never surfaced as
+`decisions_needed`. Pass A asks "would the reviewer find this self-consistent?"
+Both matter; both run before render.
 
 ## Operation
 
@@ -408,54 +409,7 @@ Other skills should invoke `/report --skip-audit` as part of step 8 of the spec 
 
 For reviewer-ready snapshots (sending to an expert, attaching to a PR description, downloading from the dashboard's investigation page), invoke `/report` with NO flags — both passes run, you get the audit + suggested follow-ups + the render.
 
-## Example end-to-end (from a recent session)
+## Example end-to-end
 
-A typical Pass A finding cascade:
-
-```
-$ /report
-
-== Pass A: reviewer-readiness audit ==
-  blocking:  0
-  warning:   2
-  info:      1
-
-[warning] verdict→chart mismatch:
-  investigations/multiscale-bioprocess/investigation.yaml:354
-  cites .../charts/00_preliminary_v2ecoli_vs_beulig_gap.svg as primary,
-  but that chart is listed in
-  studies/mbp-05-palsson-benchmark/study.yaml.preliminary_findings.companion_charts.
-  Recommend: promote .../charts/02_v2ecoli_vs_beulig_batch_actual.svg (the
-  load-bearing chart per the same study yaml) and demote 00 to a
-  companion_chart link in the verdict.
-
-[warning] numerical drift:
-  Verdict says "Beulig 50-80 gDW/L batch-phase endpoint".
-  Chart 02's meta.json interpretation says "Beulig batch peak ≈ 9.6 g/L".
-  Recommend: update the verdict line to "9.6 g/L peak (batch); the
-  50-80 g/L is the fed-batch endpoint."
-
-[info] 7 commits ahead of origin/main; last:
-  decefdc feat(mbp-05): plateau-diagnostic chart 02 from 175-min salvaged trajectory
-  395fc94 doc(mbp-05): correct preliminary finding to Beulig batch peak 9.6 g/L
-  ...
-
-Suggested follow-ups before sending to reviewer:
-  1. Run cpa=1e9 with --no-single-daughters for one generation
-     — would let chart 02 show "both daughters accumulates while single
-     plateaus" empirically (currently chart only shows the single side).
-     Effort: ~10 min sim + 5 min chart re-render.
-  2. Resolve "mbp-03 entry into Build still gated by upstream PR" in
-     decisions_needed — git log --grep "pbg-bioreactor-transport-fork"
-     shows no movement; either remove the decision or update it to "still
-     gated as of <date>".
-     Effort: single-line edit.
-  3. mbp-04..06 still phase=Design; chart panels render empty. Consider
-     either rolling them into a "Planned next" section of the verdict OR
-     adding a sentence per study about its status.
-     Effort: single-file edit.
-
-Render anyway? (Pass B and render are next.)
-```
-
-Each finding gives the reviewer-facing surface, the exact YAML location, and the proposed fix. The suggested follow-ups distinguish "you can do this in five minutes" from "blocked on someone else."
+A full worked Pass A finding cascade (verdict→chart mismatch, numerical drift,
+suggested follow-ups) lives in [`reference.md`](reference.md).
