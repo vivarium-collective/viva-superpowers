@@ -11,7 +11,7 @@ dependencies = [
     "jsonschema[format-nongpl]>=4.21",
     "jinja2>=3.1",
     "click>=8.1",
-    "bigraph-schema>=1.8.2",
+    "bigraph-schema>=1.8.2,<1.8.4",  # 1.8.4 removed bigraph_schema.matching, which process-bigraph<=1.11.0 still imports (via process_bigraph.holes) — uncapped fresh resolves break at import. Cap until process-bigraph catches up.
     "process-bigraph>=1.8.2",
     "pypdf>=4.0",
     # Shared source of truth for workspace-layout logic (WorkspacePaths, the
