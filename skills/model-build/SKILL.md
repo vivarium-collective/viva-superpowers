@@ -8,11 +8,19 @@ argument-hint: <study-slug> [--question "<text>"] [--max-iterations N] [--autono
 
 # /model-build
 
+> **Stage:** Hypothesize → Synthesize (spans the loop) · **Service:** Orchestrator · **Lifecycle:** Design → Decide. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 Drive the **agentic model-building loop**: an open-ended `question` → validated
 model, by iterating the model against pre-registered, audited Tests. This skill is
 the *driver* — orchestration + invariant enforcement only. It never grades, never
 authors Tests, never edits a locked Test. Grading is `study_evaluator`; Test
 authoring is `/study`; sufficiency is `/tests audit`.
+
+As the cycle's **Orchestrator**, its state machine realizes the discovery stages:
+AUTHOR/AUDIT/LOCK is **Hypothesize**, SELECT/SPIKE/BUILD is **Model**, RUN is
+**Experiment**, EVALUATE is **Evaluate**, and DECIDE/NAVIGATE is **Synthesize** (the
+cross-walk has the full table). A RUN's measured outcome is an *Observation*; the
+findings DECIDE records from it are *Findings*.
 
 Spec: `docs/superpowers/specs/2026-08-16-agentic-model-building-loop-design.md`.
 Preconditions (per `/orient`): a workspace + the workbench running.
