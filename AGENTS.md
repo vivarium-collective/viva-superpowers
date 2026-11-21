@@ -56,7 +56,7 @@ always means **workspace first**.
 | **Workspace lifecycle** | `/workspace` (scaffold), `/workbench` (dashboard server), `/init` (machine setup) |
 | **Studies & runs** | `/study` (design→build→simulate→evaluate→decide), `/tests` (author/enrich/run graded tests → margin + diff feedback; also `audit` — Tests sufficiency before pre-registration lock — and `cite-bands` — acceptance-band provenance), `/model-build` (autonomous loop: question → author Tests → audit → lock → build/run/evaluate → iterate model until pass), `/benchmark` (run a suite through the loop → process-quality rubric → report diff-able across framework variants), `/run`, `/investigate`, `/report`, `/viz` |
 | **Navigate & status** | `/catalog`, `/explore` (read-only graph queries + "decisions needed"; also `status`) |
-| **Evidence & rigor** | `/validate` (also `biology-forward` — author biological interpretation of findings), `/consolidate` (merge settled probe-studies → one multi-arm study; destructive, non-reversible) |
+| **Evidence & rigor** | `/harden` (also `biology-forward` — author biological interpretation of findings), `/consolidate` (merge settled probe-studies → one multi-arm study; destructive, non-reversible) |
 
 Each names `skills/<name>/SKILL.md`. Vocabulary and on-disk shapes:
 `docs/concepts/vivarium-workbench-model.md`.
