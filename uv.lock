@@ -2396,7 +2396,7 @@ processes = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bigraph-schema", specifier = ">=1.8.2" },
+    { name = "bigraph-schema", specifier = ">=1.8.2,<1.8.4" },
     { name = "click", specifier = ">=8.1" },
     { name = "filelock", specifier = ">=3.12" },
     { name = "investigation-contracts", marker = "extra == 'events'", git = "https://github.com/vivarium-collective/investigation-contracts.git?branch=main" },
