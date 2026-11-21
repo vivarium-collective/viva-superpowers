@@ -96,6 +96,24 @@ actually run them.
    of `closed` / `budget_exhausted` / `no_informative_experiment` /
    `insufficient_evidence` is a **legitimate halt, not a failure**.
 
+   **End-to-end apply of visualize / propose_study (opt-in).** Two generation
+   kinds — `visualize` and `propose_study` — are *CLI-verb kinds*: the pure engine
+   deliberately does not auto-apply them, because applying one must RENDER a figure
+   or SEED a study. By default the drive **queues** them for a human to apply with
+   `/viva:viz` / `/viva:study`. To let the drive land them itself, also export the
+   applier — [`/viva:apply-cli-verb`](../apply-cli-verb/SKILL.md), the apply-side
+   counterpart to `/fill`:
+   ```bash
+   export VIVA_CLI_APPLIER_CMD='claude -p "/viva:apply-cli-verb"'
+   ```
+   `discover investigate` passes it to the loop (via `subprocess_cli_applier()`),
+   so each `visualize` / `propose_study` request is dispatched to the applier, which
+   renders the figure / seeds the study through the same canonical skill and reports
+   what landed. This is **heavier** (one LLM apply per CLI-verb request, charged
+   against `--generation-calls`), so enable it only when you want rendered viz +
+   seeded studies to land in the drive, not just the cheap derivations. Unset, the
+   behaviour above is unchanged.
+
 6. **Report honestly.** State the goal, the budget, the stop reason, how many acts
    applied, and *what the goal actually biased* (which requests filled, which were
    deferred). Point at the decision log (`decision_log[]` in the investigation) and
