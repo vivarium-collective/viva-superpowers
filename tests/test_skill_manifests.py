@@ -26,17 +26,17 @@ import yaml
 # as subcommands/aspects and removed their standalone dirs:
 #   viva-audit-tests   -> tests   "### Subcommand: audit"
 #   viva-cite-bands    -> tests   "### Subcommand: cite-bands"
-#   viva-status        -> navigate "### Subcommand: status"
-#   viva-biology-forward -> harden-investigation "### Aspect: biology-forward"
+#   viva-status        -> explore  "### Subcommand: status"
+#   viva-biology-forward -> validate "### Aspect: biology-forward"
 # Keep in sync with docs/skills.md + README/CLAUDE counts — the test below fails on drift.
 _VIVA_CORE = {
-    "catalog", "expert",
-    "init", "investigation", "navigate",
+    "catalog", "model",
+    "init", "investigate", "explore",
     "remote-run", "report", "run", "study", "tests",
     "viz", "workbench", "workspace",
 }
-_VIVA_EXTRA = {"harden-investigation", "model-build", "benchmark",
-               "consolidate", "fill", "drive-engine", "apply-cli-verb"}
+_VIVA_EXTRA = {"validate", "model-build", "benchmark",
+               "consolidate", "reason", "discover", "apply-cli-verb"}
 _VIVA_INVOCABLE = _VIVA_CORE | _VIVA_EXTRA
 USER_INVOCABLE_SKILLS = _VIVA_INVOCABLE
 

@@ -21,7 +21,7 @@ broader support is incremental.
 2. Point Codex at this repo so it reads **`AGENTS.md`** (the gateway) and can open
    `skills/<name>/SKILL.md` on demand.
 3. Describe what you want to model. The gateway routes you: `/workspace` →
-   `/workbench start` → `/expert` or `/study`. Follow the referenced
+   `/workbench start` → `/model` or `/study`. Follow the referenced
    `SKILL.md`, using [`references/codex-tools.md`](../references/codex-tools.md) to
    translate any Claude idioms.
 

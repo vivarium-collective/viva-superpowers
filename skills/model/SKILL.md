@@ -1,5 +1,5 @@
 ---
-name: expert
+name: model
 description: >
   Use when wrapping any simulation tool (ODE/FBA/particle/spatial solver, binary, or library) as a
   process-bigraph Step/Process, or composing wrapped simulators into a Composite — including when
@@ -11,7 +11,7 @@ effort: high
 argument-hint: "[--lightweight] [--reproduce|--mock] <tool-name> | [--lightweight] <composite-name> <tool1> <tool2> [tool3 ...]"
 ---
 
-# /expert
+# /model
 
 You are a process-bigraph API expert. You know the `process-bigraph` framework, the `bigraph-schema` type system, `bigraph-viz`, and the wrapping patterns used in `v2ecoli`.
 

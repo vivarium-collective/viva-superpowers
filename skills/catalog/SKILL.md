@@ -71,7 +71,7 @@ for s in sk:
 '
 ```
 
-If `dirty_count > 0`, hint that `/navigate status` shows the full paths.
+If `dirty_count > 0`, hint that `/explore status` shows the full paths.
 
 ## install
 

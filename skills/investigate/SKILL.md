@@ -1,12 +1,12 @@
 ---
-name: investigation
+name: investigate
 description: "Use when grouping multiple Studies under a shared research question — creating, opening, listing, or closing an Investigation, or adding/removing member studies and orchestrating a run across all of them."
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit Glob
 argument-hint: <subcmd> [args...]
 ---
 
-# /investigation
+# /investigate
 
 The interface for **Investigations** in the vivarium-workbench: named collections of studies that together answer a higher-level research question.
 
@@ -16,7 +16,7 @@ See [`docs/concepts/vivarium-workbench-model.md`](../../docs/concepts/vivarium-w
 
 ## Where this sits in the arc
 
-Step 2 of the generation arc (full arc in `/orient`): `/expert` (source the
+Step 2 of the generation arc (full arc in `/orient`): `/model` (source the
 model) → **investigation** (group studies into a campaign) → `/study` (per
 study, usually driven by `/model-build`) → `/run` (smoke-test) →
 `/report` (publish read-only via `vivarium-workbench-publish` → gh-pages).
@@ -181,7 +181,7 @@ Scientific Enrichment Plan §14):
 6. **Shared modules across scenarios.** Multiple scenarios (deep/shallow vents,
    terrestrial geothermal, photochemical) reuse the same composite modules and
    are compared through the same gates (see the composites-are-reusable-modules
-   rule in [viva-expert](../expert/SKILL.md)).
+   rule in [viva-model](../model/SKILL.md)).
 7. **Negative results are scientific output.** A broken transition is a finding,
    not a failure to hide — it identifies an experimentally targetable
    bottleneck. Frame a member study that *refutes* its hypothesis as a result
@@ -342,7 +342,7 @@ acceptance_criteria: []  # populate BEFORE runs — pre-stated directional prior
 All v2 narrative-spine fields are optional per `investigation.schema.json`, so the scaffold validates on day one. The user opts in by uncommenting + filling sections. See `template/NEXT_STEPS.md` in viva-template for the full pattern + when to fill each.
 
 7. `git add "$INVESTIGATIONS_DIR/<slug>/investigation.yaml"` then commit: `git commit -m "feat(investigation): scaffold <slug>"`. Do NOT push — the user pushes manually when ready.
-8. Print: `Created branch '<slug>' + $INVESTIGATIONS_DIR/<slug>/investigation.yaml (committed). Use /investigation open <slug> to create a worktree and start a dashboard, or /investigation add-study <slug> <study-slug> to add member studies.`
+8. Print: `Created branch '<slug>' + $INVESTIGATIONS_DIR/<slug>/investigation.yaml (committed). Use /investigate open <slug> to create a worktree and start a dashboard, or /investigate add-study <slug> <study-slug> to add member studies.`
 
 **Rollback on failure:** if step 4 succeeds but a later step fails, the assistant must `git checkout -` back to the previous branch and `git branch -D <slug>` to leave the repo in a clean state before reporting the error.
 
@@ -369,7 +369,7 @@ Create (or re-use) a git worktree for branch `<slug>` at the standard location `
 **Steps:**
 
 1. Validate slug format.
-2. Check branch `<slug>` exists (`git show-ref --verify --quiet refs/heads/<slug>`). If not, fail with: `No branch named '<slug>'. Create it first with /investigation new <slug>, or rename an existing branch with git branch -m <old> <slug>.`
+2. Check branch `<slug>` exists (`git show-ref --verify --quiet refs/heads/<slug>`). If not, fail with: `No branch named '<slug>'. Create it first with /investigate new <slug>, or rename an existing branch with git branch -m <old> <slug>.`
 3. Compute `worktree_path = .pbg/worktrees/<slug>`.
 4. If `worktree_path` already exists AND is registered as a git worktree (check `git worktree list --porcelain`), print: `Worktree already exists at <worktree_path> (branch <slug>).` and skip to step 6.
 5. Otherwise, run `git worktree add <worktree_path> <slug>`. Surface any git error verbatim (most common: branch already checked out elsewhere — the standard worktree path is the only sanctioned mount point, so the user should `git worktree remove` the conflicting one first).
@@ -423,7 +423,7 @@ List all investigations in the workspace.
 <slug>  <title>  <status>  <n_studies> studies
 ```
 
-If no investigations exist, print: `No investigations found. Run /investigation new <slug> to create one.`
+If no investigations exist, print: `No investigations found. Run /investigate new <slug> to create one.`
 
 ---
 
@@ -543,7 +543,7 @@ Update one or more overview fields on an investigation. Each flag is optional; o
 **Example:**
 
 ```bash
-/investigation set-overview dnaa-replication \
+/investigate set-overview dnaa-replication \
   --title "DnaA / Replication Initiation" \
   --question "Can the DnaA mechanistic model reproduce once-per-generation timing?"
 ```
@@ -764,16 +764,16 @@ Run the investigation's bespoke-script studies in declaration order by calling `
 
 ```bash
 # Run every study with a canonical_runs block
-/investigation run dnaa-replication
+/investigate run dnaa-replication
 
 # Smoke-only across the full chain (fast validation)
-/investigation run dnaa-replication --entry smoke
+/investigate run dnaa-replication --entry smoke
 
 # Re-run a subset, don't bail on the first failure
-/investigation run dnaa-replication --studies dnaa-01-expression-dynamics,dnaa-02-atp-hydrolysis --keep-going
+/investigate run dnaa-replication --studies dnaa-01-expression-dynamics,dnaa-02-atp-hydrolysis --keep-going
 
 # Preview without running
-/investigation run dnaa-replication --dry-run
+/investigate run dnaa-replication --dry-run
 ```
 
 The orchestrator is intentionally thin — it does not write to `runs.db`, doesn't manage parallelism, doesn't retry. Each member study's runner owns its own composite construction, emitter wiring, and (when relevant) `parquet_emitter()` lifecycle (see PR #88 — `emit.bind(composite)` for auto-flush on exit).
@@ -811,10 +811,10 @@ Studies that have no `runs.db` or no `visualizations[]` entries are skipped with
 
 ```bash
 # Refresh all studies in the investigation
-/investigation refresh-viz dnaa-replication
+/investigate refresh-viz dnaa-replication
 
 # Refresh a subset
-/investigation refresh-viz dnaa-replication --studies dnaa-01-expression-dynamics,dnaa-02-atp-hydrolysis
+/investigate refresh-viz dnaa-replication --studies dnaa-01-expression-dynamics,dnaa-02-atp-hydrolysis
 ```
 
 ---
@@ -867,16 +867,16 @@ actions + contributors + PR URL for the user.
 
 ```bash
 # Standard close — render report, stamp YAML, commit, open PR.
-/investigation close dnaa-replication
+/investigate close dnaa-replication
 
 # Dry-run to see what would happen.
-/investigation close dnaa-replication --dry-run
+/investigate close dnaa-replication --dry-run
 
 # Close without re-rendering the report (already rendered).
-/investigation close dnaa-replication --skip-report
+/investigate close dnaa-replication --skip-report
 
 # Close offline — no remote interaction.
-/investigation close dnaa-replication --no-pr
+/investigate close dnaa-replication --no-pr
 ```
 
 The close mechanic runs server-side via `POST /api/iset-close` (the workbench backs it with the same `close_investigation` compute); the dashboard's "Close investigation" button posts to the same endpoint, so the skill and the UI share one path. Because close renders the report + reads `git log`, the dashboard server must be running (`/workbench start`).
@@ -903,39 +903,39 @@ def atomic_write_yaml(path: str, data: dict) -> None:
 
 ```text
 # Create a new empty investigation (also creates branch + commits YAML)
-/investigation new dnaa-replication
+/investigate new dnaa-replication
 
 # Open an isolated worktree for that investigation + boot a dashboard
-/investigation open dnaa-replication
+/investigate open dnaa-replication
 
 # Open the worktree without starting a server (e.g., for a scripted run)
-/investigation open dnaa-replication --no-server
+/investigate open dnaa-replication --no-server
 
 # List all investigations
-/investigation list
+/investigate list
 
 # Add an existing study to an investigation
-/investigation add-study dnaa-replication dnaa-01-expression-dynamics
+/investigate add-study dnaa-replication dnaa-01-expression-dynamics
 
 # Remove a study from an investigation
-/investigation remove-study dnaa-replication dnaa-06-seqa-sequestration
+/investigate remove-study dnaa-replication dnaa-06-seqa-sequestration
 
 # Update overview fields
-/investigation set-overview dnaa-replication \
+/investigate set-overview dnaa-replication \
   --title "DnaA / Replication Initiation" \
   --question "Can a DnaA-driven model reproduce once-per-generation initiation timing?"
 
 # Change status
-/investigation set-status dnaa-replication running
+/investigate set-status dnaa-replication running
 
 # Scaffold a full investigation + studies from a plan PDF (preview only)
-/investigation scaffold-from-plan references/expert/chromosome_replication_plan.pdf \
+/investigate scaffold-from-plan references/expert/chromosome_replication_plan.pdf \
   --name dnaa-replication \
   --studies-prefix dnaa- \
   --dry-run
 
 # Scaffold and write
-/investigation scaffold-from-plan references/expert/chromosome_replication_plan.pdf \
+/investigate scaffold-from-plan references/expert/chromosome_replication_plan.pdf \
   --name dnaa-replication \
   --studies-prefix dnaa-
 ```

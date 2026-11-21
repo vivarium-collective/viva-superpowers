@@ -1,14 +1,14 @@
 ---
-name: fill
+name: reason
 description: Use when acting as the AI *filler* for the discovery engine's generation contract — turning one typed GenerationRequest (propose_study / acquire_model / author_tests / interpret_finding / resolve_decision / explain / visualize) into the GenerationResult the engine applies. The generative half of the AI-drivable cycle, wired as $VIVA_FILLER_CMD for `discover requests --fill`. Honors the honesty rules — no fabricated numbers, provided-mechanisms-only.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit
 argument-hint: "[request.json] — reads a GenerationRequest (stdin or path), prints a GenerationResult JSON"
 ---
 
-# /fill — the AI filler for the discovery cycle
+# /reason — the AI filler for the discovery cycle
 
-> **This skill runs non-interactively.** It is invoked as `claude -p "/viva:fill"`
+> **This skill runs non-interactively.** It is invoked as `claude -p "/viva:reason"`
 > with one `GenerationRequest` on stdin, and the discovery engine parses your
 > **entire stdout** with `json.loads`. Your final assistant message *is* that stdout.
 
@@ -67,7 +67,7 @@ number you do not have), print nothing (empty output) — the runner then leaves
 `queued_for_review`. **Never** invent a result to avoid an empty output.
 
 **Steering (`context.goal`).** When a drive sets a free-text goal (via
-`discover investigate --goal` / `/drive-engine`), every request carries it in
+`discover investigate --goal` / `/discover`), every request carries it in
 `context["goal"]`. Treat it as the user's standing instruction for *this* run:
 let it shape emphasis, framing, tone, and — where the request genuinely leaves a
 choice — which option you take (e.g. a goal of "visual exposition of the baseline
@@ -116,7 +116,7 @@ command in `$VIVA_FILLER_CMD`, feeding the request JSON on stdin and reading the
 result JSON on stdout. Wire this skill as that command, e.g.:
 
 ```bash
-export VIVA_FILLER_CMD='claude -p "/viva:fill"'   # the namespaced plugin skill; bare /fill does not resolve
+export VIVA_FILLER_CMD='claude -p "/viva:reason"'   # the namespaced plugin skill; bare /reason does not resolve
 # gate the kinds you want auto-filled (panel presets or discovery.gates):
 #   free_run      — fill everything
 #   propose_review — fill the cheap kinds, review the branch-points

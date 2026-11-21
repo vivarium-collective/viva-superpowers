@@ -39,24 +39,24 @@ announce **"Using /X to …"**.
 |---|---|
 | No `workspace.yaml` in cwd/ancestors, and the user wants to model something | `/workspace <name>` **first** — never wrap tools or write models into a bare directory |
 | Workspace exists, but `.pbg/server/` is missing/stale (no dashboard) | `/workbench start` |
-| "wrap X" / "use simulator X" / "add a solver" | `/expert` (default bridges the REAL tool; `--lightweight` for in-workspace) |
-| "is X true?" / "compare A vs B" / any research question | `/study new` (group several under `/investigation`) |
+| "wrap X" / "use simulator X" / "add a solver" | `/model` (default bridges the REAL tool; `--lightweight` for in-workspace) |
+| "is X true?" / "compare A vs B" / any research question | `/study new` (group several under `/investigate`) |
 | "run this composite" / "what does it emit?" | `/run` (local) · `/remote-run` (viva-api / GovCloud) |
-| "what's here?" / lost / just arrived | `/navigate status`, then `/catalog` |
+| "what's here?" / lost / just arrived | `/explore status`, then `/catalog` |
 
 **First session, from nothing:** `/workspace my-model` → `/workbench start`
-→ then wrap a tool (`/expert`) or design a study (`/study`). "Model X"
+→ then wrap a tool (`/model`) or design a study (`/study`). "Model X"
 always means **workspace first**.
 
 ## Skill map
 
 | Group | Skills |
 |---|---|
-| **Wrap & compose** | `/expert` (wrap a simulator as a Process, or compose several) |
+| **Wrap & compose** | `/model` (wrap a simulator as a Process, or compose several) |
 | **Workspace lifecycle** | `/workspace` (scaffold), `/workbench` (dashboard server), `/init` (machine setup) |
-| **Studies & runs** | `/study` (design→build→simulate→evaluate→decide), `/tests` (author/enrich/run graded tests → margin + diff feedback; also `audit` — Tests sufficiency before pre-registration lock — and `cite-bands` — acceptance-band provenance), `/model-build` (autonomous loop: question → author Tests → audit → lock → build/run/evaluate → iterate model until pass), `/benchmark` (run a suite through the loop → process-quality rubric → report diff-able across framework variants), `/run`, `/investigation`, `/report`, `/viz` |
-| **Navigate & status** | `/catalog`, `/navigate` (read-only graph queries + "decisions needed"; also `status`) |
-| **Evidence & rigor** | `/harden-investigation` (also `biology-forward` — author biological interpretation of findings), `/consolidate` (merge settled probe-studies → one multi-arm study; destructive, non-reversible) |
+| **Studies & runs** | `/study` (design→build→simulate→evaluate→decide), `/tests` (author/enrich/run graded tests → margin + diff feedback; also `audit` — Tests sufficiency before pre-registration lock — and `cite-bands` — acceptance-band provenance), `/model-build` (autonomous loop: question → author Tests → audit → lock → build/run/evaluate → iterate model until pass), `/benchmark` (run a suite through the loop → process-quality rubric → report diff-able across framework variants), `/run`, `/investigate`, `/report`, `/viz` |
+| **Navigate & status** | `/catalog`, `/explore` (read-only graph queries + "decisions needed"; also `status`) |
+| **Evidence & rigor** | `/validate` (also `biology-forward` — author biological interpretation of findings), `/consolidate` (merge settled probe-studies → one multi-arm study; destructive, non-reversible) |
 
 Each names `skills/<name>/SKILL.md`. Vocabulary and on-disk shapes:
 `docs/concepts/vivarium-workbench-model.md`.

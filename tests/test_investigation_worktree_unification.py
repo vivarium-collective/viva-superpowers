@@ -23,7 +23,7 @@ def _skill(name: str) -> str:
 
 
 def test_pbg_investigation_documents_open_subcommand():
-    text = _skill("investigation")
+    text = _skill("investigate")
     assert "### `open <slug>" in text, (
         "investigation must document the new `open` subcommand "
         "(creates worktree under .pbg/worktrees/<slug>/ + optional server boot)."
@@ -31,7 +31,7 @@ def test_pbg_investigation_documents_open_subcommand():
 
 
 def test_pbg_investigation_frontmatter_lists_open():
-    text = _skill("investigation")
+    text = _skill("investigate")
     # Argument hint / description should advertise the new subcommand so
     # the catalog surfaces it. We allow either.
     head = text.split("\n---\n", 2)[0]
@@ -42,7 +42,7 @@ def test_pbg_investigation_frontmatter_lists_open():
 
 
 def test_pbg_investigation_new_creates_branch_and_commits():
-    text = _skill("investigation")
+    text = _skill("investigate")
     # The procedure should explicitly create a branch and commit the YAML
     # on it. We assert on the load-bearing operations, not on prose.
     assert "git checkout -b <slug>" in text, (
@@ -56,7 +56,7 @@ def test_pbg_investigation_new_creates_branch_and_commits():
 
 
 def test_pbg_investigation_open_uses_standard_worktree_path():
-    text = _skill("investigation")
+    text = _skill("investigate")
     assert ".pbg/worktrees/<slug>" in text, (
         "investigation open must use the standard worktree location "
         "<workspace>/.pbg/worktrees/<slug>/ so cross-worktree tools (and "
@@ -65,7 +65,7 @@ def test_pbg_investigation_open_uses_standard_worktree_path():
 
 
 def test_pbg_investigation_documents_branch_worktree_equivalence():
-    text = _skill("investigation")
+    text = _skill("investigate")
     assert "Investigation ≡ branch ≡ worktree" in text, (
         "investigation must document the 1:1 slug/branch/worktree "
         "convention up front — that's the load-bearing invariant Pass C."

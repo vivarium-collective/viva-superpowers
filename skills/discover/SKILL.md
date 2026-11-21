@@ -1,19 +1,19 @@
 ---
-name: drive-engine
+name: discover
 description: Use when you want to drive the discovery engine on one investigation with a free-text steering goal — e.g. "develop this toward <X>", "make this a visual exposition of <Y>", "push <inv> further". Runs the engine's bounded loop (discover investigate --goal) with the goal threaded into every generative act, so what it proposes and fills is shaped toward the goal while the frontier, gates, budget, and honesty rules stay the engine's.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit
 argument-hint: "<investigation-slug> <steering prompt...>  — e.g. ecoli-baseline make this a visual exposition of the baseline biology"
 ---
 
-# /drive-engine — steer the discovery cycle with a free-text goal
+# /discover — steer the discovery cycle with a free-text goal
 
 Drives the **discovery engine** on one investigation and lets a free-text
 *steering goal* influence what the engine develops. It is the autonomous
-counterpart to `/fill`: `/fill` fills **one** request you hand it;
-`/drive-engine` runs the engine's bounded **loop** (`discover investigate`) —
+counterpart to `/reason`: `/reason` fills **one** request you hand it;
+`/discover` runs the engine's bounded **loop** (`discover investigate`) —
 project the cycle → emit the frontier's typed `GenerationRequest`s → fill the
-auto-gated ones through `/fill` → apply → repeat, under a budget — with your
+auto-gated ones through `/reason` → apply → repeat, under a budget — with your
 goal threaded through every step.
 
 **What the engine keeps (it is not a free-text generator):** the frontier,
@@ -22,7 +22,7 @@ opportunities, gates, budget, and honesty rules stay the engine's. The goal does
 `discovery_engine/discover/investigate.py`):
 
 1. **Shapes how each act is filled** — every request carries the goal in
-   `context["goal"]`, so `/fill` pitches the generated study / interpretation
+   `context["goal"]`, so `/reason` pitches the generated study / interpretation
    / decision / **visualization** toward it (richer, more explanatory, on-theme),
    within the no-fabricated-numbers / provided-mechanisms-only rules.
 2. **Shapes which acts run first** — the auto-gated requests are stably ordered by
@@ -44,7 +44,7 @@ actually run them.
    the installed engine predates the steering hook — tell the user to update
    `viva-discovery-engine`, and do not silently run without the goal.
 3. **A model behind the filler** — the generative half runs an LLM via
-   `$VIVA_FILLER_CMD`. This skill sets it to `/fill` (below). With no filler,
+   `$VIVA_FILLER_CMD`. This skill sets it to `/reason` (below). With no filler,
    the drive is a safe projection — it emits and logs but applies nothing.
 
 ## Steps
@@ -78,12 +78,12 @@ actually run them.
    discovery:
      goal: "<the steering goal>"
    ```
-   Write it with the atomic tmp-file + rename pattern (see `/investigation`),
+   Write it with the atomic tmp-file + rename pattern (see `/investigate`),
    not an in-place edit. Skip this for a one-off drive.
 
 5. **Wire the filler and run the bounded drive**, with a budget so it halts cleanly:
    ```bash
-   export VIVA_FILLER_CMD='claude -p "/viva:fill"'   # namespaced plugin skill; bare /fill does not resolve
+   export VIVA_FILLER_CMD='claude -p "/viva:reason"'   # namespaced plugin skill; bare /reason does not resolve
    discover --workspace "$WS" investigate <slug> \
      --goal "<the steering goal>" \
      --generation-calls 8        # cap LLM fills; tune to the budget the user wants
@@ -102,7 +102,7 @@ actually run them.
    or SEED a study. By default the drive **queues** them for a human to apply with
    `/viva:viz` / `/viva:study`. To let the drive land them itself, also export the
    applier — [`/viva:apply-cli-verb`](../apply-cli-verb/SKILL.md), the apply-side
-   counterpart to `/fill`:
+   counterpart to `/reason`:
    ```bash
    export VIVA_CLI_APPLIER_CMD='claude -p "/viva:apply-cli-verb"'
    ```

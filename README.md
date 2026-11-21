@@ -19,7 +19,7 @@ Then just describe what you want to model — in plain language:
 
 > **"Scaffold a workspace called `demo`, wrap the Lotka–Volterra predator–prey equations as a process, and run it for 100 steps."**
 
-Claude routes that through the skills automatically (`viva-orient` is auto-injected each session): `/workspace demo` scaffolds the workspace → `/workbench start` boots the dashboard and prints a local URL → `/expert` wraps the equations as a typed Process → `/run` executes it. Open the URL and you'll see the composite, its emitted trajectories, and a live run — a working process-bigraph model you never wrote the boilerplate for. From there: ask for a Study (`/study`), a figure (`/viz`), or wrap a real solver (an ODE integrator, a COBRA/FBA model).
+Claude routes that through the skills automatically (`viva-orient` is auto-injected each session): `/workspace demo` scaffolds the workspace → `/workbench start` boots the dashboard and prints a local URL → `/model` wraps the equations as a typed Process → `/run` executes it. Open the URL and you'll see the composite, its emitted trajectories, and a live run — a working process-bigraph model you never wrote the boilerplate for. From there: ask for a Study (`/study`), a figure (`/viz`), or wrap a real solver (an ODE integrator, a COBRA/FBA model).
 
 That's the whole loop: **describe → Claude invokes the right `viva:` skill → the dashboard reflects it.** The rest of this README is reference.
 
@@ -56,7 +56,7 @@ You drive the workspace by talking to Claude; Claude writes the typed Python, YA
 
         /workbench start
 
-3. Start authoring in natural language. Ask Claude to wrap a simulator (`/expert <tool>` for a sibling package, or `/expert --lightweight <tool>` in-workspace), compose a model (`/expert <name> <tools…>`), or design a study (`/study new`).
+3. Start authoring in natural language. Ask Claude to wrap a simulator (`/model <tool>` for a sibling package, or `/model --lightweight <tool>` in-workspace), compose a model (`/model <name> <tools…>`), or design a study (`/study new`).
 
 **What to expect**
 
@@ -93,13 +93,13 @@ start`) — every step below reads/writes through that server.
 **2 · Get a composite into the catalog.** Wrap a simulator you know, or install an
 existing one. This is the runnable substrate a study will point at.
 
-    /expert odeint --lightweight        # wrap an ODE solver into viva_<pkg>/ (a Process)
+    /model odeint --lightweight        # wrap an ODE solver into viva_<pkg>/ (a Process)
     /catalog list                       # confirm the composite id, e.g. monod_demo.composites.monod
 
 **3 · Open an investigation** (its slug becomes a git branch + worktree, so parallel work
 never collides):
 
-    /investigation new growth-kinetics
+    /investigate new growth-kinetics
 
 **4 · Create the first study, wire its baseline, and run it.** A study is one question
 wrapped around a composite (`baseline`), with an emit contract (`readouts`) and a pass/fail
@@ -117,9 +117,9 @@ PASS/FAIL (derived from the latest run), and **Evidence › Visualizations** sho
 
 **5 · Add it to the investigation, then create a dependent second study.**
 
-    /investigation add-study growth-kinetics <study-1>
+    /investigate add-study growth-kinetics <study-1>
     /study new monod_demo.composites.monod          # study 2 — e.g. a temperature sweep
-    /investigation add-study growth-kinetics <study-2>
+    /investigate add-study growth-kinetics <study-2>
     # ask Claude to set study 2's pipeline_gate.prerequisites to [study-1] with condition tests-passed
 
 The **Investigation graph** now draws study-2 downstream of study-1 (edge from its
@@ -128,7 +128,7 @@ The **Investigation graph** now draws study-2 downstream of study-1 (edge from i
 
 **6 · Run the whole investigation and render the report.**
 
-    /investigation run growth-kinetics              # runs members in dependency order
+    /investigate run growth-kinetics              # runs members in dependency order
     /report <study-1>                               # per-study report
     /report                                          # workspace dashboard + investigation report
 

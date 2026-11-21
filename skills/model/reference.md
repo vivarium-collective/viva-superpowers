@@ -1,4 +1,4 @@
-# viva-expert — detailed reference
+# viva-model — detailed reference
 
 Companion reference for **SKILL.md** in this skill directory. SKILL.md holds
 the doctrine, mode detection, safety rules, and the API/port/composite-assembly
@@ -1207,7 +1207,7 @@ only under `--mock` (see below).
 
 ### Lightweight single-tool form
 
-`/expert --lightweight <tool>`
+`/model --lightweight <tool>`
 
 Default (real bridge) steps:
 
@@ -1245,7 +1245,7 @@ unrecognized), **stop and ask the user** — do not silently emit a stub. Offer
 Example:
 
 ```text
-/expert --lightweight tellurium     # in a workspace called chromosome-rep1
+/model --lightweight tellurium     # in a workspace called chromosome-rep1
 
   viva_chromosome_rep1/processes/tellurium.py    # TelluriumProcess — real bridge
   tests/test_tellurium.py                        # shape + importorskip run test
@@ -1253,7 +1253,7 @@ Example:
 
 ### Lightweight mock form
 
-`/expert --lightweight --mock <tool>`
+`/model --lightweight --mock <tool>`
 
 Same file layout as the real form, but the class is `<Tool>MockProcess` and
 `update()` is a labeled, inert placeholder (zeros / echo / trivial transform).
@@ -1262,7 +1262,7 @@ surface, shape-only tests, "(mock)" tagging). Use this only when the user
 explicitly asks for a scaffold.
 
 ```text
-/expert --lightweight --mock tellurium   # explicit placeholder
+/model --lightweight --mock tellurium   # explicit placeholder
 
   viva_chromosome_rep1/processes/tellurium.py    # TelluriumMockProcess (labeled)
   tests/test_tellurium.py                        # shape-only smoke test
@@ -1270,7 +1270,7 @@ explicitly asks for a scaffold.
 
 ### Lightweight composite form
 
-`/expert --lightweight <name> <tool1> <tool2> [...]`
+`/model --lightweight <name> <tool1> <tool2> [...]`
 
 Two or more `<tool>` args after `<name>`. Each `<tool>` must be an already-installed importable package (e.g. `viva_tellurium`). If any is missing, abort and direct the user at `/catalog install <pkg>` or the Registry tab.
 
@@ -1297,7 +1297,7 @@ Steps:
 Example:
 
 ```text
-/expert --lightweight metabolism viva_cobra viva_tellurium  # in chromosome-rep1
+/model --lightweight metabolism viva_cobra viva_tellurium  # in chromosome-rep1
 
   viva_chromosome_rep1/composites/metabolism.py    # build_composite()
   tests/test_metabolism_composite.py              # smoke test
@@ -1309,8 +1309,8 @@ Example:
 |---|---|
 | A real bridge to a tool inside an existing workspace without a sibling repo | `--lightweight <tool>` |
 | To compose two installed wrappers inside the workspace before deciding to publish | `--lightweight <name> <t1> <t2>` |
-| A publication-ready sibling `viva-<tool>/` repo with README, tests, a showcase investigation + published read-only workbench, PR | (heavy) `/expert <tool>` |
-| A composite repo `viva-<name>-composite/` with wiring table, validation, showcase investigation + published workbench | (heavy) `/expert <name> <t1> <t2>` |
+| A publication-ready sibling `viva-<tool>/` repo with README, tests, a showcase investigation + published read-only workbench, PR | (heavy) `/model <tool>` |
+| A composite repo `viva-<name>-composite/` with wiring table, validation, showcase investigation + published workbench | (heavy) `/model <name> <t1> <t2>` |
 | A clean-room reimplementation of the tool's published algorithm (honest, labeled) | add `--reproduce` |
 | A non-functional placeholder to scaffold wiring before the real tool is ready | add `--mock` |
 
