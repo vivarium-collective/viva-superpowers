@@ -599,7 +599,7 @@ Wipe conventional simulator output for a study so a `from scratch` rerun starts 
 
 > **Why not a dashboard endpoint?** `clean` operates entirely on local files (no dashboard state besides `runs.db`, which the dashboard reads opportunistically). Doing this via the dashboard would mean serializing file paths over HTTP for no benefit. The skill shells `rm` directly.
 
-> **Investigation-level fan-out.** `/investigation run` doesn't yet have a companion `clean` — call `/study clean` per-member if you want a full investigation wipe. If this becomes routine, lift a `/investigation clean <slug> [--studies a,b]` analogous to the run orchestrator.
+> **Investigation-level fan-out.** `/investigate run` doesn't yet have a companion `clean` — call `/study clean` per-member if you want a full investigation wipe. If this becomes routine, lift a `/investigate clean <slug> [--studies a,b]` analogous to the run orchestrator.
 
 ### Evaluate subcommands
 

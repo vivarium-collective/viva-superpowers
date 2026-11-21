@@ -40,7 +40,7 @@ A directory containing `workspace.yaml`, a `viva_<package>/` Python package, and
 - **`runtime:` block (optional).** Workspace-wide settings consumed by skills and runners:
   - `default_emitter: parquet | sqlite` — picked up by bespoke runners via `--emitter` default (see [`runner_scripts.md`](../conventions/runner_scripts.md)).
   - `subprocess_timeout_s: <int>` — overrides the dashboard's default per-tick subprocess timeout (used by long cell-cycle sims).
-  - `shared_artifacts: [<path>, ...]` — workspace-root-relative paths expensive to rebuild (caches, precomputed indexes). `/investigation open <slug>` detects when these are absent in a new worktree but populated in a sibling, and (with `--share-artifacts`) symlinks them across. Default if absent: `["out/cache"]` (v2ecoli ParCa-cache convention).
+  - `shared_artifacts: [<path>, ...]` — workspace-root-relative paths expensive to rebuild (caches, precomputed indexes). `/investigate open <slug>` detects when these are absent in a new worktree but populated in a sibling, and (with `--share-artifacts`) symlinks them across. Default if absent: `["out/cache"]` (v2ecoli ParCa-cache convention).
 
 ### Study
 
@@ -60,8 +60,8 @@ Studies move through five phases. Each phase has a distinct deliverable, distinc
 
 | Phase | Produces | Skills / tools |
 |---|---|---|
-| **Design** | The spec: purpose, pipeline_gate, simulation_set, model_change, key_assumptions, readouts, behavior_tests, conclusion_logic, limitations, implementation_requirements, bibliography | `/study new`, `/study fill-overview`, `/study set-objective`, baseline/variant/intervention `*-add` subcommands, `/investigation new`, `/investigation scaffold-from-plan` |
-| **Build** | The executable code: Process classes, listeners, composites that make the spec runnable against the workspace's simulator | `/expert` (sibling repo) or `/expert --lightweight` (in-workspace, single-tool or composite form), plus manual code in `viva_<workspace>/processes/`. Gap-listed listeners + sim_data calibration also happen here. |
+| **Design** | The spec: purpose, pipeline_gate, simulation_set, model_change, key_assumptions, readouts, behavior_tests, conclusion_logic, limitations, implementation_requirements, bibliography | `/study new`, `/study fill-overview`, `/study set-objective`, baseline/variant/intervention `*-add` subcommands, `/investigate new`, `/investigate scaffold-from-plan` |
+| **Build** | The executable code: Process classes, listeners, composites that make the spec runnable against the workspace's simulator | `/model` (sibling repo) or `/model --lightweight` (in-workspace, single-tool or composite form), plus manual code in `viva_<workspace>/processes/`. Gap-listed listeners + sim_data calibration also happen here. |
 | **Simulate** | The runs: `runs.db` populated with trajectories | `/study run-baseline`, `/study run-variant`, `/study run-script` (bespoke runners declared in `canonical_runs:`) |
 | **Evaluate** | The verdict: behavioral test results, rendered visualizations, observations against `behavior_tests` | `POST /api/study-tests-run` (Assurance › Tests tab), `/viz` (Evidence › Visualizations tab, with generated artifacts also under Evidence › Analyses) |
 | **Decide** | The conclusion: what we learned + next steps | `/study set-conclusion` |
@@ -433,7 +433,7 @@ The narrative spine is grouped into 4 layers. The 6 fields marked ★ are the on
 
 ### v2 narrative spine for Investigations (canonical-optional extensions) {#v2-narrative-spine-investigation}
 
-The investigation schema (`schema_version: 2`) adds a parallel narrative spine that mirrors the per-study spine at a level up. All fields are optional — a v1 spec validates unchanged — but every new investigation scaffolded via `/investigation new` (or POST `/api/investigation-create`) lands with them commented in as TODOs.
+The investigation schema (`schema_version: 2`) adds a parallel narrative spine that mirrors the per-study spine at a level up. All fields are optional — a v1 spec validates unchanged — but every new investigation scaffolded via `/investigate new` (or POST `/api/investigation-create`) lands with them commented in as TODOs.
 
 - `executive: {what_is_this, verdict, verdict_status, verdict_detail, decisions_needed: [{question, context}]}` — the **state-first opening** AND the report's Executive summary (single source — keep them in sync). `verdict_status` ∈ `in-progress | passed | complete | blocked | failed | planning`. See [The Investigation graph](#the-investigation-graph-discourse-graph).
 - `scientific_argument: {main_claim, evidence_for: [...], evidence_against: [...], key_figures: [...], caveats: [...], interpretation_ref}` — the chain of reasoning, distinct from the bottom-line verdict.
@@ -555,7 +555,7 @@ An Investigation is a **named collection of studies** with an explicit cross-stu
   - `POST /api/iset-clone {source, target, ...}` — shells out to the workspace's `scripts/clone_investigation.py` (workspace-owned because clone rules are workspace-specific).
   - For update operations (acceptance criteria, narrative-spine field edits) the skills still write YAML directly with atomic tmp-file + rename — `/api/iset-update` is not yet wired.
 - **Dashboard render**: Investigations tab cards → DAG canvas on click; rail sidebar groups studies under their investigation header; "Ungrouped" bucket for studies not in any investigation; topological order within each group.
-- **Skill**: `/investigation` for CRUD + scaffold-from-plan + worktree open + cross-study run orchestration (`run <inv-slug>` walks `studies:` and calls `/study run-script` on each member that has a `canonical_runs:` block; spec-only members are skipped).
+- **Skill**: `/investigate` for CRUD + scaffold-from-plan + worktree open + cross-study run orchestration (`run <inv-slug>` walks `studies:` and calls `/study run-script` on each member that has a `canonical_runs:` block; spec-only members are skipped).
 
 > Note: the DAG topology is computed from each member study's `parent_studies:` field at render time. The `studies:` list on the investigation controls visibility/grouping (and the `run` subcommand's execution order) — but per-study `parent_studies` is the authoritative ordering for dependent execution. The orchestrator currently iterates in declared order; a topological-sort mode is a future extension.
 
@@ -563,13 +563,13 @@ An Investigation is a **named collection of studies** with an explicit cross-stu
 
 An Investigation slug is also a **git branch name** and a **worktree directory name**. The three are kept in 1:1 correspondence so that parallel agents can each work on a different Investigation without trampling each other's files, runtime DBs (`.pbg/composite-runs.db`), or dashboard ports.
 
-- **`/investigation new <slug>`** creates `investigations/<slug>/investigation.yaml` AND a git branch `<slug>`, then commits the YAML on that branch. It does NOT push.
-- **`/investigation open <slug>`** creates (or reuses) a worktree at the standard location `<workspace>/.pbg/worktrees/<slug>/` checked out to branch `<slug>`. By default it also boots a per-worktree dashboard server. (`--no-server` skips that.) The standard location keeps worktrees discoverable next to the parent checkout and inside `.pbg/`, which is conventionally git-ignored.
+- **`/investigate new <slug>`** creates `investigations/<slug>/investigation.yaml` AND a git branch `<slug>`, then commits the YAML on that branch. It does NOT push.
+- **`/investigate open <slug>`** creates (or reuses) a worktree at the standard location `<workspace>/.pbg/worktrees/<slug>/` checked out to branch `<slug>`. By default it also boots a per-worktree dashboard server. (`--no-server` skips that.) The standard location keeps worktrees discoverable next to the parent checkout and inside `.pbg/`, which is conventionally git-ignored.
 - **One dashboard server per worktree** — intentional. Each worktree has its own runtime state (`.pbg/composite-runs.db`, server log, ports). The server self-registers in `~/.pbg/servers/<name>.<hash>.json` on boot, with `path` set to the worktree (not the parent checkout).
 - **Sidebar = cross-worktree switcher.** The left-rail Investigation dropdown queries `/api/investigation-registry`, which fans out across every record under `~/.pbg/servers/*.json` (except its own) to surface their `current` Investigation. Rows for OTHER worktrees are clickable → opens that server's URL in a new tab.
 - **Dedup is per-worktree path.** Starting the workbench (`/workbench start`) removes only records that point at the SAME worktree path (after prompting if the PID is still alive). Records at different worktree paths coexist — that's how parallel agents work. `python -m discovery_engine.workspace_catalog cleanup-servers` removes orphaned records (PID dead OR worktree path missing).
 
-**Known migration note (v2ecoli).** The `dnaa-replication` investigation in v2ecoli was created before this convention, on a branch named `dnaa-replication-studies` (slug-vs-branch mismatch). To bring it into compliance, run `git branch -m dnaa-replication-studies dnaa-replication` on the relevant worktree's checkout, then `/investigation open dnaa-replication` to materialize it at the standard worktree location.
+**Known migration note (v2ecoli).** The `dnaa-replication` investigation in v2ecoli was created before this convention, on a branch named `dnaa-replication-studies` (slug-vs-branch mismatch). To bring it into compliance, run `git branch -m dnaa-replication-studies dnaa-replication` on the relevant worktree's checkout, then `/investigate open dnaa-replication` to materialize it at the standard worktree location.
 
 ### The Investigation graph (discourse graph) {#the-investigation-graph-discourse-graph}
 
@@ -689,7 +689,7 @@ visualizations:
 | `untracked` | On-disk chart file exists but has no matching `visualizations[]` entry |
 | `unrendered` | `visualizations[]` entry exists but no chart file on disk yet |
 
-**`refresh-viz` behavior.** `/study refresh-viz <slug>` (and `/investigation refresh-viz <inv-slug>`) re-runs each entry's `render:` command and updates the sidecar. Entries without a `render:` command report `needs_manual_refresh` and are left in place. The `run-baseline`, `run-variant`, and `run-script` subcommands invoke `refresh-viz` automatically after a successful run; pass `--no-refresh-viz` to suppress.
+**`refresh-viz` behavior.** `/study refresh-viz <slug>` (and `/investigate refresh-viz <inv-slug>`) re-runs each entry's `render:` command and updates the sidecar. Entries without a `render:` command report `needs_manual_refresh` and are left in place. The `run-baseline`, `run-variant`, and `run-script` subcommands invoke `refresh-viz` automatically after a successful run; pass `--no-refresh-viz` to suppress.
 
 ## The dashboard server (read surface)
 
@@ -731,14 +731,14 @@ Skills that read dashboard state do so via these HTTP endpoints:
 | `/catalog [list]` | Workspace, Composites, Studies | — | Read-only catalog. |
 | `/catalog install <pkg>` / `/catalog uninstall <pkg>` | Workspace | Workspace deps | Wraps `pip install` + workspace catalog. |
 | `/status` | Workspace state | — | Server up? recent activity? Probes the running workbench server directly. |
-| `/expert <tool>` | External Process | Sibling `viva-<tool>/` repo | Wraps a simulator as a Process. Default mode creates a sibling repo + tests + README + report; `--lightweight` writes a single file into the current workspace package instead. |
-| `/expert <name> <tools…>` | Composite catalog | Sibling `viva-<name>-composite/` repo | Composes installed wrappers. `--lightweight` writes a single composite file into the workspace package instead. |
+| `/model <tool>` | External Process | Sibling `viva-<tool>/` repo | Wraps a simulator as a Process. Default mode creates a sibling repo + tests + README + report; `--lightweight` writes a single file into the current workspace package instead. |
+| `/model <name> <tools…>` | Composite catalog | Sibling `viva-<name>-composite/` repo | Composes installed wrappers. `--lightweight` writes a single composite file into the workspace package instead. |
 | (internal) `/suggest <id>` | `.pbg/agent-requests/<id>.json` | `.pbg/agent-responses/<id>.json` | Dashboard "Suggest" callback. Not user-facing. |
 | (maintainer) `scripts/audit-pbg-repo.py <repo>` | External viva-* repo | — | Audits packaging/discovery conventions. Replaces the retired v0.8 `package` audit skill. |
 | `/explore` | Composite | Dashboard view | Opens composite in dashboard. |
 | `/run` | Composite | Run record | Runs a composite directly (no Study). |
 | `/study` | Study | Study | **All Study CRUD + runs.** See subcommand table above. `check-observables`/run-* record the emitter + emit paths that render in the study-detail Design › Readouts panel and the values that render in Evidence › Results — see [Study-detail dashboard spine](#study-detail-dashboard-spine). |
-| `/investigation` | Investigation | Investigation YAML | **All Investigation CRUD + scaffold-from-plan.** Writes YAML directly (no write endpoints yet). |
+| `/investigate` | Investigation | Investigation YAML | **All Investigation CRUD + scaffold-from-plan.** Writes YAML directly (no write endpoints yet). |
 | `/viz` | Visualization | Visualization | Adds a viz to a study; renders in Evidence › Visualizations, with generated artifacts also listed under Evidence › Analyses. |
 | `/report` | Study | Report file | Renders study summary to markdown. |
 | `/workspace` | Workspace | Workspace state | Workspace-level commands. |

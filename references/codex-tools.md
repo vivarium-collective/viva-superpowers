@@ -25,14 +25,14 @@ current session instead — slower and more context, but correct.
 
 Affected skills:
 
-- **`viva-expert`** (heavy mode) — do the clone → build → wrap → test → publish
+- **`viva-model`** (heavy mode) — do the clone → build → wrap → test → publish
   phases inline; keep the `.build-progress.md` ledger (it matters *more* without
   subagents, since one long session is doing everything).
 - **`viva-report`** — run Pass A inline for each investigation (skip the
   `audit-reviewer-prompt.md` parallel dispatch).
-- **`viva-investigation`** — `scaffold-from-plan` builds member studies
+- **`viva-investigate`** — `scaffold-from-plan` builds member studies
   sequentially instead of via `subagent-driven-development`.
-- **`viva-study`**, **`viva-harden-investigation`**, **`viva-navigate`**,
+- **`viva-study`**, **`viva-validate`**, **`viva-explore`**,
   **`viva-orient`** — any "dispatch"/"subagent" phrasing → inline.
 
 ## `superpowers:` composition

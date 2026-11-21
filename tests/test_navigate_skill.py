@@ -1,4 +1,4 @@
-"""Guard test for the /navigate skill (SP4a).
+"""Guard test for the /explore skill (SP4a).
 
 Asserts the SKILL.md documents the seven read-only subcommands and calls the
 workbench API (GET /api/linkage-index, GET /api/needs-attention) rather than
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL = Path(__file__).resolve().parents[1] / "skills" / "navigate" / "SKILL.md"
+_SKILL = Path(__file__).resolve().parents[1] / "skills" / "explore" / "SKILL.md"
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ def skill_text() -> str:
 
 
 def test_skill_file_exists():
-    assert _SKILL.is_file(), "skills/navigate/SKILL.md must exist"
+    assert _SKILL.is_file(), "skills/explore/SKILL.md must exist"
 
 
 def test_subcommands_documented(skill_text):

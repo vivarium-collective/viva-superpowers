@@ -6,7 +6,7 @@ rationalizations, tuning wording, token budgets — defer to
 [`superpowers:writing-skills`](https://github.com/obra/superpowers) (invoke it
 via the **Skill** tool). This file records only what is specific to this repo.
 
-The house exemplar is [`skills/harden-investigation/SKILL.md`](../../skills/harden-investigation/SKILL.md):
+The house exemplar is [`skills/validate/SKILL.md`](../../skills/validate/SKILL.md):
 a trigger description, a mode-classification table, red flags drawn from real
 sessions, and a "real-world impact" section. When in doubt, match its shape.
 
@@ -41,7 +41,7 @@ A skill's `SKILL.md` is loaded into context whenever the skill is relevant, so i
 must stay lean: **doctrine, decision-making, and a compact workflow/subcommand
 index**. Move long procedural detail — per-phase walkthroughs, full per-subcommand
 specs, templates, mode step-by-steps — into a sibling **`reference.md`** the agent
-reads on demand, and point at it from `SKILL.md`. `viva-expert` and `viva-study`
+reads on demand, and point at it from `SKILL.md`. `viva-model` and `viva-study`
 follow this pattern. Keep the split **behavior-neutral**: move content verbatim,
 delete nothing. Content-contract tests read `SKILL.md` + `reference.md` together
 (the documented contract is both files).
@@ -51,7 +51,7 @@ delete nothing. Content-contract tests read `SKILL.md` + `reference.md` together
 viva-superpowers is a *domain* plugin. When a general software-engineering
 process applies — TDD, systematic debugging, git worktrees, writing skills —
 **defer to the corresponding `superpowers:` skill by name** rather than
-re-implementing it. `viva-harden-investigation` models this well
+re-implementing it. `viva-validate` models this well
 (`REQUIRED: superpowers:systematic-debugging`).
 
 ## The gateway
@@ -76,7 +76,7 @@ wrong shape degrades compliance. Pick the weakest form that works, in this order
 2. **Lint** — a CI assertion (`test_skill_conventions.py`, the report linter).
 3. **Prohibition + rationalization table** — for *discipline* failures (the agent
    knows the rule and skips it under pressure): a `<HARD-GATE>` + an Excuse|Reality
-   table (see `viva-expert`, `viva-study` House rules). Add "the letter is the
+   table (see `viva-model`, `viva-study` House rules). Add "the letter is the
    spirit" so the table isn't gamed clause-by-clause.
 4. **Prose** — last resort, for genuinely nuanced judgment.
 

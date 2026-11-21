@@ -36,7 +36,7 @@ shipping.** The tables must contain *observed* excuses, not invented ones. See
 
 | Scenario | Target rule | Skill |
 |---|---|---|
-| [`mock-downgrade.md`](mock-downgrade.md) | never silently downgrade to mock/reproduction | `viva-expert` |
+| [`mock-downgrade.md`](mock-downgrade.md) | never silently downgrade to mock/reproduction | `viva-model` |
 | [`fabricated-observable.md`](fabricated-observable.md) | never fabricate an observable / provided-mechanisms-only | `viva-study` (+ `check-observables`) |
 | [`verdict-from-memory.md`](verdict-from-memory.md) | evidence-before-verdict gate | `viva-study` Decide |
-| [`stale-tree-diagnosis.md`](stale-tree-diagnosis.md) | a `ran` status with uncommitted/unreproducible artifacts is not a result | `viva-harden-investigation` (rule 0, already validated in the wild) |
+| [`stale-tree-diagnosis.md`](stale-tree-diagnosis.md) | a `ran` status with uncommitted/unreproducible artifacts is not a result | `viva-validate` (rule 0, already validated in the wild) |

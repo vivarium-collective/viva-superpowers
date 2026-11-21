@@ -1,6 +1,6 @@
 ---
 name: apply-cli-verb
-description: Use when acting as the APPLIER for the discovery engine's CLI-verb kinds (visualize / propose_study) — the kinds the pure engine deliberately does not auto-apply because applying them RENDERS a figure or SEEDS a study. Turns one typed GenerationRequest into the applied artifact (via /viva:viz or /viva:study) and prints the outcome JSON the engine records. Wired as $VIVA_CLI_APPLIER_CMD for `discover investigate`. The end-to-end counterpart to /viva:fill.
+description: Use when acting as the APPLIER for the discovery engine's CLI-verb kinds (visualize / propose_study) — the kinds the pure engine deliberately does not auto-apply because applying them RENDERS a figure or SEEDS a study. Turns one typed GenerationRequest into the applied artifact (via /viva:viz or /viva:study) and prints the outcome JSON the engine records. Wired as $VIVA_CLI_APPLIER_CMD for `discover investigate`. The end-to-end counterpart to /viva:reason.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit
 argument-hint: "[request.json] — reads a GenerationRequest (stdin or path), applies it, prints an outcome JSON"
@@ -102,7 +102,7 @@ Seed **one** new child study, exactly as `/viva:study` (create + the engine's
    stamp). A branch-point you are not confident is sound → decline with
    `status: "queued_for_review"`.
 
-## Honesty rules (non-negotiable — same as /viva:fill)
+## Honesty rules (non-negotiable — same as /viva:reason)
 
 - **No fabricated numbers.** A rendered figure shows data the run actually
   produced; a seeded study's bands/assumptions come only from the parent's
@@ -123,7 +123,7 @@ CLI-verb request's JSON on stdin and reads your outcome JSON on stdout. Enable
 end-to-end apply by exporting it alongside the filler:
 
 ```bash
-export VIVA_FILLER_CMD='claude -p "/viva:fill"'              # generates all kinds
+export VIVA_FILLER_CMD='claude -p "/viva:reason"'              # generates all kinds
 export VIVA_CLI_APPLIER_CMD='claude -p "/viva:apply-cli-verb"'  # ALSO applies viz / propose_study
 discover --workspace "$WS" investigate <slug> --goal "<goal>" --generation-calls 8
 ```

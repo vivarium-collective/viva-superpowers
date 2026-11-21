@@ -102,7 +102,7 @@ enriching, classify each as `gate_class: regression_pin | acceptance_criterion`
 (`regression_pin` = threshold set after the run; `acceptance_criterion` = a prior
 declared before the run in the study's `preregistered:` block). The report's
 verdict counts split the two, and a pin counted as acceptance is the
-post-hoc-gate failure the `audit` subcommand and `/harden-investigation`'s
+post-hoc-gate failure the `audit` subcommand and `/validate`'s
 reviewer lens both hunt; the rigor scorecard's threshold-provenance dim reads the
 result.
 
@@ -392,7 +392,7 @@ route it to the study's `model_settings[].cites` instead, and **never** write
 it as a behavior-test `literature_target`. A Kd recorded as the
 `literature_target` on a dimensionless fraction silently corrupts
 `divergence_factor` downstream (see the `biology-forward` aspect of
-`/harden-investigation`'s arithmetic block) — this is the trap to avoid.
+`/validate`'s arithmetic block) — this is the trap to avoid.
 
 A cited parameter itself always falls into one of three buckets — label it
 explicitly, never leave it ambiguous:

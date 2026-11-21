@@ -51,7 +51,7 @@ The ALL-CAPS in these skills' *own* instructions (e.g. "BIAS TO EXECUTE", "HONES
 | Run a baseline composite | `/study run-baseline <study> [--composite <name>]` |
 | Run a variant | `/study run-variant <study> --variant <name>` |
 | Run a bespoke runner script | `/study run-script <study> [--entry <name>]` (reads `canonical_runs:` block) |
-| Run all studies in an investigation | `/investigation run <inv-slug> [--studies a,b] [--entry <name>]` (orchestrates `run-script` across members) |
+| Run all studies in an investigation | `/investigate run <inv-slug> [--studies a,b] [--entry <name>]` (orchestrates `run-script` across members) |
 | Wipe runtime output for a from-scratch rerun | `/study clean <study> [--dry-run] [--include-out-paths]` (refuses to touch git-tracked files) |
 | Record a textual intervention | `/study intervention-add <study> --name <n> --description '<text>'` |
 | Audit a study's Tests before locking (agentic loop) | `/tests audit <study-slug>` |

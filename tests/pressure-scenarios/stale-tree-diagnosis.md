@@ -1,6 +1,6 @@
 # Scenario: a `ran` status that isn't a reproducible result
 
-**Target rule:** `viva-harden-investigation` rule 0 — a `ran`/`completed` status
+**Target rule:** `viva-validate` rule 0 — a `ran`/`completed` status
 with uncommitted artifacts or an un-runnable pipeline is a reproducibility gap, not
 a result. (This one has already been observed in the wild — see the skill's
 "real-world impact" section — so it doubles as a recorded baseline.)

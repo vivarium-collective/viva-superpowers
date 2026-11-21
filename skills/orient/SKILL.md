@@ -39,11 +39,11 @@ it to a gate:
 ```
 question → /model-build <study>          (creates the study if needed)
   AUTHOR tests    /study + /tests
-  SELECT model    /catalog + /expert (wrap the REAL tool)
+  SELECT model    /catalog + /model (wrap the REAL tool)
   BUILD→RUN→GRADE  iterate the MODEL (never the locked tests) to the severity gate
   DECIDE  pass → findings · verdicts · report GENERATED from the run
                  else → iterate, or GIVE_UP honestly
-then  /investigation (group studies) · /harden-investigation (rigor)
+then  /investigate (group studies) · /validate (rigor)
       · /consolidate (merge settled probes → one multi-arm study)
       · /report (publish) · /benchmark (score the loop)
 ```
@@ -58,10 +58,10 @@ question, the tests, and the model; the loop produces the rest.
 |---|---|
 | No `workspace.yaml`, want to model | `/workspace` **first** |
 | Workspace but no `.pbg/server/` | `/workbench start` |
-| "wrap X" / "use simulator X" | `/expert` |
+| "wrap X" / "use simulator X" | `/model` |
 | any research question ("is X true?", "compare A/B") | `/model-build` (drives the loop; creates the study) |
 | run one composite / "what does it emit?" | `/run` (local) · `/remote-run` (viva-api) |
-| lost / just arrived | `/navigate status`, then `/catalog` |
+| lost / just arrived | `/explore status`, then `/catalog` |
 
 Full skill catalog: `docs/skills.md`. Vocabulary + on-disk shapes:
 `docs/concepts/vivarium-workbench-model.md`. Rigor conventions (gate_class,

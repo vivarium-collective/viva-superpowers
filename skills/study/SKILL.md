@@ -24,11 +24,11 @@ back-ref. The investigation's publication/report lives at `investigations/<inv>/
 This block governs the paths below: where older text says `studies/<slug>/` or `$STUDIES_DIR/<slug>/`, prefer the resolver / the nested path.
 
 
-A Study is a self-contained research unit holding one-or-more baseline composites, variants (parameter perturbations), interventions (text-described conditions), runs, and visualizations. The **Build** phase between Design and Simulate has no viva-study subcommands directly — it's handled by `/expert` (heavy mode → sibling repo) or `/expert --lightweight` (in-workspace, single-tool or composite form), or by hand-edited code in `viva_<workspace>/processes/`.
+A Study is a self-contained research unit holding one-or-more baseline composites, variants (parameter perturbations), interventions (text-described conditions), runs, and visualizations. The **Build** phase between Design and Simulate has no viva-study subcommands directly — it's handled by `/model` (heavy mode → sibling repo) or `/model --lightweight` (in-workspace, single-tool or composite form), or by hand-edited code in `viva_<workspace>/processes/`.
 
 ## Where this sits in the arc
 
-Step 3 of the generation arc (full arc in `/orient`): `/expert` (source the model) → `/investigation` (group studies) → **study** → `/run` (smoke-test a composite) → `/report` (publish). A study is usually driven by `/model-build`, not authored by hand.
+Step 3 of the generation arc (full arc in `/orient`): `/model` (source the model) → `/investigate` (group studies) → **study** → `/run` (smoke-test a composite) → `/report` (publish). A study is usually driven by `/model-build`, not authored by hand.
 
 <!-- House rules distilled from a cross-study expert-feedback friction review. General to any investigation. -->
 ## House rules (expert-feedback guardrails)
@@ -170,7 +170,7 @@ for the full rationale and the signals that the aggregate is intended.
 Scaffold these at **Design** time so every study is born compliant, not hardened
 retroactively. The *why* and the full dimension list live once in
 [`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)
-(the scorecard + report linter enforce them; `/harden-investigation` hunts
+(the scorecard + report linter enforce them; `/validate` hunts
 their absence). What viva-study emits:
 
 1. **`gate_class` on every behavior_test** — `regression_pin` (threshold set
@@ -203,7 +203,7 @@ their absence). What viva-study emits:
 ## Run the readiness linter as a build step (not just at report time)
 
 The readiness linter (`discovery_engine.reporting.linter.lint_workspace_report`) is
-the same gate that `/report --lint` and `/harden-investigation` run. It
+the same gate that `/report --lint` and `/validate` run. It
 is cheap, needs no server, and catches the gaps this skill is responsible for —
 `gate_class_missing`, `missing_provenance`, `visualization_address_unresolved` /
 `visualization_class_misplaced`, `dag_edges_*`, `authored_confidence_diverges`,
@@ -222,7 +222,7 @@ Treat an `error`- or `warning`-level finding for the study you authored as a
 build task, not a cosmetic nit: clear it (or, where a gap genuinely does not
 apply, record an explicit override) before moving the study to Decide. Fixing
 gaps at build time is an order of magnitude cheaper than a retroactive
-`/harden-investigation` sweep across a finished investigation.
+`/validate` sweep across a finished investigation.
 
 ## Cross-study dependencies (pipeline_gate.prerequisites)
 
@@ -282,7 +282,7 @@ status. They sit alongside the existing fields the graph already reads:
 **Enums.**
 
 - `confidence:` ∈ `Accepted | Investigating | Planned | Refuted`.
-- `parent_studies[].relation:` ∈ `builds-on` (default) `| tests | motivates | alternative-to` (ontology redesign, viva-template #70). Renders solid for `builds-on` / `tests` / `motivates`, dashed for `alternative-to`. The legacy values `leads-to`, `model-input`, `refutes`, and `precedes` are deprecated aliases that still parse (normalized to `builds-on` unless noted). Author the relation when declaring a dependency to express the discourse relationship, not just ordering. The specialized `refines` marker (finer-grained realization of the same claim as its coarser parent) still works — pair it with a `refinement.must_preserve` + `satisfaction` block on the finer study (see [viva-investigation § Multi-realization claims](../investigation/SKILL.md)).
+- `parent_studies[].relation:` ∈ `builds-on` (default) `| tests | motivates | alternative-to` (ontology redesign, viva-template #70). Renders solid for `builds-on` / `tests` / `motivates`, dashed for `alternative-to`. The legacy values `leads-to`, `model-input`, `refutes`, and `precedes` are deprecated aliases that still parse (normalized to `builds-on` unless noted). Author the relation when declaring a dependency to express the discourse relationship, not just ordering. The specialized `refines` marker (finer-grained realization of the same claim as its coarser parent) still works — pair it with a `refinement.must_preserve` + `satisfaction` block on the finer study (see [viva-investigate § Multi-realization claims](../investigate/SKILL.md)).
 
 ```yaml
 # studies/<slug>/study.yaml
@@ -306,11 +306,11 @@ when the value derived from the 6-axis status is wrong.
 
 ## Grouping studies into Investigations
 
-Studies that share a research arc can be grouped into an **Investigation** (a named collection with its own question/hypothesis + acceptance criteria). Studies don't declare investigation membership themselves; the investigation lists them in its `studies:` field. Use `/investigation` for investigation CRUD and the `scaffold-from-plan` marquee command that auto-generates an investigation + all constituent studies from a plan PDF.
+Studies that share a research arc can be grouped into an **Investigation** (a named collection with its own question/hypothesis + acceptance criteria). Studies don't declare investigation membership themselves; the investigation lists them in its `studies:` field. Use `/investigate` for investigation CRUD and the `scaffold-from-plan` marquee command that auto-generates an investigation + all constituent studies from a plan PDF.
 
 ## Reference / mechanism discipline: NEVER silently add what the expert did not provide
 
-When you cite a paper (`--cite`, `--source`, `cites:`, `literature_anchors[].source`) or lean on a mechanism, it must be one the **expert actually provided or approved**. If you reach for one they did **not** give you, do **not** quietly fold it into `cites:` / `literature_anchors` / the prose as sanctioned — record it on the parent **investigation** under `proposed_inputs:` (`status: pending` + `provenance` + `rationale`) for the expert to Accept or Decline in the report. The full `proposed_inputs:` schema and its promote-on-accept mechanics live once in [`/investigation`](../investigation/SKILL.md) (the owner). This keeps outside claims from entering the record as expert-sanctioned.
+When you cite a paper (`--cite`, `--source`, `cites:`, `literature_anchors[].source`) or lean on a mechanism, it must be one the **expert actually provided or approved**. If you reach for one they did **not** give you, do **not** quietly fold it into `cites:` / `literature_anchors` / the prose as sanctioned — record it on the parent **investigation** under `proposed_inputs:` (`status: pending` + `provenance` + `rationale`) for the expert to Accept or Decline in the report. The full `proposed_inputs:` schema and its promote-on-accept mechanics live once in [`/investigate`](../investigate/SKILL.md) (the owner). This keeps outside claims from entering the record as expert-sanctioned.
 
 A cited/sanctioned parameter itself still needs its provenance labelled: `cites` (real literature value), `provenance: theory` with a "not fit" note (a deliberate, recorded modeling choice), or `proposed_inputs` (pending). Never let a `provenance: theory` value read as fit or data-anchored. See `/tests cite-bands` § Step 3.
 
@@ -535,7 +535,7 @@ phase:  Decide     # phase-decide renders green (phase-evaluate is pink).
 Gate this on real evidence, never on wishful completion: advance ONLY when a `report.verdict` exists, the gate result ∈ {`passed`, `needs_calibration`}, and at least one `runs[]` entry is `completed`. A study missing its `report.verdict` falls back to the lifecycle `status` for its marker — so an otherwise-finished study with an empty `report` shows **Investigating** until you write the verdict. Write the verdict from the evidence the findings already record; don't advance a study that hasn't actually concluded.
 
 If the evidence isn't there, the honest verdict is `blocked` or an OPEN QUESTION —
-not `passed`. This is the discipline `/harden-investigation` enforces
+not `passed`. This is the discipline `/validate` enforces
 retroactively; applying it here means you rarely need it.
 
 **Reconcile authored `confidence:` with the derived value before calling a

@@ -1,12 +1,12 @@
 ---
-name: navigate
+name: explore
 description: Use when you need read-only answers about the workspace knowledge graph without running anything — the AC→study gating matrix and unlinked-AC gaps, which studies cite a source, which findings measure an observable, a study's prerequisite DAG, the ranked "decisions needed" list for an investigation, or a quick workspace/server/git status check.
 user-invocable: true
 allowed-tools: Bash(*) Read
 argument-hint: status | decisions <inv> | ac-gaps <inv> | source <bib_key> | finding-by-observable <token> | dag <inv> | observable <token> | composite <id>
 ---
 
-# /navigate
+# /explore
 
 Transversal, **read-only** skill. Queries the workspace **linkage index** — a
 derived, ephemeral knowledge graph over the YAML (studies ↔ composites ↔
@@ -30,14 +30,14 @@ server to be running (see preamble below).
 
 | Form | What it does |
 |---|---|
-| `/navigate status` | Quick "is this a pbg workspace?" status check — workspace detection, server liveness, study count, git state. |
-| `/navigate decisions <inv>` | Ranked decisions-needed scan. `GET /api/needs-attention?investigation=<inv>`. |
-| `/navigate ac-gaps <inv>` | AC→study gating matrix + unlinked-AC gaps. `GET /api/linkage-index?investigation=<inv>` → `ac_matrix`. |
-| `/navigate source <bib_key>` | Studies that cite a bibliography key. `GET /api/linkage-index?source=<bib_key>` → `studies`. |
-| `/navigate finding-by-observable <token>` | Findings that measure an observable token. `GET /api/linkage-index?observable=<token>` → `findings`. |
-| `/navigate dag <inv>` | Study prerequisite DAG for an investigation. `GET /api/linkage-index?investigation=<inv>` → `dag`. |
-| `/navigate observable <token>` | Cross-study observable registry (which composites emit it, which studies use them). `GET /api/linkage-index?observable_registry=<token>` → `studies`, `composites`. |
-| `/navigate composite <id>` | What a composite emits + which studies use it. `GET /api/linkage-index?composite=<id>` → `emits`, `used_by_studies`. |
+| `/explore status` | Quick "is this a pbg workspace?" status check — workspace detection, server liveness, study count, git state. |
+| `/explore decisions <inv>` | Ranked decisions-needed scan. `GET /api/needs-attention?investigation=<inv>`. |
+| `/explore ac-gaps <inv>` | AC→study gating matrix + unlinked-AC gaps. `GET /api/linkage-index?investigation=<inv>` → `ac_matrix`. |
+| `/explore source <bib_key>` | Studies that cite a bibliography key. `GET /api/linkage-index?source=<bib_key>` → `studies`. |
+| `/explore finding-by-observable <token>` | Findings that measure an observable token. `GET /api/linkage-index?observable=<token>` → `findings`. |
+| `/explore dag <inv>` | Study prerequisite DAG for an investigation. `GET /api/linkage-index?investigation=<inv>` → `dag`. |
+| `/explore observable <token>` | Cross-study observable registry (which composites emit it, which studies use them). `GET /api/linkage-index?observable_registry=<token>` → `studies`, `composites`. |
+| `/explore composite <id>` | What a composite emits + which studies use it. `GET /api/linkage-index?composite=<id>` → `emits`, `used_by_studies`. |
 
 ## Common preamble (all subcommands)
 
@@ -373,7 +373,7 @@ diff), `phantom_observable` (high, **build-gated/optional** — only when an
 cached one when enabled), `open_feedback` (medium), `stale_finding` (low).
 
 ```bash
-INV="${1:?Usage: /navigate decisions <inv>}"
+INV="${1:?Usage: /explore decisions <inv>}"
 curl -sf "$URL/api/needs-attention?investigation=$INV" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -400,7 +400,7 @@ they make the report claim coverage that nothing actually gates (e.g.
 `chromosome-cycle-calibration` has 5 acceptance criteria with no `study:`).
 
 ```bash
-INV="${1:?Usage: /navigate ac-gaps <inv>}"
+INV="${1:?Usage: /explore ac-gaps <inv>}"
 curl -sf "$URL/api/linkage-index?investigation=$INV" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -418,7 +418,7 @@ Print which studies cite a bibliography key (study-level `cites[]` + per-band
 cites on tests/readouts).
 
 ```bash
-KEY="${1:?Usage: /navigate source <bib_key>}"
+KEY="${1:?Usage: /explore source <bib_key>}"
 curl -sf "$URL/api/linkage-index?source=$KEY" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -432,7 +432,7 @@ Print which findings measure an observable token (resolved through the
 finding's `evidence.from_test` → the test's `measure.{path,field}`).
 
 ```bash
-TOKEN="${1:?Usage: /navigate finding-by-observable <token>}"
+TOKEN="${1:?Usage: /explore finding-by-observable <token>}"
 curl -sf "$URL/api/linkage-index?observable=$TOKEN" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -447,7 +447,7 @@ Print an investigation's study prerequisite DAG (nodes + prerequisite/enables
 edges from each study's `pipeline_gate`).
 
 ```bash
-INV="${1:?Usage: /navigate dag <inv>}"
+INV="${1:?Usage: /explore dag <inv>}"
 curl -sf "$URL/api/linkage-index?investigation=$INV" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -471,7 +471,7 @@ for `bulk.ATP[c]` finds a composite leaf `bulk[ATP[c]]`).
 > client-side equivalent.
 
 ```bash
-TOKEN="${1:?Usage: /navigate observable <token>}"
+TOKEN="${1:?Usage: /explore observable <token>}"
 curl -sf "$URL/api/linkage-index?observable_registry=$TOKEN" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -489,7 +489,7 @@ What a composite **emits** + which studies **use** it. Also triggers a
 composite build (cached).
 
 ```bash
-ID="${1:?Usage: /navigate composite <id>}"
+ID="${1:?Usage: /explore composite <id>}"
 curl -sf "$URL/api/linkage-index?composite=$ID" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -501,14 +501,14 @@ print("used by studies:", ", ".join(d["used_by_studies"]) or "(none)")
 ## Examples
 
 ```text
-/navigate status
-/navigate decisions chromosome-cycle-calibration
-/navigate ac-gaps chromosome-cycle-calibration
-/navigate source agmon-2022
-/navigate finding-by-observable bulk.ATP[c]
-/navigate dag chromosome-cycle-calibration
-/navigate observable bulk.ATP[c]
-/navigate composite viva_chromosome_rep1.composites.dnaa-binding
+/explore status
+/explore decisions chromosome-cycle-calibration
+/explore ac-gaps chromosome-cycle-calibration
+/explore source agmon-2022
+/explore finding-by-observable bulk.ATP[c]
+/explore dag chromosome-cycle-calibration
+/explore observable bulk.ATP[c]
+/explore composite viva_chromosome_rep1.composites.dnaa-binding
 ```
 
 ## Notes

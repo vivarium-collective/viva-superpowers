@@ -26,8 +26,8 @@ _SKILL_CMD = re.compile(r"/(?:" + "|".join(re.escape(n) for n in _SKILL_NAMES) +
 # The 7 skills whose bodies assume subagent dispatch — codex-tools.md must give
 # each an inline fallback (kept in sync with the grep in the PR scope).
 _DISPATCH_SKILLS = {
-    "expert", "report", "investigation", "study",
-    "harden-investigation", "navigate", "orient",
+    "model", "report", "investigate", "study",
+    "validate", "explore", "orient",
 }
 
 
