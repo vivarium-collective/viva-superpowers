@@ -1,6 +1,6 @@
 # Skills catalog
 
-18 user-facing skills (plus `/init` machine setup and one internal dashboard callback). Each entry links to the skill's `SKILL.md` for the full contract (front-matter, args, side effects).
+19 user-facing skills (plus `/init` machine setup and one internal dashboard callback). Each entry links to the skill's `SKILL.md` for the full contract (front-matter, args, side effects).
 
 ## Wrap & compose
 
@@ -49,6 +49,7 @@ from a viva-superpowers checkout. (Replaces the v0.8 `/pbg-package` skill.)
 | [`/report [model\|--all]`](../skills/report/SKILL.md) | Regenerate `reports/index.html` after manual state changes. |
 | [`/navigate <status\|ac-gaps\|source\|finding-by-observable\|dag> …`](../skills/navigate/SKILL.md) | **Read-only** query of the workspace linkage index (SP4a) — the AC→study gating matrix + unlinked-AC gaps, source↔study, finding-by-observable, study-DAG. Pure deterministic derive (`linkage_index` / `/api/linkage-index`), no writes, no AI. `status` is a quick workspace/server/git status check that works even without the dashboard server. |
 | [`/fill [request.json]`](../skills/fill/SKILL.md) | The **AI filler** for the discovery engine's generation contract: read one typed `GenerationRequest` (propose_study / acquire_model / author_tests / interpret_finding / resolve_decision / explain / visualize), produce the `GenerationResult` the engine applies. The generative half of the AI-drivable cycle (the engine emits + applies; this fills), wired as `$VIVA_FILLER_CMD` for `discover requests --fill`. Honors the honesty rules (no fabricated numbers, provided-mechanisms-only, interpretation ≠ evidence). |
+| [`/apply-cli-verb [request.json]`](../skills/apply-cli-verb/SKILL.md) | The **applier** for the discovery engine's two CLI-verb kinds (`visualize` / `propose_study`) — the kinds the pure engine deliberately does not auto-apply because applying one must RENDER a figure or SEED a study. Reads one typed `GenerationRequest`, applies it through the canonical skill (`/viz` / `/study`), and prints the outcome JSON the drive records. The apply-side counterpart to `/fill`, wired as `$VIVA_CLI_APPLIER_CMD` for `discover investigate`. Honors the same honesty rules. |
 | [`/drive-engine <investigation-slug> <steering prompt…>`](../skills/drive-engine/SKILL.md) | **Drive** the discovery engine on one investigation with a free-text *steering goal*. Runs the bounded autonomous loop (`discover investigate --goal`) with the goal threaded into every generative act — it shapes how each request is filled (via `/fill`) and which requests fill first under the budget, while the frontier, gates, budget, and honesty rules stay the engine's. The autonomous counterpart to `/fill` (which fills one request; this runs the loop). Projects the frontier first, halts cleanly on closure/budget, reports what the goal actually biased. |
 
 For the read/write surface each skill touches (which API endpoints, which on-disk files), see the [Skill ↔ concept map](concepts/vivarium-workbench-model.md#skill--concept-map).
