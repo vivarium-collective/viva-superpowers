@@ -8,46 +8,21 @@ argument-hint: <visualization-name>
 
 # /viz <visualization-name>
 
-This skill turns a natural-language visualization request into a committed
-Visualization v2 class inside the workspace's Python package.
+> **Stage:** Evaluate · Synthesize · **Service:** — · **Lifecycle:** Evaluate · Decide (operational). Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
 
+Turns a natural-language visualization request into a committed Visualization
+class inside the workspace's Python package — making an *Observation* or
+*Finding* legible to a reviewer who has not lived inside the simulation.
 Rendered figures surface in the study-detail page's Evidence › Visualizations
-tab; their underlying chart/analysis artifacts also list under Evidence ›
-Analyses (one card per analysis, downloadable individually or as a zip).
+tab; their chart/analysis artifacts also list under Evidence › Analyses.
 
 **Push for the most creative, interactive, and informative figure the data
-supports — not a default line chart.** Take the initiative to build a
-visualization whenever one would make a finding clearer, rather than waiting
-to be asked.
-
-**The bar is high.** A visualization exists to make a finding *obvious* to a
-reviewer who has not lived inside the simulation. A bare line of one observable
-vs time almost never clears that bar. Reach for the richest, most interactive,
-most informative figure the data can support — and when a finding in the
-workspace has no figure that would make it land, **take the initiative and build
-one** rather than waiting to be asked. See "Make it creative, interactive, and
-informative" below before you write a single trace.
-
-<!-- Plotting conventions distilled from a cross-study expert-feedback friction review. General. -->
-## Time-series & multi-regime conventions
-
-Beyond the legibility rules below, reviewers repeatedly ask for these — apply them
-by default so they don't have to:
-
-- **Interpretable axis units.** Put time in real units (minutes/hours), not raw
-  ticks/steps. If the time signal resets per segment (e.g. a per-generation clock),
-  **stitch it into one continuous axis** rather than overlaying segments on top of
-  each other.
-- **Mark meaningful boundaries.** Draw light reference lines at the events/regime
-  changes a reader needs (cell divisions, interventions, phase transitions) and
-  label them once — don't rely on stray gridlines.
-- **Focus on the informative window.** When early transients/warm-up distort the
-  reading, plot the steady-state window (or per-regime average) and say so in the
-  caption, instead of letting the transient dominate the scale.
-
-Use a consistent, distinguishable palette across a study's charts — pick a
-small set of colors up front and reuse them by series/condition rather than
-re-deriving conventions ad hoc per script.
+supports — not a default line chart — and build one on your own initiative
+whenever a finding would land harder with a figure.** The design judgment (which
+chart type for which question, the legibility rules, the time-series conventions)
+is reference-grade and lives in [`reference.md`](reference.md) — read it before
+you write a single trace. The Step/render-path *mechanics* live in
+[`docs/conventions/visualizations.md`](../../docs/conventions/visualizations.md).
 
 ## Output contract
 
@@ -118,71 +93,6 @@ class <ClassName>(Visualization):          # CamelCase class name
   `process_bigraph`, stdlib (`html`, `json`, `math`, etc.), or
   `plotly` / `matplotlib`.
 
-## Make it creative, interactive, and informative
-
-Treat every request as an invitation to design the *best* view of the data, not
-the most literal one. Before writing, ask: "what is the one thing this figure
-should make undeniable?" Then choose the form that makes it undeniable.
-
-**Default to interactivity (Plotly).** Hover tooltips, a toggleable legend
-(click a trace to isolate it), zoom/pan, and — where they fit — range sliders,
-faceted small multiples, dropdown/slider controls to switch variable or
-condition, and animation frames over time or generation. A reviewer who can
-*explore* the data trusts the finding more than one handed a frozen PNG. Reserve
-matplotlib for genuinely static / 3D / paper-figure needs.
-
-**Pick the chart type that fits the question — go beyond scatter-vs-time:**
-
-| The finding is about… | Consider |
-|---|---|
-| A relationship between two dynamic variables | phase portrait / 2D trajectory with time as color |
-| Many observables at once | faceted small multiples, or a normalized overlay with a toggleable legend |
-| Flows / mass balance / exchange | Sankey or a stacked area of in/out fluxes |
-| A grid of conditions × metrics (e.g. report-card axes) | heatmap with a diverging colorscale + hover detail |
-| A part-of-whole inventory (e.g. gaps by axis) | sunburst / treemap / grouped bar |
-| Distributions across seeds/cells | violin / box / ridgeline, not just a mean line |
-| A sweep over a parameter | a line per level with a slider, or a surface |
-| Population vs single lineage | shaded variance band + representative trace |
-
-**Make it informative, not just pretty.** Always: a descriptive title that
-states the takeaway (not just "cell_mass"), axis labels *with units*, a legend,
-and — where it sharpens the reading — reference lines/annotations for thresholds,
-targets, division events, or published comparison values. Add a one-line caption
-in the HTML so the figure is self-explanatory out of context. Color with intent
-(consistent palette across a study; a diverging scale only for signed/centered
-data). Downsample very long trajectories to ~500–1000 points so the file stays
-light without losing the shape.
-
-**Make it legible — encode the interpretable thing, not a raw number.** A figure
-that's informative in principle still fails if the reader can't decode it at a
-glance. Hard-won rules:
-
-- **Never clamp a wide-range metric to a floor/ceiling as the bar height.**
-  Plotting e.g. median R² clamped to −1 collapses every bad group to one
-  identical bar — the reader learns nothing and the value labels collide with
-  the axis. Pick a *bounded, monotonic* proxy that the reader intuitively
-  understands (e.g. "fraction of columns with R² > 0.5", a 0–100 % bar), or a
-  symlog axis, and carry the raw value as a text annotation / hover so nothing
-  is hidden. The bar should answer the question directly ("how much of this is
-  good?"), not encode a statistic whose range is pathological.
-- **Keep labels and annotations inside the frame.** `textposition="outside"` on
-  a bar that runs to the axis edge (or a downward/negative bar) clips the label.
-  Leave axis headroom (e.g. range `[0, 1.18]`) and position labels where they
-  stay visible.
-- **One figure, one reading.** If you have to squint to tell categories or
-  series apart, the encoding is wrong — change the metric, scale, or chart type,
-  don't just add a legend.
-- **Honest scales.** A log/clamped/normalized axis must not *hide* that values
-  are extreme — surface the true magnitude in text or hover so the figure can't
-  be misread as better (or worse) than it is.
-
-**Propose, don't just fulfill.** If the literal request would produce a weak
-figure, build the better one and say why in your success message ("requested a
-cell_mass line; rendered it as a multi-gen accumulation with division markers and
-a Beulig target band, which makes the plateau visible"). If you see a second view
-that would strengthen the same finding, mention it so the user/reviewer can ask
-for it — or, when it's cheap, just build it too.
-
 ## Steps
 
 1. Read `.pbg/viz-requests/<visualization-name>.md` from the current workspace.
@@ -192,10 +102,11 @@ for it — or, when it's cheap, just build it too.
 2. Parse the description and the workspace context (observables,
    simulations, package name).
 
-3. Decide (apply "Make it creative, interactive, and informative" above):
+3. Decide (apply the design judgment in [`reference.md`](reference.md)):
    - **Form first:** pick the chart type that makes the finding undeniable
-     (see the table) before defaulting to a line. Add interactive affordances
-     (hover, toggleable legend, sliders/animation) wherever they help.
+     (see the chart-type table in `reference.md`) before defaulting to a line.
+     Add interactive affordances (hover, toggleable legend, sliders/animation)
+     wherever they help.
    - **Library:** Plotly for interactive plots; matplotlib for static / 3D /
      paper-quality. Default to Plotly.
    - **Inputs:** Match port names to declared observables. Use `'list[float]'`

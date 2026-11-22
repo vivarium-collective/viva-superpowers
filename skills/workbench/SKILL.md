@@ -8,11 +8,14 @@ argument-hint: start|stop|status|open|restart [--port N] [--browser] [--investig
 
 # /workbench
 
-Transversal skill (no stage). Manages the interactive **vivarium-workbench**
-server: the UI you actually look at to drive a workspace — Investigations,
-Studies, Simulations DB, Visualizations, Composites, GitHub Branches. Also
-handles its session-per-tab model — one workspace per browser tab, opened
-from the workspace switcher.
+> **Stage:** — · **Service:** Orchestrator (the dashboard backend) · **Lifecycle:** any phase. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
+Manages the interactive **vivarium-workbench** server — the Orchestrator
+backend every dashboard-touching skill and the study reports depend on. It is
+the UI you actually look at to drive a workspace — Investigations, Studies,
+Simulations DB, Visualizations, Composites, GitHub Branches — and handles the
+session-per-tab model (one workspace per browser tab, opened from the workspace
+switcher).
 
 > **Serves reports too.** The workbench also serves the static
 > `reports/index.html` (and mirrors stage-skill guidance into it). The old
@@ -31,11 +34,8 @@ renders a static snapshot deployed to gh-pages.
 ## Session-per-tab — one workspace per browser tab
 
 The workbench multiplexes **many workspaces from one running server, one per
-browser tab.** This is the model Jim (`jcschaff`) + Alex (`AlexPatrie`) built
-(session-per-tab slices, vivarium-dashboard PRs #538–#550; design in the repo's
-`docs/session-binding.md` + `docs/session-registry.md`).
-
-How it works:
+browser tab** (design: vivarium-dashboard `docs/session-binding.md` +
+`docs/session-registry.md`). How it works:
 
 - **Each tab is its own session on its own workspace.** A per-tab id lives in
   `sessionStorage` and rides every request as an **`X-VW-Session`** header
@@ -95,7 +95,8 @@ State files (written by `vwb serve`, read by every dashboard-touching skill):
   `vwb serve --detach` first if not running). `--investigation SLUG` opens the
   dashboard at that investigation's route. `--composite <spec-id>` opens the
   dashboard's **Composite Explorer** focused on that spec — `<dashboard-url>?focus=composite-explore&id=<spec-id>`
-  (starting the server first if needed). Folds the former `/explore`.
+  (starting the server first if needed) — the `/workbench open --composite`
+  entry point into the composite explorer.
 - **`/workbench restart`** → `vwb server-restart` — `stop` then `serve
   --detach`. Useful after a code change in an editable `vivarium-workbench`
   install (Python reload isn't automatic).
