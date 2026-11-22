@@ -103,10 +103,10 @@ actually run them.
    deliberately does not auto-apply them, because applying one must RENDER a figure
    or SEED a study. By default the drive **queues** them for a human to apply with
    `/viva:viz` / `/viva:study`. To let the drive land them itself, also export the
-   applier — [`/viva:apply-cli-verb`](../apply-cli-verb/SKILL.md), the apply-side
+   applier — [`/viva:reason --apply`](../reason/SKILL.md), the apply-side
    counterpart to `/reason`:
    ```bash
-   export VIVA_CLI_APPLIER_CMD='claude -p "/viva:apply-cli-verb"'
+   export VIVA_CLI_APPLIER_CMD='claude -p "/viva:reason --apply"'
    ```
    `discover investigate` passes it to the loop (via `subprocess_cli_applier()`),
    so each `visualize` / `propose_study` request is dispatched to the applier, which

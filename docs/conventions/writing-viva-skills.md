@@ -6,7 +6,7 @@ rationalizations, tuning wording, token budgets — defer to
 [`superpowers:writing-skills`](https://github.com/obra/superpowers) (invoke it
 via the **Skill** tool). This file records only what is specific to this repo.
 
-The house exemplar is [`skills/validate/SKILL.md`](../../skills/validate/SKILL.md):
+The house exemplar is [`skills/harden/SKILL.md`](../../skills/harden/SKILL.md):
 a trigger description, a mode-classification table, red flags drawn from real
 sessions, and a "real-world impact" section. When in doubt, match its shape.
 
