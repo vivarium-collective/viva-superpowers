@@ -100,11 +100,14 @@ not with the pytest directory below. Every entry carries a
 `gate_class: regression_pin | acceptance_criterion` (see § Born-rigorous
 defaults below for the classification rule).
 
-For **graded report-card tests** — axes with a signed `margin` (distance-to-pass),
-`severity`, cited acceptance bands, and a cross-iteration diff (the agent-feedback
-signal for iterative model building) — use [`/tests`](../tests/SKILL.md)
-(`author` / `enrich` / `run`). It builds on `viva_superpowers.check()`/`TestBuilder`
-and complements the `behavior_tests:` acceptance grammar above.
+**Graded Tests on a study are owned by [`/tests`](../tests/SKILL.md).** Authoring,
+enriching, running, auditing, citing acceptance-band provenance (`cite-bands`),
+and biology-forward finding authoring — the signed `margin` (distance-to-pass),
+`severity`, cited bands, and cross-iteration diff that drive iterative model
+building, all built on `viva_superpowers.check()`/`TestBuilder` — live there, not
+here. `/study` keeps only the `behavior_tests:` acceptance grammar above (the
+form the evaluators, report-card axes, audit, and Tests tab read); **author and
+grade the Tests themselves with `/tests`.**
 
 ### Optional: a `tests/` pytest subdirectory (dashboard-only)
 
@@ -170,7 +173,7 @@ for the full rationale and the signals that the aggregate is intended.
 Scaffold these at **Design** time so every study is born compliant, not hardened
 retroactively. The *why* and the full dimension list live once in
 [`docs/conventions/rigor-checklist.md`](../../docs/conventions/rigor-checklist.md)
-(the scorecard + report linter enforce them; `/validate` hunts
+(the scorecard + report linter enforce them; `/harden` hunts
 their absence). What viva-study emits:
 
 1. **`gate_class` on every behavior_test** — `regression_pin` (threshold set
@@ -203,7 +206,7 @@ their absence). What viva-study emits:
 ## Run the readiness linter as a build step (not just at report time)
 
 The readiness linter (`discovery_engine.reporting.linter.lint_workspace_report`) is
-the same gate that `/report --lint` and `/validate` run. It
+the same gate that `/report --lint` and `/harden` run. It
 is cheap, needs no server, and catches the gaps this skill is responsible for —
 `gate_class_missing`, `missing_provenance`, `visualization_address_unresolved` /
 `visualization_class_misplaced`, `dag_edges_*`, `authored_confidence_diverges`,
@@ -222,7 +225,7 @@ Treat an `error`- or `warning`-level finding for the study you authored as a
 build task, not a cosmetic nit: clear it (or, where a gap genuinely does not
 apply, record an explicit override) before moving the study to Decide. Fixing
 gaps at build time is an order of magnitude cheaper than a retroactive
-`/validate` sweep across a finished investigation.
+`/harden` sweep across a finished investigation.
 
 ## Cross-study dependencies (pipeline_gate.prerequisites)
 
@@ -535,7 +538,7 @@ phase:  Decide     # phase-decide renders green (phase-evaluate is pink).
 Gate this on real evidence, never on wishful completion: advance ONLY when a `report.verdict` exists, the gate result ∈ {`passed`, `needs_calibration`}, and at least one `runs[]` entry is `completed`. A study missing its `report.verdict` falls back to the lifecycle `status` for its marker — so an otherwise-finished study with an empty `report` shows **Investigating** until you write the verdict. Write the verdict from the evidence the findings already record; don't advance a study that hasn't actually concluded.
 
 If the evidence isn't there, the honest verdict is `blocked` or an OPEN QUESTION —
-not `passed`. This is the discipline `/validate` enforces
+not `passed`. This is the discipline `/harden` enforces
 retroactively; applying it here means you rarely need it.
 
 **Reconcile authored `confidence:` with the derived value before calling a

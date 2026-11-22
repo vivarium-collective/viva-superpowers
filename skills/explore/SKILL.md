@@ -8,6 +8,8 @@ argument-hint: status | decisions <inv> | ac-gaps <inv> | source <bib_key> | fin
 
 # /explore
 
+> **Stage:** Question (the read side — surfaces the computed frontier) · **Service:** Strategist (the ranked "decisions needed") · **Lifecycle:** read-only, any phase. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 Transversal, **read-only** skill. Queries the workspace **linkage index** — a
 derived, ephemeral knowledge graph over the YAML (studies ↔ composites ↔
 observables ↔ sources ↔ findings ↔ acceptance ↔ study-DAG). It NEVER writes to
@@ -168,161 +170,11 @@ studies: <N> total  (draft: <n>, in-progress: <n>, completed: <n>)
 
 If no `studies/` directory: `studies: none`.
 
-#### Implementation outline
-
-> The dashboard-server portion below probes the running vivarium-workbench
-> server (started by `/workbench start`) via its `.pbg/server/server-info`
-> record — a self-contained TCP probe, no separate server skill required.
-
-```bash
-#!/usr/bin/env bash
-set -uo pipefail
-
-# 1. Walk up to find workspace.yaml
-DIR="$PWD"
-while [ "$DIR" != "/" ] && [ ! -f "$DIR/workspace.yaml" ]; do
-  DIR="$(dirname "$DIR")"
-done
-
-if [ ! -f "$DIR/workspace.yaml" ]; then
-  echo "✗ no workspace.yaml in $PWD or any ancestor directory"
-  echo "  -> this directory is not a pbg workspace."
-  # Catalog
-  python3 -c "
-import json, os
-cat = os.path.expanduser('~/.pbg/workspaces.json')
-try:
-    data = json.load(open(cat))
-    ws_list = data.get('workspaces', data) if isinstance(data, dict) else data
-    if not ws_list:
-        print('catalog: no registered workspaces')
-    else:
-        print(f'catalog (~/.pbg/workspaces.json): {len(ws_list)} registered workspaces:')
-        items = ws_list.items() if isinstance(ws_list, dict) else [(w.get('name','?'), w) for w in ws_list]
-        for name, info in items:
-            path = info.get('path', '') if isinstance(info, dict) else info
-            last = info.get('last_opened', '') if isinstance(info, dict) else ''
-            suffix = f'  (last_opened: {last})' if last else ''
-            print(f'  - {name:<24} {path}{suffix}')
-except FileNotFoundError:
-    print('catalog: no registered workspaces')
-" 2>/dev/null
-  echo "next:"
-  echo "  /workspace <name> --upstream <repo>   # scaffold a sibling workspace"
-  echo "  /workspace <name> --in-place          # promote this checkout into a workspace"
-  # Check for stale server-info in cwd
-  if [ -f "$PWD/.pbg/server/server-info" ]; then
-    PID=$(python3 -c "import json; print(json.load(open('$PWD/.pbg/server/server-info')).get('pid','-'))" 2>/dev/null || echo "-")
-    echo "stale .pbg/server/server-info in cwd: yes (pid=$PID not running — safe to delete)"
-  fi
-  exit 0
-fi
-
-WS_ROOT="$DIR"
-cd "$WS_ROOT"
-
-# Print workspace identity
-python3 -c "
-import yaml, json, sys
-ws = yaml.safe_load(open('workspace.yaml'))
-name = ws.get('name','?')
-pkg  = ws.get('package_path','')
-ver  = ws.get('schema_version','?')
-imports = ws.get('imports', {}) or {}
-n_imports = len(imports) if isinstance(imports, dict) else len(imports)
-expert_docs = ws.get('expert_docs', []) or []
-print(f'✓ workspace: {name}')
-print(f'  path:         $WS_ROOT')
-print(f'  package:      {pkg}')
-print(f'  schema_ver:   {ver}')
-print(f'  imports:      {n_imports}')
-print(f'  expert_docs:  {len(expert_docs)}')
-"
-
-# 2. Server liveness
-INFO=".pbg/server/server-info"
-URL="" PID="" PORT="" ALIVE=false
-if [ -f "$INFO" ]; then
-  read -r URL PID PORT ALIVE < <(python3 -c "
-import json, socket
-info = json.load(open('$INFO'))
-url = info.get('url','')
-pid = info.get('pid','-')
-port_raw = info.get('port') or url.split(':')[-1].rstrip('/')
-try:
-    port = int(str(port_raw).split('/')[-1])
-    s = socket.create_connection(('127.0.0.1', port), timeout=1)
-    s.close()
-    alive = 'true'
-except Exception:
-    alive = 'false'
-    port = port_raw
-print(url, pid, port, alive)
-" 2>/dev/null)
-  if [ "$ALIVE" = "true" ]; then
-    echo "server:  $URL  pid=$PID  [alive]"
-  else
-    echo "server:  $URL  pid=$PID  [DEAD — safe to delete .pbg/server/server-info]"
-  fi
-else
-  echo "server:  not running"
-fi
-
-# 3. Git state
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
-DIRTY=$(git status --short --porcelain 2>/dev/null | wc -l | tr -d ' ')
-echo "git:     branch=$BRANCH  dirty=$DIRTY files"
-
-# 4. Studies
-python3 -c "
-import glob, yaml
-from collections import Counter
-files = sorted(glob.glob('studies/*/study.yaml') + glob.glob('investigations/*/studies/*/study.yaml'))
-if not files:
-    print('studies: none')
-else:
-    statuses = []
-    for f in files:
-        try:
-            d = yaml.safe_load(open(f)) or {}
-            statuses.append(d.get('status','unknown'))
-        except Exception:
-            statuses.append('parse-error')
-    c = Counter(statuses)
-    parts = ', '.join(f\"{k}: {v}\" for k,v in sorted(c.items()))
-    print(f'studies: {len(files)} total  ({parts})')
-" 2>/dev/null
-
-# 5. API endpoints (best-effort, only when server alive)
-if [ "$ALIVE" = "true" ] && [ -n "$URL" ]; then
-  WS_STATUS=$(curl -sf "$URL/api/work-status"        || echo '{}')
-  DIRTY_API=$( curl -sf "$URL/api/dirty-status"       || echo '{}')
-  MANIFEST=$(  curl -sf "$URL/api/workspace-manifest" || echo '{}')
-  WS_STATUS="$WS_STATUS" DIRTY_API="$DIRTY_API" MANIFEST="$MANIFEST" python3 <<'PY'
-import json, os
-ws  = json.loads(os.environ.get("WS_STATUS","{}") or "{}")
-d   = json.loads(os.environ.get("DIRTY_API","{}") or "{}")
-m   = json.loads(os.environ.get("MANIFEST","{}") or "{}")
-if ws.get("active"):
-    pr = ws.get("pr_url") or "none"
-    print(f"workstream: active  branch={ws.get('branch','?')}  base={ws.get('base','main')}  "
-          f"commits_ahead={ws.get('commits_ahead',0)}  unpushed={ws.get('unpushed',0)}")
-    print(f"            PR: {pr}")
-else:
-    print("workstream: none")
-files = d.get("files") or []
-if files:
-    print(f"dirty ({len(files)}):")
-    for f in files[:20]:
-        print(f"  {f.get('status','??'):2}  {f.get('path','')}")
-    if len(files) > 20:
-        print(f"  ... +{len(files)-20} more")
-skills_n = len(m.get("skills") or [])
-if skills_n:
-    print(f"skills installed: {skills_n}")
-PY
-fi
-```
+> **Implementation:** build the probe from the step specs above — walk up to
+> `workspace.yaml`, read `.pbg/server/server-info` for server liveness (a plain TCP
+> probe; no separate server skill needed), then git state + `studies/`. No separate
+> copy of the script is kept here; the step specs and the example outputs below are
+> the contract.
 
 #### Example output (workspace found, server dead)
 

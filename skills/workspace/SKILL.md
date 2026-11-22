@@ -8,7 +8,10 @@ argument-hint: <workspace-name> [target-dir] [--upstream <repo>] [--branch <name
 
 # /workspace
 
-Bootstrap stage. Operates on a brand-new workspace directory.
+> **Stage:** — (setup/utility, outside the cycle) · **Service:** — · **Lifecycle:** bootstrap (before Design). Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
+Bootstrap stage. Operates on a brand-new workspace directory — the setup that must
+exist before any discovery-cycle work begins.
 
 Three modes: (1) upstream-branch — clone a repo and create a workspace branch
 on top; (2) standalone — clone `viva-template` directly; (3) in-place — promote

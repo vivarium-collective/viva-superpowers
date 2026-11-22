@@ -8,12 +8,20 @@ argument-hint: "<consolidated-slug> --studies a,b,c | <investigation-slug>"
 
 # /consolidate
 
+> **Stage:** Synthesize · **Service:** Knowledge Base · **Lifecycle:** Decide. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 Merge related probe-studies into **one multi-arm consolidated study** — each fold-in becomes an
 **arm**, its artifacts move in, and the original `study.yaml` nodes are **deleted
 non-reversibly**. This is the convergent half of the breathing rhythm in
 [RFC-0003](../../docs/rfcs/RFC-0003-investigation-graphs-breathe.md): you branched many small
 probe-studies while you didn't know which angle mattered; now the concept is understood, so you
 state it *with its full evidence* as one node and the graph genuinely deflates.
+
+This is a **Synthesize**-stage act, and it is where the record progression surfaces:
+a concept whose canonical-arm verdict has stabilized is exactly where a **Finding** is
+promoted to a **Discovery Candidate** and, once reviewed, a **Discovery** — the
+consolidated study is the node that carries that promotion (see the cross-walk's
+"Records, not just findings"). Preserve every arm's own verdict as you do it.
 
 ## What this is (and is not)
 

@@ -8,14 +8,17 @@ argument-hint: <composite-id> [--steps N] [--emit p1,p2,...]
 
 # /run
 
+> **Stage:** Experiment (local execute) · **Service:** — · **Lifecycle:** Simulate. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 Run a composite (spec or generator) for `N` steps and print a summary of
 the emitted observables. Wraps `/api/composite-test-run`.
 
 ## Where this sits in the arc
 
-Step 4 of the generation arc (full arc in `/orient`): the fast, ad-hoc
-sibling to `/study`'s `run-baseline` / `run-variant` — smoke-test one
-composite outside any study. `/remote-run` is the viva-api (GovCloud) sibling.
+The **Experiment** stage (Simulate), in its fast, ad-hoc form: smoke-test one
+composite outside any study — the local sibling to `/study`'s `run-baseline` /
+`run-variant`, with `/remote-run` the viva-api (GovCloud) sibling. What a run emits
+is an *Observation*; turning it into a *Finding* belongs to a study, not here.
 
 <!-- Cross-skill house rule from a study-feedback friction review. General. -->
 ## House rule: bias to execute

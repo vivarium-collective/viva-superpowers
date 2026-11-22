@@ -1,9 +1,9 @@
 ---
 name: tests
-description: Use when authoring, enriching, running, auditing, or citing evidence for a study's Tests — the graded report cards that compile a run into a pass/fail verdict AND a signed margin an agent reads to drive iterative model building. Covers scaffolding a TestStep, grading checks into cited bands, running for the report + diff, auditing Tests-sufficiency before a pre-registration lock, and citing acceptance-band provenance from expert PDFs.
+description: Use when authoring, enriching, running, auditing, or citing evidence for a study's Tests — the graded report cards that compile a run into a pass/fail verdict AND a signed margin an agent reads to drive iterative model building. Covers scaffolding a TestStep, grading checks into cited bands, running for the report + diff, auditing Tests-sufficiency before a lock, citing acceptance-band provenance, and biology-forward finding authoring.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit
-argument-hint: "<author|enrich|run|audit|cite-bands> <study> [name] — see SKILL.md"
+argument-hint: "<author|enrich|run|audit|cite-bands|biology-forward> <study> — see SKILL.md"
 ---
 
 # /tests
@@ -102,7 +102,7 @@ enriching, classify each as `gate_class: regression_pin | acceptance_criterion`
 (`regression_pin` = threshold set after the run; `acceptance_criterion` = a prior
 declared before the run in the study's `preregistered:` block). The report's
 verdict counts split the two, and a pin counted as acceptance is the
-post-hoc-gate failure the `audit` subcommand and `/validate`'s
+post-hoc-gate failure the `audit` subcommand and `/harden`'s
 reviewer lens both hunt; the rigor scorecard's threshold-provenance dim reads the
 result.
 
@@ -230,43 +230,35 @@ sourcing gate, after your near-miss reasoning has adjusted either.
 
 ---
 
-### Subcommand: cite-bands
+### Shared: thin-client provenance flow
 
-Guided band-provenance extraction: guides the agent through sourcing the
-acceptance bands in a study's `behavior_tests[]` / `tests[]` that lack a
-`cites` bib_key.  The AI does the reading and judgment; the vivarium-workbench
-API surfaces candidates, writes the provenance, and validates.
-
-A cited band is also the acceptance band on a **graded Test axis** —
-`viva_superpowers.check(observed, band(low, high), cite=…)` inside a `TestStep`
-(see `author`/`enrich` above). Recording provenance here and
-grading a Test axis via `/tests enrich` share one target: the band + its
-`cites` bib_key land on the axis so its verdict carries a signed margin *and* the
-evidence a reviewer would ask for.
+The `cite-bands` and `biology-forward` subcommands below are both **thin-client
+provenance flows**: the AI does the reading and judgment; the vivarium-workbench
+API surfaces candidates, writes the result, and validates. They share this
+preamble, the expert-search candidate step, the pending-fallback, and the
+parameter-vs-band units guard — documented **once here** so the two subcommands
+don't drift. Each subcommand then adds only its own write: `cite-bands` writes
+band provenance (`POST /api/band-provenance`); `biology-forward` writes finding
+numbers + mechanism prose (`POST /api/study-findings-populate-observations`).
 
 **Dashboard-AI-free rule:** the AI reasoning stays entirely in this skill
-(viva-superpowers).  The workbench only serves deterministic reads/writes —
-no judgment happens server-side.  All writes go through `POST
-/api/band-provenance` (never hand-edited YAML, never a client-side
-reimplementation of the write).
+(viva-superpowers). The workbench only serves deterministic reads/writes — no
+judgment happens server-side. All writes go through the subcommand's documented
+POST endpoint (never hand-edited YAML, never a client-side reimplementation of
+the write).
 
-**Thin client (Phase 2.1e):** this subcommand does no compute of its own — every
-step is a `curl` call against the running dashboard server.  If a step below
-looks like it needs local Python beyond parsing JSON, that's a sign the
-workbench API under-covers the op — STOP and report it (the fix is a
-workbench-side endpoint enhancement, not a bash reimplementation here).
+**Thin client:** neither flow does compute of its own — every step is a `curl`
+call against the running dashboard server. If a step looks like it needs local
+Python beyond parsing JSON, that's a sign the workbench API under-covers the op —
+STOP and report it (the fix is a workbench-side endpoint enhancement, not a bash
+reimplementation here).
 
-#### Preconditions
+#### Preamble (both flows)
 
-1. A pbg workspace with the named study exists (study directory at
-   `studies/<study-slug>/study.yaml`).
-2. `references/papers.bib` exists at the workspace root (the bib source the
-   linter checks against).  If a citation source is not yet in `papers.bib`,
-   add the BibTeX entry there **first** before recording it on the band.
-3. The dashboard server is running (`.pbg/server/server-info` exists) — the
-   preamble below errors out with a fix-it hint if not.
-
-#### Common preamble
+Preconditions common to both: a pbg workspace with the named study exists
+(`studies/<study-slug>/study.yaml`), and the dashboard server is running
+(`.pbg/server/server-info` — the preamble below errors out with a fix-it hint if
+not). Each subcommand lists its own extra preconditions.
 
 ```bash
 # Walk up to workspace root.
@@ -282,6 +274,98 @@ INFO=".pbg/server/server-info"
 URL="$(python3 -c "import json; print(json.load(open('$INFO'))['url'])")"
 python3 -m discovery_engine.integration.server_preflight --url "$URL" || true  # version-skew preflight (warns; never fails)
 ```
+
+#### Surface expert-doc candidates (both flows)
+
+For each band / finding that needs evidence, call `GET /api/expert-search` to
+find relevant passages in the workspace's expert PDFs. `q` is a comma-separated
+list of search terms:
+
+```bash
+curl -sf --get "$URL/api/expert-search" \
+  --data-urlencode "q=<test-name>,<numeric-bound>,<domain-term>" \
+  --data-urlencode "max_hits=5" | python3 -m json.tool
+```
+
+`q` should include: the test name or readout name, the numeric bounds
+(e.g. `0.2`, `0.5`), and any domain keywords (e.g. `DnaA-ATP`, `fraction`).
+
+Response shape:
+```json
+{
+  "terms": ["<test-name>", "0.2", "0.5", "<domain-term>"],
+  "hits": [
+    { "doc": "<filename>.pdf", "page": 3, "snippet": "…±100 chars around match…", "term": "<matched-term>" }
+  ]
+}
+```
+
+Present the snippets; the agent selects a verbatim quote. If needed, open the
+cited PDF page with the `Read` tool for fuller context.
+
+#### Pending-fallback — never fabricate (both flows)
+
+If you are UNCERTAIN, or the expert did not provide a source, record the item as
+a pending entry in `investigation.yaml` under `proposed_inputs` rather than
+asserting an unverified citation. NEVER fabricate a citation or a bib_key — a
+made-up key fails the `band_cites_unknown_bib_key` linter and silently corrupts
+the provenance record. For a finding with no `evidence.from_test` link
+(`biology-forward`), skip the auto-fill and document it as an authored finding; a
+finding whose mechanism has no literature match is marked `status: novel`, never
+given a fabricated `expert_reference`.
+
+```yaml
+# investigation.yaml — add under proposed_inputs:
+proposed_inputs:
+  - kind: band_provenance_pending
+    study: <study-slug>
+    test_name: <test-name>
+    note: "Band [0.2, 0.5] — source not confirmed; awaiting expert input"
+```
+
+#### Parameter-calibration vs acceptance band — classify before writing (both flows)
+
+This is the **owner** of the units classification both flows depend on. Does the
+cited number share **units** with the observable the band tests (e.g. both a 0-1
+fraction, both a cell count)? Only then may it become
+`calibration_anchor.literature_target`. If the cited number is a **parameter
+value in the parameter's own units** (a Kd, an affinity, a rate constant — never
+the observable's units), it calibrates the *model*, not the *band*: route it to
+the study's `model_settings[].cites` instead, and **never** write it as a
+behavior-test `literature_target`. A Kd recorded as the `literature_target` on a
+dimensionless fraction silently corrupts `divergence_factor` downstream (see the
+`biology-forward` divergence_factor arithmetic below) — this is the trap to avoid.
+
+A cited parameter itself always falls into one of three buckets — label it
+explicitly, never leave it ambiguous:
+1. **Cited** (`cites: [bib_key]`) — a real literature value the model is calibrated to.
+2. **Recorded modeling choice** (`provenance: theory`, note "not fit") — a deliberate choice, not fit to data.
+3. **Pending** (`proposed_inputs`, per the pending-fallback above) — not yet sourced.
+Bucket 2 must be explicitly labelled as such — never silently treated as (1) cited or as data-anchored.
+
+---
+
+### Subcommand: cite-bands
+
+Guided band-provenance extraction: sources the acceptance bands in a study's
+`behavior_tests[]` / `tests[]` that lack a `cites` bib_key. Uses the **shared
+thin-client provenance flow** above (preamble · expert-search · pending-fallback
+· units guard); the cite-bands-specific parts are finding the uncited bands and
+writing `cites`/`calibration_anchor` provenance via `POST /api/band-provenance`.
+
+A cited band is also the acceptance band on a **graded Test axis** —
+`viva_superpowers.check(observed, band(low, high), cite=…)` inside a `TestStep`
+(see `author`/`enrich` above). Recording provenance here and grading a Test axis
+via `/tests enrich` share one target: the band + its `cites` bib_key land on the
+axis so its verdict carries a signed margin *and* the evidence a reviewer would
+ask for.
+
+**Extra precondition:** `references/papers.bib` exists at the workspace root (the
+bib source the linter checks against). If a citation source is not yet in
+`papers.bib`, add the BibTeX entry there **first** before recording it on the
+band.
+
+Run the **shared preamble** to resolve `$URL`, then:
 
 #### Step 1 — Find uncited bands
 
@@ -355,77 +439,29 @@ expert-PDF path below still applies for bands it does not cover.
 
 #### Step 2 — Surface candidate evidence per band
 
-For each uncited band, call `GET /api/expert-search` to find relevant
-passages in the workspace's expert PDFs. `q` is a comma-separated list of
-search terms:
-
-```bash
-curl -sf --get "$URL/api/expert-search" \
-  --data-urlencode "q=<test-name>,<numeric-bound>,<domain-term>" \
-  --data-urlencode "max_hits=5" | python3 -m json.tool
-```
-
-`q` should include: the test name or readout name, the numeric bounds
-(e.g. `0.2`, `0.5`), and any domain keywords (e.g. `DnaA-ATP`, `fraction`).
-
-Response shape:
-```json
-{
-  "terms": ["<test-name>", "0.2", "0.5", "<domain-term>"],
-  "hits": [
-    { "doc": "<filename>.pdf", "page": 3, "snippet": "…±100 chars around match…", "term": "<matched-term>" }
-  ]
-}
-```
-
-Show the snippets to the user so they can review the evidence.
+For each uncited band, run the shared **expert-search** step (test/readout name
++ numeric bounds + domain keywords) and show the snippets to the user. The
+investigation-inputs pool (Step 1b) is an **additional** candidate source; the
+expert-PDF search covers bands it does not.
 
 #### Step 3 — Agent judgment (the only AI step)
 
-**Parameter calibration vs acceptance band — classify before writing.** Does
-the cited number share **units** with the observable the band tests (e.g.
-both a 0-1 fraction, both a cell count)? Only then may it become
-`calibration_anchor.literature_target`. If the cited number is a **parameter
-value in the parameter's own units** (a Kd, an affinity, a rate constant —
-never the observable's units), it calibrates the *model*, not the *band*:
-route it to the study's `model_settings[].cites` instead, and **never** write
-it as a behavior-test `literature_target`. A Kd recorded as the
-`literature_target` on a dimensionless fraction silently corrupts
-`divergence_factor` downstream (see the `biology-forward` aspect of
-`/validate`'s arithmetic block) — this is the trap to avoid.
-
-A cited parameter itself always falls into one of three buckets — label it
-explicitly, never leave it ambiguous:
-1. **Cited** (`cites: [bib_key]`) — a real literature value the model is calibrated to.
-2. **Recorded modeling choice** (`provenance: theory`, note "not fit") — a deliberate choice, not fit to data.
-3. **Pending** (`proposed_inputs`, per Step 3 above) — not yet sourced.
-Bucket 2 must be explicitly labelled as such — never silently treated as (1) cited or as data-anchored.
-
-Read the candidate snippets.  If needed, open the cited PDF page with the
-`Read` tool for fuller context.
-
-**Choose the source** — pick:
+Classify the cited number per the shared **parameter-calibration vs acceptance
+band** guard before writing — a parameter value (Kd / rate / affinity) belongs
+in `model_settings[].cites`, never as a behavior-test `literature_target`; only a
+number in the observable's own units may become `calibration_anchor.literature_target`.
+Read the candidate snippets (open the cited PDF page with the `Read` tool for
+fuller context), then **choose the source**:
 - `bib_key`: the BibTeX key in `references/papers.bib` that establishes the band
 - verbatim quote: the sentence or phrase that states the numeric range
 
-**If the source is NOT in `papers.bib`:**
-Add the BibTeX entry to `references/papers.bib` before proceeding.  The
-`band_cites_unknown_bib_key` linter will error on any key not in that file.
+**If the source is NOT in `papers.bib`:** add the BibTeX entry to
+`references/papers.bib` before proceeding — the `band_cites_unknown_bib_key`
+linter errors on any key not in that file.
 
-**If you are UNCERTAIN, or the expert did not provide a source:**
-Record the band as a pending item in `investigation.yaml` under
-`proposed_inputs` (see below) rather than asserting an unverified citation.
-NEVER fabricate a citation — a made-up bib_key will cause a linter error
-and silently corrupt the provenance record.
-
-```yaml
-# investigation.yaml — add under proposed_inputs:
-proposed_inputs:
-  - kind: band_provenance_pending
-    study: <study-slug>
-    test_name: <test-name>
-    note: "Band [0.2, 0.5] — source not confirmed; awaiting expert input"
-```
+**If you are UNCERTAIN, or the expert did not provide a source:** record the band
+under `proposed_inputs` per the shared **pending-fallback** rather than asserting
+an unverified citation. Never fabricate a bib_key.
 
 #### Step 4 — Write provenance
 
@@ -513,6 +549,187 @@ curl -sf -X POST -H "Content-Type: application/json" -d "$BODY" \
 
 # 5. Validate
 curl -sf "$URL/api/band-provenance?study=dnaa-2" | python3 -m json.tool
+```
+
+---
+
+### Subcommand: biology-forward
+
+Invoked as `/tests biology-forward <study-slug>`. Brings the quantitative
+biology forward into the structured finding slots the report renderer already
+draws, then guides the agent to author the mechanism prose using the auto-filled
+numbers as a scaffold. This is finding/grading work — it **moved here from
+`/harden`**; `/harden` step 5 ("Close the loop") reaches for it when findings
+carry numbers but no mechanism prose. Uses the **shared thin-client provenance
+flow** above (preamble · expert-search · pending-fallback · units guard); the
+biology-forward-specific parts are filling the finding numbers
+(`POST /api/study-findings-populate-observations`) and authoring the prose.
+
+**Architecture:**
+- **Deterministic part** (code-owned, never hand-edit): the workbench's
+  `POST /api/study-findings-populate-observations` fills `evidence.observed`,
+  `evidence.units`, `expected.range`/`cites`, `provenance.run_ids`,
+  `evidence.divergence_factor`, and the measured side of `calibration_anchor` —
+  all from `computed_outcomes` + band + readouts.
+- **Authored part** (AI only): the agent writes `statement`, `summary`,
+  `explanation`, `status`, and `expected.summary` (+ selects
+  `expert_reference.quote` from `GET /api/expert-search` candidates).
+
+All number-writes go through `POST /api/study-findings-populate-observations`
+(never hand-edited YAML).
+
+#### Extra preconditions
+
+1. The study has `findings[]` with at least one entry carrying `evidence.from_test`.
+2. The canonical run has been evaluated: `computed_outcomes[T].measured_value` must
+   exist for the linked test. Run `/study run-baseline` + sync if not present.
+
+Run the **shared preamble** to resolve `$URL`, then:
+
+#### Step 0 — Prerequisite: sync the canonical run
+
+If the canonical run's `computed_outcomes` may be stale (a fresh run just
+completed), reconcile `runs.db` → `study.yaml` first so `measured_value` is
+present for the linked tests:
+
+```bash
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"study": "<study-slug>"}' \
+  "$URL/api/study-sync-runs" | python3 -m json.tool
+```
+
+#### Step 1 — Fill the quantitative slots (deterministic)
+
+Call `POST /api/study-findings-populate-observations` to fill all absent
+code-owned slots:
+
+```bash
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"study": "<study-slug>"}' \
+  "$URL/api/study-findings-populate-observations" | python3 -m json.tool
+```
+
+The response reports `{study, filled, skipped}`.
+- `filled` — findings that received at least one new code-owned field.
+- `skipped` — findings with no `evidence.from_test` link or no `measured_value`.
+
+If `filled == 0` and you expected fills, check:
+- Does the finding have `evidence.from_test: <test-name>`?
+- Does the canonical run's `computed_outcomes` have a `measured_value` for that test?
+  Re-run Step 0 (`POST /api/study-sync-runs`) or `/sync-runs` to refresh.
+
+#### Step 2 — Show the observed-vs-band scaffold
+
+After populate, `Read` the study's `study.yaml` (the `Read` tool) and look at
+each `findings[]` entry that now carries `evidence.observed`. For each, note:
+
+- `evidence.observed` (+ `evidence.units`)
+- `expected.range` (or `expected.threshold`)
+- `evidence.divergence_factor`
+- `provenance.run_ids`
+
+These filled numbers are the scaffold you author the prose over in Step 4.
+(Reading the YAML is a native file read — no local compute.)
+
+#### Step 3 — Surface expert-doc candidates (optional but recommended)
+
+For each finding that needs an `expert_reference.quote`, run the shared
+**expert-search** step (the test/readout name, the numeric bounds, and any
+domain keywords). Present the snippets and let the agent select a verbatim quote
+for `expert_reference.quote`.
+
+#### Step 4 — Author the mechanism prose (the only AI step)
+
+For each finding whose numbers are filled, the agent writes ONLY the irreducible
+authored slots. Use the scaffold from Step 2 as a guide:
+
+| Slot | What to write |
+|---|---|
+| `statement` | One-sentence biological claim ("The DnaA-ATP fraction lands in the [0.2,0.5] band…") |
+| `summary` | Mechanism explanation — what the number means and why the model produces it |
+| `explanation` | Optional deeper mechanistic rationale |
+| `status` | `confirms` / `partial` / `contradicts` / `novel` — based on divergence_factor |
+| `expected.summary` | The literature claim the test is checking against (one sentence) |
+| `expert_reference.quote` | Verbatim sentence from the expert PDF (selected in Step 3) |
+
+Write the prose to `study.yaml` using the `Edit` tool. The numbers (`observed`,
+`range`, `divergence_factor`, `run_ids`) are code-owned — never hand-edit them.
+If the numbers change (e.g. after a new run), re-run Step 1
+(`POST /api/study-findings-populate-observations`) to refresh them.
+
+#### Step 5 — Validate (idempotency check)
+
+Re-call `POST /api/study-findings-populate-observations` to confirm it's
+idempotent (returns `filled=0`):
+
+```bash
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"study": "<study-slug>"}' \
+  "$URL/api/study-findings-populate-observations" | python3 -m json.tool
+```
+
+Expected output: `{"study": ..., "filled": 0, "skipped": N}` — nothing changed
+because all code-owned slots are already present.
+
+#### Guardrails
+
+| Rule | Enforcement |
+|---|---|
+| Numbers are code-owned | `POST /api/study-findings-populate-observations` fills only absent slots; never hand-edit `evidence.observed`, `expected.range`, `divergence_factor`, `provenance.run_ids` |
+| Never overstate beyond divergence | If `divergence_factor > 0`, the finding `status` must be `partial` or `contradicts`, never `confirms` |
+| Uncertain mechanism → mark novel | If you cannot find a literature match, set `status: novel` and do not fabricate `expert_reference` (see the shared pending-fallback) |
+| No from_test → skip | A finding with only `from_run` is never auto-filled (never-fabricate rule); document it as an authored finding |
+| Idempotent | Re-running populate on an already-filled study is always safe |
+| Non-circular observable | The readout's domain/denominator must be fixed independently of the mechanism under test — a metric computed only over the sub-population the mechanism gates/selects (e.g. recruitment measured only over the cells the mechanism activated) is circular by construction |
+
+#### Quick-reference: divergence_factor arithmetic
+
+```
+With expected.range [low, high]:
+  inside [low, high]  → divergence_factor = 0.0  (status: confirms)
+  below low           → (low - measured) / low   (positive; status: partial/contradicts)
+  above high          → (measured - high) / high (positive; status: partial/contradicts)
+
+With calibration_anchor.literature_target L:
+  divergence_factor = (measured - L) / L   (signed; positive = above target)
+
+With threshold T only:
+  divergence_factor = (measured - T) / T   (signed)
+```
+
+**Guard:** `literature_target` must be in the observable's own units, never a
+parameter value (a Kd / affinity / rate constant). The full parameter-vs-band
+units classification — and why a mis-routed Kd corrupts `divergence_factor` —
+lives in the **shared thin-client provenance flow** above (the owner).
+
+#### Full workflow example
+
+```bash
+# 0. Preamble (walk to workspace root, resolve $URL) — see the shared preamble above.
+
+# 0b. Prerequisite: reconcile the canonical run's outcomes
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"study": "dnaa-2"}' "$URL/api/study-sync-runs" | python3 -m json.tool
+
+# 1. Fill the numbers
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"study": "dnaa-2"}' \
+  "$URL/api/study-findings-populate-observations" | python3 -m json.tool
+
+# 2. Read studies/dnaa-2/study.yaml (Read tool); note observed / range /
+#    divergence_factor for each finding with evidence.observed.
+
+# 3. Search expert PDFs for a quote (shared expert-search step)
+curl -sf --get "$URL/api/expert-search" \
+  --data-urlencode "q=DnaA-ATP,0.2,0.5,fraction" \
+  --data-urlencode "max_hits=5" | python3 -m json.tool
+
+# 4. Agent authors the prose with Edit tool (statement/summary/status/expert_reference)
+
+# 5. Validate idempotency (expect filled=0)
+curl -sf -X POST -H "Content-Type: application/json" \
+  -d '{"study": "dnaa-2"}' \
+  "$URL/api/study-findings-populate-observations" | python3 -m json.tool
 ```
 
 ---

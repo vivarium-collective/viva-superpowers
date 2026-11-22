@@ -16,6 +16,12 @@ through the **vivarium-workbench** dashboard. The `viva:` skills are thin client
 over the `viva_superpowers` helpers and the workbench API. **The workbench is the
 backend — most skills do nothing without it.**
 
+This realizes the **six-stage discovery cycle** — Question → Hypothesize → Model →
+Experiment → Evaluate → Synthesize — on the study lifecycle (Design → Build →
+Simulate → Evaluate → Decide). Each skill serves a stage (and, when it is one, a
+service: Orchestrator · Reasoner · Strategist · Knowledge Base); the full cross-walk
+is [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 ## The Rule
 
 If there is even a 1% chance a `viva:` skill fits what you're about to do, invoke
@@ -43,7 +49,7 @@ question → /model-build <study>          (creates the study if needed)
   BUILD→RUN→GRADE  iterate the MODEL (never the locked tests) to the severity gate
   DECIDE  pass → findings · verdicts · report GENERATED from the run
                  else → iterate, or GIVE_UP honestly
-then  /investigate (group studies) · /validate (rigor)
+then  /investigate (group studies) · /harden (rigor)
       · /consolidate (merge settled probes → one multi-arm study)
       · /report (publish) · /benchmark (score the loop)
 ```

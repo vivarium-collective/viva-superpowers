@@ -726,22 +726,32 @@ Skills that read dashboard state do so via these HTTP endpoints:
 
 | Skill | Reads | Writes | Notes |
 |---|---|---|---|
-| `/init` | — | Workspace | Scaffolds new workspace. |
-| `/workbench` | `.pbg/server/server-info` | Starts/stops the dashboard (workbench) server. | Required precondition for every other dashboard-touching skill; also serves reports. |
-| `/catalog [list]` | Workspace, Composites, Studies | — | Read-only catalog. |
-| `/catalog install <pkg>` / `/catalog uninstall <pkg>` | Workspace | Workspace deps | Wraps `pip install` + workspace catalog. |
-| `/status` | Workspace state | — | Server up? recent activity? Probes the running workbench server directly. |
-| `/model <tool>` | External Process | Sibling `viva-<tool>/` repo | Wraps a simulator as a Process. Default mode creates a sibling repo + tests + README + report; `--lightweight` writes a single file into the current workspace package instead. |
-| `/model <name> <tools…>` | Composite catalog | Sibling `viva-<name>-composite/` repo | Composes installed wrappers. `--lightweight` writes a single composite file into the workspace package instead. |
-| (internal) `/suggest <id>` | `.pbg/agent-requests/<id>.json` | `.pbg/agent-responses/<id>.json` | Dashboard "Suggest" callback. Not user-facing. |
-| (maintainer) `scripts/audit-pbg-repo.py <repo>` | External viva-* repo | — | Audits packaging/discovery conventions. Replaces the retired v0.8 `package` audit skill. |
-| `/explore` | Composite | Dashboard view | Opens composite in dashboard. |
-| `/run` | Composite | Run record | Runs a composite directly (no Study). |
-| `/study` | Study | Study | **All Study CRUD + runs.** See subcommand table above. `check-observables`/run-* record the emitter + emit paths that render in the study-detail Design › Readouts panel and the values that render in Evidence › Results — see [Study-detail dashboard spine](#study-detail-dashboard-spine). |
-| `/investigate` | Investigation | Investigation YAML | **All Investigation CRUD + scaffold-from-plan.** Writes YAML directly (no write endpoints yet). |
-| `/viz` | Visualization | Visualization | Adds a viz to a study; renders in Evidence › Visualizations, with generated artifacts also listed under Evidence › Analyses. |
-| `/report` | Study | Report file | Renders study summary to markdown. |
-| `/workspace` | Workspace | Workspace state | Workspace-level commands. |
+Grouped by the six-stage discovery cycle (see [`skills-and-the-discovery-cycle.md`](skills-and-the-discovery-cycle.md) for the full cross-walk). Each skill opens with a `Stage · Service · Lifecycle` tag.
+
+| Skill | Stage / role | Reads | Writes | Notes |
+|---|---|---|---|---|
+| `/orient` | utility (session entry) | — | — | Orientation + the stage/service cross-walk. Auto-injected. |
+| `/workspace <name>` | utility (setup) | — | Workspace | Scaffold a new workspace (3 modes). |
+| `/workbench [start\|stop\|open]` | Orchestrator (backend) | `.pbg/server/server-info` | dashboard server | The backend precondition for every dashboard skill; also serves reports + the composite explorer (`open --composite`). |
+| `/catalog [list\|install\|uninstall]` | Model / Knowledge Base | Workspace, Composites, Studies | Workspace deps | Browse/install/uninstall workspace modules. |
+| `/model <tool\|name…>` | Model | External Process / composite catalog | sibling repo or workspace package | Wrap a simulator as a Process / compose. `--lightweight` writes into the workspace package. |
+| `/model-build <study>` | Orchestrator (Hypothesize→Decide) | Study | Study (iterated) | Drives the agentic model-building loop (AUTHOR→…→DECIDE). |
+| `/study <subcmd>` | Knowledge Base (Design→Decide) | Study | Study | All Study CRUD + runs. `check-observables`/`run-*` record the emitter + emit paths rendered in Design › Readouts and the values in Evidence › Results — see [Study-detail dashboard spine](#study-detail-dashboard-spine). |
+| `/tests <author\|enrich\|run\|audit\|cite-bands\|biology-forward>` | Experiment + Evaluate | Study runs | `behavior_tests[]` / findings | Graded report-card Tests + finding authoring. |
+| `/investigate <subcmd>` | Knowledge Base (Question + Synthesize) | Investigation | Investigation YAML | Investigation CRUD + scaffold-from-plan + run + close. Writes YAML directly. |
+| `/consolidate <slug> --studies a,b` | Synthesize | Studies | one multi-arm Study | Merge settled probe-studies (destructive, non-reversible). |
+| `/run <composite>` | Experiment (local execute) | Composite | Run record | Smoke-test a composite (no Study). |
+| `/remote-run <composite>` | Experiment (remote execute) | Composite | Run record (remote) | Run on viva-api / GovCloud. |
+| `/viz <study> <name>` | Evaluate/Synthesize | Study runs | Visualization | Generate + attach a Visualization; renders in Evidence › Visualizations. |
+| `/report <study>` | Synthesize (publication) | Study | Report file | Reviewer audit + lint + render. |
+| `/harden [slug]` | Evaluate (+ Synthesize) | Investigation/Study | rigor fixes | Make conclusions survive scrutiny; crank the frontier. |
+| `/explore <status\|decisions\|ac-gaps\|…>` | Question (read side) / Strategist | linkage index + server | — | **Read-only** queries over the workspace knowledge graph + a workspace/server/git status check. (The old open-in-dashboard `/explore` is now `/workbench open --composite`.) |
+| `/discover <inv> <goal>` | Orchestrator | Investigation | Investigation (driven) | Drive the engine loop with a free-text steering goal. |
+| `/reason [req]` | Reasoner | GenerationRequest | GenerationResult / applied artifact | The generation seam: generate (default, `$VIVA_FILLER_CMD`) or `--apply` the CLI-verb kinds (`$VIVA_CLI_APPLIER_CMD`). |
+| `/benchmark <suite>` | Strategist (meta) | model-build loop | benchmark report | Score the framework's model-building across variants. |
+| `/init` | utility (setup) | — | `~/.claude/skills/` | Legacy per-machine symlink installer (the supported path is `/plugin install`). |
+| (internal) `/suggest <id>` | utility (callback) | `.pbg/agent-requests/<id>.json` | `.pbg/agent-responses/<id>.json` | Dashboard "Suggest" callback. Not user-facing. |
+| (maintainer) `scripts/audit-pbg-repo.py <repo>` | — | External viva-* repo | — | Audits packaging/discovery conventions. |
 
 ## Pass A — multi-axis status, finding provenance, dependency hashes {#pass-a}
 
