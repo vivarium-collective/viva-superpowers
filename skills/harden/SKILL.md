@@ -1,12 +1,14 @@
 ---
-name: validate
+name: harden
 description: Use when an existing viva Investigation or Study needs to be made more rigorous, trustworthy, or defensible — an overclaiming verdict, a failing/partial report-card gate, a deferred/scaffolded study, an unresolved decisions_needed, a single-seed/uncalibrated claim, findings lacking biological interpretation, or a reviewer asking "is this real?"/"what does this mean biologically?". Also triggers on "harden", "de-risk", "stress-test", "make rigorous", or biology-forward authoring.
 user-invocable: true
 allowed-tools: Bash(*) Read Write Edit Glob
 argument-hint: "[investigation-slug] | biology-forward <study-slug>"
 ---
 
-# /validate
+# /harden
+
+> **Stage:** Evaluate (+ Synthesize) · **Service:** — (surfaces the Strategist's frontier via the crank) · **Lifecycle:** Evaluate → Decide. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
 
 Take an investigation that *looks* done and make its conclusions survive scrutiny. Hardening is
 not "sprinkle more seeds everywhere" — it is: **verify the source is canonical, find the one gap
@@ -144,7 +146,7 @@ workflow goes **green** (a triggered run ≠ a successful one).
 
 ### Aspect: biology-forward
 
-Invoked as `/validate biology-forward <study-slug>`. Brings the
+Invoked as `/harden biology-forward <study-slug>`. Brings the
 quantitative biology forward into the structured finding slots the report
 renderer already draws, then guides the agent to author the mechanism prose
 using the auto-filled numbers as a scaffold. Fills the quantitative slots
