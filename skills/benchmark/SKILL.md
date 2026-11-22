@@ -8,6 +8,8 @@ argument-hint: <suite> [--variant-label "<tag>"] [--max-iterations N] [--score-o
 
 # /benchmark
 
+> **Stage:** — (meta — scores the whole loop across variants) · **Service:** Strategist · **Lifecycle:** across (meta-evaluation). Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 Measure how well the framework turns open-ended questions into validated models,
 **repeatably across framework variants**. For each item in a suite it scaffolds a
 throwaway study, drives the autonomous model-building loop, and scores the result

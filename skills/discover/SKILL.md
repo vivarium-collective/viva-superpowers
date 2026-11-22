@@ -8,6 +8,8 @@ argument-hint: "<investigation-slug> <steering prompt...>  — e.g. ecoli-baseli
 
 # /discover — steer the discovery cycle with a free-text goal
 
+> **Stage:** all six — Question → Synthesize (drives the whole loop) · **Service:** Orchestrator · **Lifecycle:** Design → Decide. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 Drives the **discovery engine** on one investigation and lets a free-text
 *steering goal* influence what the engine develops. It is the autonomous
 counterpart to `/reason`: `/reason` fills **one** request you hand it;

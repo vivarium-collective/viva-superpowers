@@ -8,7 +8,13 @@ argument-hint: "[list | install <pkg> | uninstall <pkg>]"
 
 # /catalog
 
-Single front door for the workspace catalog.
+> **Stage:** Model (the sourcing survey the SELECT phase reads) · **Service:** Knowledge Base · **Lifecycle:** Build. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
+Single front door for the workspace module catalog: survey what is installed or
+available, and install or uninstall curated `viva-*` modules. In the discovery
+cycle this is the **Model**-stage sourcing survey — `/model-build`'s SELECT phase
+reads this catalog to decide where a model comes from (reuse / compose /
+build-new).
 
 ## Subcommands
 

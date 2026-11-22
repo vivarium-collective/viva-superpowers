@@ -7,6 +7,8 @@ argument-hint: <request-id>
 
 # /suggest <request-id>
 
+> **Stage:** — (utility — internal dashboard callback, outside the cycle) · **Service:** — · **Lifecycle:** —. Cross-walk: [`docs/concepts/skills-and-the-discovery-cycle.md`](../../docs/concepts/skills-and-the-discovery-cycle.md).
+
 > **Internal callback skill.** This is not part of the v0.9 user-facing
 > catalog. It exists because the vivarium-workbench "Suggest" button asks
 > the user to paste `/suggest <id>` into Claude Code — the dashboard
