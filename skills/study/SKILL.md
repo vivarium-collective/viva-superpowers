@@ -100,11 +100,14 @@ not with the pytest directory below. Every entry carries a
 `gate_class: regression_pin | acceptance_criterion` (see § Born-rigorous
 defaults below for the classification rule).
 
-For **graded report-card tests** — axes with a signed `margin` (distance-to-pass),
-`severity`, cited acceptance bands, and a cross-iteration diff (the agent-feedback
-signal for iterative model building) — use [`/tests`](../tests/SKILL.md)
-(`author` / `enrich` / `run`). It builds on `viva_superpowers.check()`/`TestBuilder`
-and complements the `behavior_tests:` acceptance grammar above.
+**Graded Tests on a study are owned by [`/tests`](../tests/SKILL.md).** Authoring,
+enriching, running, auditing, citing acceptance-band provenance (`cite-bands`),
+and biology-forward finding authoring — the signed `margin` (distance-to-pass),
+`severity`, cited bands, and cross-iteration diff that drive iterative model
+building, all built on `viva_superpowers.check()`/`TestBuilder` — live there, not
+here. `/study` keeps only the `behavior_tests:` acceptance grammar above (the
+form the evaluators, report-card axes, audit, and Tests tab read); **author and
+grade the Tests themselves with `/tests`.**
 
 ### Optional: a `tests/` pytest subdirectory (dashboard-only)
 
