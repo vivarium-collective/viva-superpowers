@@ -2,7 +2,7 @@
 
 > _Renamed from **pbg-superpowers** (pbg→viva rebrand, now complete). Old repo/marketplace paths redirect and the `/pbg-*` alias skills have been removed — use `viva:`. The `pbg-superpowers` PyPI dist and the `pbg_superpowers` import both remain only as thin back-compat shims that re-export `viva-superpowers`._
 
-A Claude Code plugin for building **multiscale models in the Process Bigraph framework**. Ships 18 `viva:` skills that scaffold the mechanical parts of compositional modeling — wrapping a simulator as a typed Process, composing Processes into a Composite, organizing the work as a reproducible workspace, and managing studies + runs + visualizations through a local dashboard.
+A Claude Code plugin for building **multiscale models in the Process Bigraph framework**. Ships 21 `viva:` skills that scaffold the mechanical parts of compositional modeling — wrapping a simulator as a typed Process, composing Processes into a Composite, organizing the work as a reproducible workspace, and managing studies + runs + visualizations through a local dashboard.
 
 For **computational biologists** who want their models to be reusable, recombinable, and runnable by others — without writing the registry, packaging, schema, and report boilerplate by hand. Framework background: [Agmon & Spangler (2026)](docs/references/papers/agmon-spangler-2026-process-bigraphs-main.pdf).
 
@@ -156,13 +156,26 @@ Two surfaces commonly get confused when a new user says "make this a viva-superp
 | Shape | Has `workspace.yaml`? | What lives in it | Driven by |
 |---|---|---|---|
 | **Workspace** | yes | `studies/`, `investigations/`, `notes/`, `references/`, `scripts/serve.sh`, plus the model's Python package | the vivarium-workbench + the `viva:` skills |
-| **Composite-only repo** | no | a single Process or Composite package (e.g. `pbg-mem3dg`, `pbg-readdy`) — `pyproject.toml`, `pbg_<slug>/`, `tests/`, `demo/` | imported by one or more workspaces via `workspace.yaml.imports` |
+| **Composite-only repo** | no | a single Process or Composite package (e.g. `viva-mem3dg`, `viva-readdy`) — `pyproject.toml`, `viva_<slug>/`, `tests/`, `demo/` | imported by one or more workspaces via `workspace.yaml.imports` |
 
 A workspace can wrap or live beside one or more composite-only repos. Use `/workspace --in-place` to promote an existing composite-only repo into a workspace branch (adds the workspace artifacts on top without clobbering the composite's existing files).
 
 ## Skills
 
-18 skills, grouped by purpose (wrap & compose · workspace lifecycle · studies & runs · navigate & rigor). See [`docs/skills.md`](docs/skills.md) for the full catalog.
+You invoke a skill from Claude Code as a slash command in the plugin's `viva` namespace —
+**`/viva:<name> [args]`** (e.g. `/viva:workspace demo`, `/viva:study new …`). The bare
+`/<name>` also works when the name is unambiguous, so the examples above read either way. In
+practice you rarely type them: describe what you want in plain language and Claude routes to
+the right skill (the auto-injected `viva:orient` tells it how), while you steer at the level
+of "wrap this solver" or "design a study around this question."
+
+Each skill is a **thin client** — a short set of instructions Claude follows that shells out,
+`curl`s the Workbench HTTP API, and calls the `viva_superpowers` Python helpers; the Workbench
+(and the `discovery-engine` framework behind it) does the real work. Two preconditions every
+dashboard-touching skill assumes: a **workspace** (`/viva:workspace`) and a **running
+Workbench** (`/viva:workbench start`).
+
+21 skills, grouped by purpose (wrap & compose · workspace lifecycle · studies & runs · explore & rigor · model-building & discovery). See [`docs/skills.md`](docs/skills.md) for the full catalog.
 
 ## Companion repos
 
