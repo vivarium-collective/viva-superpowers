@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Accepted — Phase 1 + declared-vs-recorded verification shipped; Phase 2 (materialization) design-gated |
 | **Date** | November 2026 |
 | **Relates to** | RFC-0001 (Agentic platform) · RFC-0002 (Typed investigation substrate) · RFC-0003 (Investigation graphs breathe) |
 | **Builds on** | Per-run environment capture (`discovery_engine.study.run_registry.capture_environment` / `env_id`, PRs #196/#198) · the run-discoverable audit (#197) · compose-api registry + `vivarium-workbench compose-entry` |
@@ -123,14 +123,22 @@ instead of one. An investigation-level runner must orchestrate across per-study 
 
 ## Phased rollout
 
-- **Phase 0 — shipped.** Per-run environment provenance (commit + packages + `env_id`).
-- **Phase 1 — cheap, high value (recommended first).** Add a *declared* per-study
-  `simulator: {package, ref}` to `study.yaml`; add an audit that the declared pin matches the
-  recorded `env_id`/packages. Studies become self-describing and reproducible **without**
-  splitting repos yet (pins still share one venv while they remain compatible). De-risks the big
-  question — do per-study pins actually diverge in practice? — before paying for per-study envs.
-- **Phase 2.** Formalize simulators as registry-published importable packages and the
-  `composite-id → package@commit` contract (most `viva-*` are already packages; this is a
+- **Phase 0 — shipped.** Per-run environment provenance (commit + packages + `env_id`)
+  (discovery-engine #196/#198).
+- **Phase 1 — shipped.** A *declared* per-study `simulator: {package, ref, registry}` on
+  `study.yaml` (discovery-engine #201) + the canonical schema field (viva-template #102), and a
+  fail-loud `simulator-pin` audit. Verification checks the declared pin against the study's
+  **recorded run environment** when the run captured that package, falling back to the current
+  venv otherwise (discovery-engine #202, via `register_run(extra_packages=…)` →
+  `capture_environment`). Studies are now self-describing and reproducible **without** splitting
+  repos yet. Open: no run-path caller yet passes the declared simulator into
+  `extra_packages` (so arbitrary workspace simulators aren't in the recorded env until wired —
+  see Phase 2).
+- **Phase 2 — design-gated.** (a) Wire the run-recording path (workbench `composite_runs` /
+  the engine execute path) to pass a study's declared `simulator.package` into the run's
+  `extra_packages`, so the recorded env captures arbitrary workspace simulators, not just the
+  framework set. (b) Formalize simulators as registry-published importable packages and the
+  `composite-id → package@commit` contract (most `viva-*` are already packages; a
   registry-contract job, not a rewrite).
 - **Phase 3 — full Model B.** Study-only repos that import simulators by pin; the run path
   materializes a per-study environment from the pin (built/cached by `env_id`). Delivers all
