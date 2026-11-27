@@ -65,6 +65,49 @@ def _check_pypi(name: str) -> tuple[str, str]:
         return "WARN", f"PyPI check failed: {e}"
 
 
+
+# Raw engine libraries that already have a viva-* process-bigraph wrapper. Importing one
+# of these directly, without depending on its wrapper, re-implements a simulator the
+# ecosystem already provides once. The wrapper repo itself is exempt (it owns the binding).
+ENGINE_WRAPPERS = {
+    "tellurium": "viva-tellurium", "roadrunner": "viva-tellurium", "libroadrunner": "viva-tellurium",
+    "cobra": "viva-cobra", "basico": "viva-copasi", "amici": "viva-amici", "pysces": "viva-pysces",
+    "simbio": "viva-simbio", "fipy": "viva-fipy", "dolfinx": "viva-fenics", "phreeqpython": "viva-phreeqc",
+    "smoldyn": "viva-smoldyn", "pymunk": "viva-munk", "tyssue": "vivarium-tyssue", "cmaboss": "viva-maboss",
+    "openmm": "viva-openmm", "readdy": "viva-readdy", "pymem3dg": "viva-mem3dg",
+}
+_IMPORT_RE = re.compile(r"^\s*(?:import|from)\s+([a-zA-Z_][\w]*)", re.MULTILINE)
+
+
+def _reuse_findings(package_dirs, dep_names: set[str], project_name: str | None):
+    """Raw engine imports in the package source that bypass an existing viva-* wrapper.
+
+    Returns a list of (raw_module, wrapper, example_file). A repo that *is* the wrapper,
+    or that already depends on the wrapper, is not flagged.
+    """
+    own = (project_name or "").replace("_", "-")
+    found: dict[str, str] = {}
+    for pkg_dir in package_dirs:
+        for py in pkg_dir.rglob("*.py"):
+            try:
+                text = py.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for m in _IMPORT_RE.finditer(text):
+                mod = m.group(1)
+                if mod in ENGINE_WRAPPERS and mod not in found:
+                    found[mod] = py.name
+    out = []
+    for raw, example in found.items():
+        wrapper = ENGINE_WRAPPERS[raw]
+        if own == wrapper:
+            continue  # the wrapper legitimately owns this import
+        if wrapper in dep_names or wrapper.replace("-", "_") in dep_names:
+            continue  # already reuses the wrapper
+        out.append((raw, wrapper, example))
+    return out
+
+
 def audit_repo(repo_path: Path, run_install: bool = True) -> AuditReport:
     report = AuditReport(target=str(repo_path))
 
@@ -161,6 +204,23 @@ def audit_repo(repo_path: Path, run_install: bool = True) -> AuditReport:
             "no class inheriting from process_bigraph.Process or Step found "
             "(may be a composite-only package or use a custom base class)",
         )
+
+    # 7. engine reuse — don't re-bind a raw engine that already has a viva-* wrapper
+    dep_names = set()
+    for spec in list(deps) + [d for ex in (project.get("optional-dependencies") or {}).values() for d in ex]:
+        dep_names.add(re.split(r"[<>=!~\[ ]", spec)[0].strip())
+    dep_names |= set(((pyproject.get("tool") or {}).get("uv") or {}).get("sources", {}).keys())
+    reuse = _reuse_findings(package_dirs, dep_names, project.get("name"))
+    if reuse:
+        for raw, wrapper, example in reuse:
+            report.add(
+                f"engine reuse: {raw}", "WARN",
+                f"binds {raw} directly ({example}) but does not depend on {wrapper} "
+                f"— re-implements a simulator the ecosystem already wraps once",
+                fix=f'Depend on "{wrapper}" and import the engine through it, instead of binding {raw} directly',
+            )
+    else:
+        report.add("engine reuse", "PASS", "no raw engine bound that already has a viva-* wrapper")
 
     # 6. install smoke test
     if run_install:
