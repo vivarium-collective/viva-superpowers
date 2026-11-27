@@ -108,6 +108,56 @@ def _reuse_findings(package_dirs, dep_names: set[str], project_name: str | None)
     return out
 
 
+
+# The three repo archetypes (reinforced by the checks in audit_repo):
+#   simulator — depended on for COMPUTE (reused engines/composites); pure, no studies.
+#   workspace — depended on for KNOWLEDGE (studies/investigations); pins simulators, no engine code.
+#   showcase  — depended on for NEITHER; a deliberate sim+demo combination (must still pin its sims).
+VIVA_KINDS = ("simulator", "workspace", "showcase")
+
+
+def _declared_kind(pyproject) -> str | None:
+    """The repo's declared archetype from [tool.viva] kind, or None if undeclared."""
+    return ((pyproject.get("tool") or {}).get("viva") or {}).get("kind")
+
+
+def _has_studies(repo_path: Path) -> bool:
+    """Whether the repo carries investigation content (study.yaml / investigation.yaml / workspace/)."""
+    if (repo_path / "workspace").is_dir() or (repo_path / "investigations").is_dir():
+        return True
+    for pattern in ("**/study.yaml", "**/investigation.yaml"):
+        for found in repo_path.glob(pattern):
+            if ".git" not in found.parts:
+                return True
+    return False
+
+
+def _reused_by_count(project_name: str | None, repo_name: str) -> int | None:
+    """How many ecosystem repos declare a dependency on this one, from the published catalog
+    ledger's `reuses` edges. None if the ledger is unreachable OR predates the edge extractor
+    (no repo carries a `reuses` field yet), so the check degrades gracefully."""
+    try:
+        import urllib.request
+        import json as _json
+        url = "https://vivarium-collective.github.io/viva-catalog/ecosystem-index.json"
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            repos = _json.loads(resp.read().decode()).get("repos", [])
+    except Exception:
+        return None
+    if not any("reuses" in r for r in repos):
+        return None  # ledger not rebuilt with edges yet
+    names = {n for n in (project_name, repo_name) if n}
+    names |= {n.lower() for n in names}
+    count = 0
+    for r in repos:
+        if r.get("name", "") in names:
+            continue
+        reuses = set(r.get("reuses") or [])
+        if reuses & names or {x.lower() for x in reuses} & names:
+            count += 1
+    return count
+
+
 def audit_repo(repo_path: Path, run_install: bool = True) -> AuditReport:
     report = AuditReport(target=str(repo_path))
 
@@ -221,6 +271,49 @@ def audit_repo(repo_path: Path, run_install: bool = True) -> AuditReport:
             )
     else:
         report.add("engine reuse", "PASS", "no raw engine bound that already has a viva-* wrapper")
+
+    # 8. repo archetype — declared kind, purity (kind vs content), and reuse pressure
+    declared = _declared_kind(pyproject)
+    has_studies = _has_studies(repo_path)
+    if declared is None:
+        report.add(
+            "declared kind", "WARN",
+            "no [tool.viva] kind declared — the archetype is only inferred (from counts) and can drift silently",
+            fix='Declare the archetype: add [tool.viva] with kind = "simulator" | "workspace" | "showcase"',
+        )
+    elif declared not in VIVA_KINDS:
+        report.add("declared kind", "FAIL", f"[tool.viva] kind={declared!r} is not one of {list(VIVA_KINDS)}")
+    else:
+        report.add("declared kind", "PASS", declared)
+
+    if declared == "simulator" and has_studies:
+        report.add(
+            "archetype purity", "WARN",
+            "declared a simulator but carries studies/investigations — a reused provider should stay pure",
+            fix="Extract the studies to a workspace repo that pins this simulator, or declare kind='showcase' "
+                "if the demo is intentional",
+        )
+    elif declared == "workspace" and reuse:
+        report.add(
+            "archetype purity", "WARN",
+            "declared a workspace but binds a raw engine directly (see engine-reuse above) — a workspace "
+            "should pin a simulator, not vendor one",
+            fix="Depend on the viva-* wrapper(s) and keep engine code out of the workspace",
+        )
+    elif declared == "showcase" and not has_studies:
+        report.add("archetype purity", "WARN",
+                   "declared a showcase but has no studies/investigations to demonstrate anything")
+    elif declared in VIVA_KINDS:
+        report.add("archetype purity", "PASS")
+
+    reused = _reused_by_count(project.get("name"), repo_path.name)
+    if reused is not None and reused >= 2 and declared != "simulator":
+        report.add(
+            "reuse pressure", "WARN",
+            f"reused by {reused} ecosystem repos but kind={declared or 'undeclared'} — reuse pressure means "
+            "this should be a pure simulator (kind='simulator', studies extracted)",
+            fix="Make this a pure simulator: declare kind='simulator' and move any studies to a workspace",
+        )
 
     # 6. install smoke test
     if run_install:
